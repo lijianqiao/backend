@@ -32,7 +32,8 @@ class Settings(BaseSettings):
 
     # 安全
     SECRET_KEY: str = "changethis"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 8  # 8 天
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30  # 30 分钟
+    REFRESH_TOKEN_EXPIRE_DAYS: int = 7  # 7 天
     PASSWORD_COMPLEXITY_ENABLED: bool = True  # 开启后需要大小写+数字+特殊字符且>=8位
 
     # CORS (跨域资源共享)

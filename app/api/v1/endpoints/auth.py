@@ -14,7 +14,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 from app.api import deps
 from app.core.rate_limiter import limiter
 from app.schemas.common import ResponseBase
-from app.schemas.token import Token
+from app.schemas.token import Token, TokenRefresh
 from app.schemas.user import UserResponse
 
 router = APIRouter()
@@ -35,6 +35,17 @@ async def login_access_token(
     return await auth_service.login_access_token(
         form_data=form_data, request=request, background_tasks=background_tasks
     )
+
+
+@router.post("/refresh", response_model=Token)
+async def refresh_token(
+    token_in: TokenRefresh,
+    auth_service: deps.AuthServiceDep,
+) -> Token:
+    """
+    使用 Refresh Token 换取新的 Access Token。
+    """
+    return await auth_service.refresh_token(refresh_token=token_in.refresh_token)
 
 
 @router.post("/test-token", response_model=ResponseBase[UserResponse])
