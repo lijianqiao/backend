@@ -6,6 +6,8 @@
 @Docs: 日志事件订阅者 (Log Event Subscriber).
 """
 
+import uuid
+
 from app.core.db import AsyncSessionLocal
 from app.core.event_bus import Event, OperationLogEvent, event_bus
 from app.core.logger import logger
@@ -30,7 +32,7 @@ async def handle_operation_log_event(event: Event) -> None:
             summary = f"{event.method} {event.path}"
 
             log = OperationLog(
-                user_id=event.user_id,
+                user_id=uuid.UUID(event.user_id),
                 username=event.username,
                 ip=event.ip,
                 module=module,

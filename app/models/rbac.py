@@ -58,7 +58,7 @@ class Menu(AuditableModel):
 
     # Relationships
     # 使用 remote_side 指定自关联的远程侧（即父节点侧）
-    children: Mapped[list["Menu"]] = relationship("Menu", back_populates="parent")
+    children: Mapped[list["Menu"]] = relationship("Menu", back_populates="parent", lazy="selectin")
     parent: Mapped[Optional["Menu"]] = relationship("Menu", back_populates="children", remote_side="Menu.id")
 
     roles: Mapped[list["Role"]] = relationship("Role", secondary="sys_role_menu", back_populates="menus")

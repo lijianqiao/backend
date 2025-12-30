@@ -54,6 +54,7 @@ class MenuResponse(MenuBase):
     id: UUID
     title: str
     name: str
+    is_deleted: bool = False
     children: list["MenuResponse"] | None = None
 
     model_config = ConfigDict(from_attributes=True)

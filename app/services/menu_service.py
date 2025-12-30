@@ -14,7 +14,7 @@ from app.core.decorator import transactional
 from app.core.exceptions import NotFoundException
 from app.crud.crud_menu import CRUDMenu
 from app.models.rbac import Menu
-from app.schemas.menu import MenuCreate, MenuUpdate
+from app.schemas.menu import MenuCreate, MenuResponse, MenuUpdate
 
 
 class MenuService:
@@ -47,7 +47,7 @@ class MenuService:
         return await self.menu_crud.update(self.db, db_obj=menu, obj_in=obj_in)
 
     @transactional()
-    async def delete_menu(self, id: UUID) -> Menu:
+    async def delete_menu(self, id: UUID) -> MenuResponse:
         menu = await self.menu_crud.get(self.db, id=id)
         if not menu:
             raise NotFoundException(message="菜单不存在")
@@ -56,7 +56,22 @@ class MenuService:
         if not deleted_menu:
             raise NotFoundException(message="菜单删除失败")
 
-        return deleted_menu
+        # 手动构建响应，避免访问 deleted_menu.children 触发 implicit IO (MissingGreenlet)
+        # 且删除后的对象 children 应为空
+        return MenuResponse(
+            id=deleted_menu.id,
+            title=deleted_menu.title,
+            name=deleted_menu.name,
+            sort=deleted_menu.sort,
+            parent_id=deleted_menu.parent_id,
+            path=deleted_menu.path,
+            component=deleted_menu.component,
+            icon=deleted_menu.icon,
+            is_hidden=deleted_menu.is_hidden,
+            permission=deleted_menu.permission,
+            is_deleted=deleted_menu.is_deleted,
+            children=[],
+        )
 
     @transactional()
     async def batch_delete_menus(self, ids: list[UUID], hard_delete: bool = False) -> tuple[int, list[UUID]]:

@@ -65,7 +65,7 @@ class RequestLogMiddleware(BaseHTTPMiddleware):
             ):
                 await event_bus.publish(
                     OperationLogEvent(
-                        user_id=request.state.user_id,
+                        user_id=str(request.state.user_id),
                         username=request.state.username,
                         ip=request.client.host if request.client else None,
                         method=request.method,

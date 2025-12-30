@@ -10,7 +10,7 @@ import uuid
 from datetime import datetime
 
 import uuid6
-from sqlalchemy import Boolean, DateTime, MetaData, String
+from sqlalchemy import Boolean, DateTime, MetaData, String, types
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 from sqlalchemy.sql import func as sql_func
 
@@ -46,9 +46,9 @@ class SoftDeleteMixin:
 
 class UUIDMixin:
     id: Mapped[uuid.UUID] = mapped_column(
+        types.Uuid,
         primary_key=True,
         default=uuid6.uuid7,
-        server_default=sql_func.gen_random_uuid(),
         unique=True,
         index=True,
         nullable=False,

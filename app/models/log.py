@@ -9,8 +9,7 @@
 import uuid
 from typing import Any
 
-from sqlalchemy import Boolean, Float, ForeignKey, Integer, String
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy import JSON, Boolean, Float, ForeignKey, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import AuditableModel
@@ -39,9 +38,9 @@ class OperationLog(AuditableModel):
     summary: Mapped[str | None] = mapped_column(String(255), nullable=True)
     method: Mapped[str | None] = mapped_column(String(10), nullable=True)
     path: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    params: Mapped[Any | None] = mapped_column(JSONB, nullable=True)
+    params: Mapped[Any | None] = mapped_column(JSON, nullable=True)
     response_code: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    response_result: Mapped[Any | None] = mapped_column(JSONB, nullable=True)
+    response_result: Mapped[Any | None] = mapped_column(JSON, nullable=True)
     duration: Mapped[float | None] = mapped_column(Float, nullable=True)
     ip: Mapped[str | None] = mapped_column(String(50), nullable=True)
     user_agent: Mapped[str | None] = mapped_column(String(500), nullable=True)

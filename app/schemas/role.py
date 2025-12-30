@@ -49,5 +49,6 @@ class RoleResponse(RoleBase):
     name: str  # 响应中必须存在
     code: str  # 响应中必须存在
     is_active: bool
+    is_deleted: bool
 
     model_config = ConfigDict(from_attributes=True)

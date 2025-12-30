@@ -6,6 +6,7 @@
 @Docs: FastAPI 依赖注入模块 (Database Session & Auth Dependency).
 """
 
+import uuid
 from collections.abc import AsyncGenerator
 from typing import Annotated
 
@@ -79,7 +80,13 @@ async def get_current_user(request: Request, session: SessionDep, token: TokenDe
         raise UnauthorizedException(message="无法验证凭据 (Token 缺失 sub)")
 
     # 直接查询数据库获取用户
-    result = await session.execute(select(User).where(User.id == token_data.sub))
+    try:
+        user_uuid = uuid.UUID(token_data.sub)
+    except ValueError as e:
+        logger.error(f"Token 解析失败: {str(e)}", error=str(e))
+        raise UnauthorizedException(message="Token 无效 (用户ID格式错误)") from e
+
+    result = await session.execute(select(User).where(User.id == user_uuid))
     user = result.scalars().first()
 
     if not user:
