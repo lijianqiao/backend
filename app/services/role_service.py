@@ -10,6 +10,7 @@ from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.decorator import transactional
 from app.core.exceptions import BadRequestException, NotFoundException
 from app.crud.crud_role import CRUDRole
 from app.models.rbac import Role
@@ -28,6 +29,7 @@ class RoleService:
     async def get_roles(self, skip: int = 0, limit: int = 100) -> list[Role]:
         return await self.role_crud.get_multi(self.db, skip=skip, limit=limit)
 
+    @transactional()
     async def create_role(self, obj_in: RoleCreate) -> Role:
         existing_role = await self.role_crud.get_by_code(self.db, code=obj_in.code)
         if existing_role:
@@ -35,6 +37,7 @@ class RoleService:
 
         return await self.role_crud.create(self.db, obj_in=obj_in)
 
+    @transactional()
     async def update_role(self, id: UUID, obj_in: RoleUpdate) -> Role:
         role = await self.role_crud.get(self.db, id=id)
         if not role:
@@ -47,6 +50,7 @@ class RoleService:
 
         return await self.role_crud.update(self.db, db_obj=role, obj_in=obj_in)
 
+    @transactional()
     async def delete_role(self, id: UUID) -> Role:
         role = await self.role_crud.get(self.db, id=id)
         if not role:

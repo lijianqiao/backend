@@ -10,6 +10,7 @@ from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.decorator import transactional
 from app.core.exceptions import NotFoundException
 from app.crud.crud_menu import CRUDMenu
 from app.models.rbac import Menu
@@ -28,15 +29,18 @@ class MenuService:
     async def get_menus(self) -> list[Menu]:
         return await self.menu_crud.get_multi(self.db, limit=1000)
 
+    @transactional()
     async def create_menu(self, obj_in: MenuCreate) -> Menu:
         return await self.menu_crud.create(self.db, obj_in=obj_in)
 
+    @transactional()
     async def update_menu(self, id: UUID, obj_in: MenuUpdate) -> Menu:
         menu = await self.menu_crud.get(self.db, id=id)
         if not menu:
             raise NotFoundException(message="菜单不存在")
         return await self.menu_crud.update(self.db, db_obj=menu, obj_in=obj_in)
 
+    @transactional()
     async def delete_menu(self, id: UUID) -> Menu:
         menu = await self.menu_crud.get(self.db, id=id)
         if not menu:

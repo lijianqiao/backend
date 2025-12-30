@@ -12,6 +12,7 @@ from fastapi import Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from user_agents import parse
 
+from app.core.decorator import transactional
 from app.crud.crud_log import CRUDLoginLog, CRUDOperationLog
 from app.models.log import LoginLog, OperationLog
 from app.schemas.log import LoginLogCreate
@@ -39,6 +40,7 @@ class LogService:
         """
         return await self.operation_log_crud.get_multi(self.db, skip=skip, limit=limit)
 
+    @transactional()
     async def create_login_log(
         self,
         *,

@@ -8,6 +8,7 @@
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.decorator import transactional
 from app.core.exceptions import BadRequestException
 from app.crud.crud_user import CRUDUser
 from app.models.user import User
@@ -24,6 +25,7 @@ class UserService:
         self.db = db
         self.user_crud = user_crud
 
+    @transactional()
     async def create_user(self, obj_in: UserCreate) -> User:
         user = await self.user_crud.get_by_username(self.db, username=obj_in.username)
         if user:
