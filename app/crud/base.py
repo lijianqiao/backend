@@ -89,6 +89,14 @@ class CRUDBase[ModelType: Base, CreateSchemaType: BaseModel, UpdateSchemaType: B
         Returns:
             (items, total): 数据列表和总数
         """
+        # 参数验证
+        if page < 1:
+            page = 1
+        if page_size < 1:
+            page_size = 20
+        if page_size > 100:
+            page_size = 100  # 限制最大每页数量
+
         total = await self.count(db)
         skip = (page - 1) * page_size
         items = await self.get_multi(db, skip=skip, limit=page_size)
@@ -152,6 +160,10 @@ class CRUDBase[ModelType: Base, CreateSchemaType: BaseModel, UpdateSchemaType: B
         """
         success_count = 0
         failed_ids: list[UUID] = []
+
+        # 空列表早返回
+        if not ids:
+            return success_count, failed_ids
 
         for id_ in ids:
             # 获取记录 (包括已软删除的，用于硬删除场景)

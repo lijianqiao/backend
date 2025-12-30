@@ -19,15 +19,24 @@ from app.schemas.user import UserCreate, UserUpdate
 
 class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
     async def get_by_username(self, db: AsyncSession, *, username: str) -> User | None:
-        result = await db.execute(select(User).where(User.username == username))
+        """
+        根据用户名查询用户 (排除已软删除)。
+        """
+        result = await db.execute(select(User).where(User.username == username, User.is_deleted.is_(False)))
         return result.scalars().first()
 
     async def get_by_email(self, db: AsyncSession, *, email: str) -> User | None:
-        result = await db.execute(select(User).where(User.email == email))
+        """
+        根据邮箱查询用户 (排除已软删除)。
+        """
+        result = await db.execute(select(User).where(User.email == email, User.is_deleted.is_(False)))
         return result.scalars().first()
 
     async def get_by_phone(self, db: AsyncSession, *, phone: str) -> User | None:
-        result = await db.execute(select(User).where(User.phone == phone))
+        """
+        根据手机号查询用户 (排除已软删除)。
+        """
+        result = await db.execute(select(User).where(User.phone == phone, User.is_deleted.is_(False)))
         return result.scalars().first()
 
     async def create(self, db: AsyncSession, *, obj_in: UserCreate) -> User:

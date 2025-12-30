@@ -102,8 +102,8 @@ class UserService:
         if not security.verify_password(old_password, user.password):
             raise BadRequestException(message="旧密码错误")
 
-        hashed_password = security.get_password_hash(new_password)
-        return await self.user_crud.update(self.db, db_obj=user, obj_in={"password": hashed_password})
+        # 传递明文密码，CRUD 层会处理哈希
+        return await self.user_crud.update(self.db, db_obj=user, obj_in={"password": new_password})
 
     @transactional()
     async def reset_password(self, user_id: UUID, new_password: str) -> User:
@@ -114,8 +114,8 @@ class UserService:
         if not user:
             raise NotFoundException(message="用户不存在")
 
-        hashed_password = security.get_password_hash(new_password)
-        return await self.user_crud.update(self.db, db_obj=user, obj_in={"password": hashed_password})
+        # 传递明文密码，CRUD 层会处理哈希
+        return await self.user_crud.update(self.db, db_obj=user, obj_in={"password": new_password})
 
     @transactional()
     async def batch_delete_users(self, ids: list[UUID], hard_delete: bool = False) -> tuple[int, list[UUID]]:

@@ -18,7 +18,10 @@ from app.schemas.role import RoleCreate, RoleUpdate
 
 class CRUDRole(CRUDBase[Role, RoleCreate, RoleUpdate]):
     async def get_by_code(self, db: AsyncSession, *, code: str) -> Role | None:
-        result = await db.execute(select(Role).where(Role.code == code))
+        """
+        根据角色编码查询角色 (排除已软删除)。
+        """
+        result = await db.execute(select(Role).where(Role.code == code, Role.is_deleted.is_(False)))
         return result.scalars().first()
 
     async def create(self, db: AsyncSession, *, obj_in: RoleCreate) -> Role:
