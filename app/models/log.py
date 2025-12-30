@@ -9,7 +9,7 @@
 import uuid
 from typing import Any
 
-from sqlalchemy import Boolean, ForeignKey, Integer, String
+from sqlalchemy import Boolean, Float, ForeignKey, Integer, String
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -42,6 +42,6 @@ class OperationLog(AuditableModel):
     params: Mapped[Any | None] = mapped_column(JSONB, nullable=True)
     response_code: Mapped[int | None] = mapped_column(Integer, nullable=True)
     response_result: Mapped[Any | None] = mapped_column(JSONB, nullable=True)
-    duration: Mapped[float | None] = mapped_column(Integer, nullable=True)  # ms
+    duration: Mapped[float | None] = mapped_column(Float, nullable=True)
     ip: Mapped[str | None] = mapped_column(String(50), nullable=True)
     user_agent: Mapped[str | None] = mapped_column(String(500), nullable=True)

@@ -12,7 +12,9 @@ from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from sqlalchemy import text
 
+from app.api.deps import SessionDep
 from app.api.v1.api import api_router
 from app.core.config import settings
 from app.core.exceptions import CustomException
@@ -78,8 +80,13 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 
 
 @app.get("/health")
-def health_check():
+async def health_check(db: SessionDep):
     """
-    健康检查接口。
+    健康检查接口 (Database Check).
     """
-    return {"status": "ok"}
+    try:
+        await db.execute(text("SELECT 1"))
+        return {"status": "ok", "database": "connected"}
+    except Exception as e:
+        logger.error(f"Health check failed: {e}")
+        return JSONResponse(status_code=503, content={"status": "unhealthy", "detail": str(e)})

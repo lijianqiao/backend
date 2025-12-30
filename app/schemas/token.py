@@ -1,3 +1,11 @@
+"""
+@Author: li
+@Email: lijianqiao2906@live.com
+@FileName: token.py
+@DateTime: 2025-12-30 15:00:00
+@Docs: Token相关的 Schema 定义.
+"""
+
 from pydantic import BaseModel
 
 

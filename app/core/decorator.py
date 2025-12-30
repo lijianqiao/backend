@@ -87,8 +87,7 @@ def transactional() -> Callable:
 
             # 如果没有找到 db session，则无法管理事务，直接执行原函数
             if db_session is None:
-                logger.warning(f"@transactional used on {func.__name__} but no 'db' session found.")
-                return await func(*args, **kwargs)
+                raise RuntimeError(f"@transactional used on {func.__name__} but no 'db' session found.")
 
             try:
                 result = await func(*args, **kwargs)
