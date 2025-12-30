@@ -3,29 +3,39 @@
 @Email: lijianqiao2906@live.com
 @FileName: user_service.py
 @DateTime: 2025-12-30 12:30:00
-@Docs: User business logic.
+@Docs: 用户服务业务逻辑 (User Service Logic).
 """
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import BadRequestException
-from app.crud.crud_user import user as user_crud
+from app.crud.crud_user import CRUDUser
 from app.models.user import User
 from app.schemas.user import UserCreate
 
 
-async def create_user(db: AsyncSession, obj_in: UserCreate) -> User:
-    user = await user_crud.get_by_username(db, username=obj_in.username)
-    if user:
-        raise BadRequestException(message="The user with this username already exists in the system.")
+class UserService:
+    """
+    用户服务类。
+    通过构造函数注入 CRUDUser 实例，实现解耦。
+    """
 
-    user = await user_crud.get_by_phone(db, phone=obj_in.phone)
-    if user:
-        raise BadRequestException(message="The user with this phone already exists in the system.")
+    def __init__(self, db: AsyncSession, user_crud: CRUDUser):
+        self.db = db
+        self.user_crud = user_crud
 
-    if obj_in.email:
-        user = await user_crud.get_by_email(db, email=obj_in.email)
+    async def create_user(self, obj_in: UserCreate) -> User:
+        user = await self.user_crud.get_by_username(self.db, username=obj_in.username)
         if user:
-            raise BadRequestException(message="The user with this email already exists in the system.")
+            raise BadRequestException(message="该用户名的用户已存在")
 
-    return await user_crud.create(db, obj_in=obj_in)
+        user = await self.user_crud.get_by_phone(self.db, phone=obj_in.phone)
+        if user:
+            raise BadRequestException(message="该手机号的用户已存在")
+
+        if obj_in.email:
+            user = await self.user_crud.get_by_email(self.db, email=obj_in.email)
+            if user:
+                raise BadRequestException(message="该邮箱的用户已存在")
+
+        return await self.user_crud.create(self.db, obj_in=obj_in)

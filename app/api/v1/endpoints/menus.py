@@ -14,61 +14,60 @@ from fastapi import APIRouter
 from app.api import deps
 from app.schemas.common import ResponseBase
 from app.schemas.menu import MenuCreate, MenuResponse, MenuUpdate
-from app.services import menu_service
 
 router = APIRouter()
 
 
 @router.get("/", response_model=ResponseBase[list[MenuResponse]])
 async def read_menus(
-    db: deps.SessionDep,
     current_user: deps.CurrentUser,
+    menu_service: deps.MenuServiceDep,
 ) -> Any:
     """
     获取菜单列表。
     """
-    menus = await menu_service.get_menus(db)
+    menus = await menu_service.get_menus()
     return ResponseBase(data=menus)
 
 
 @router.post("/", response_model=ResponseBase[MenuResponse])
 async def create_menu(
     *,
-    db: deps.SessionDep,
     menu_in: MenuCreate,
     current_user: deps.CurrentUser,
+    menu_service: deps.MenuServiceDep,
 ) -> Any:
     """
     创建新菜单。
     """
-    menu = await menu_service.create_menu(db, obj_in=menu_in)
+    menu = await menu_service.create_menu(obj_in=menu_in)
     return ResponseBase(data=menu)
 
 
 @router.put("/{id}", response_model=ResponseBase[MenuResponse])
 async def update_menu(
     *,
-    db: deps.SessionDep,
     id: UUID,
     menu_in: MenuUpdate,
     current_user: deps.CurrentUser,
+    menu_service: deps.MenuServiceDep,
 ) -> Any:
     """
     更新菜单。
     """
-    menu = await menu_service.update_menu(db, id=id, obj_in=menu_in)
+    menu = await menu_service.update_menu(id=id, obj_in=menu_in)
     return ResponseBase(data=menu)
 
 
 @router.delete("/{id}", response_model=ResponseBase[MenuResponse])
 async def delete_menu(
     *,
-    db: deps.SessionDep,
     id: UUID,
     current_user: deps.CurrentUser,
+    menu_service: deps.MenuServiceDep,
 ) -> Any:
     """
     删除菜单。
     """
-    menu = await menu_service.delete_menu(db, id=id)
+    menu = await menu_service.delete_menu(id=id)
     return ResponseBase(data=menu)

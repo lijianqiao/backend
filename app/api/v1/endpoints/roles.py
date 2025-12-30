@@ -14,14 +14,13 @@ from fastapi import APIRouter
 from app.api import deps
 from app.schemas.common import ResponseBase
 from app.schemas.role import RoleCreate, RoleResponse, RoleUpdate
-from app.services import role_service
 
 router = APIRouter()
 
 
 @router.get("/", response_model=ResponseBase[list[RoleResponse]])
 async def read_roles(
-    db: deps.SessionDep,
+    role_service: deps.RoleServiceDep,
     current_user: deps.CurrentUser,
     skip: int = 0,
     limit: int = 100,
@@ -29,48 +28,48 @@ async def read_roles(
     """
     获取角色列表。
     """
-    roles = await role_service.get_roles(db, skip=skip, limit=limit)
+    roles = await role_service.get_roles(skip=skip, limit=limit)
     return ResponseBase(data=roles)
 
 
 @router.post("/", response_model=ResponseBase[RoleResponse])
 async def create_role(
     *,
-    db: deps.SessionDep,
     role_in: RoleCreate,
     current_user: deps.CurrentUser,
+    role_service: deps.RoleServiceDep,
 ) -> Any:
     """
     创建新角色。
     """
-    role = await role_service.create_role(db, obj_in=role_in)
+    role = await role_service.create_role(obj_in=role_in)
     return ResponseBase(data=role)
 
 
 @router.put("/{id}", response_model=ResponseBase[RoleResponse])
 async def update_role(
     *,
-    db: deps.SessionDep,
     id: UUID,
     role_in: RoleUpdate,
     current_user: deps.CurrentUser,
+    role_service: deps.RoleServiceDep,
 ) -> Any:
     """
     更新角色。
     """
-    role = await role_service.update_role(db, id=id, obj_in=role_in)
+    role = await role_service.update_role(id=id, obj_in=role_in)
     return ResponseBase(data=role)
 
 
 @router.delete("/{id}", response_model=ResponseBase[RoleResponse])
 async def delete_role(
     *,
-    db: deps.SessionDep,
     id: UUID,
     current_user: deps.CurrentUser,
+    role_service: deps.RoleServiceDep,
 ) -> Any:
     """
     删除角色。
     """
-    role = await role_service.delete_role(db, id=id)
+    role = await role_service.delete_role(id=id)
     return ResponseBase(data=role)

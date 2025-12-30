@@ -2,42 +2,36 @@
 @Author: li
 @Email: lijianqiao2906@live.com
 @FileName: auth.py
-@DateTime: 2025-12-30 12:35:00
-@Docs: 认证模块 API 接口 (API Endpoints for Authentication).
+@DateTime: 2025-12-30 11:45:00
+@Docs: 认证 API 接口 (Authentication API).
 """
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, Request
 from fastapi.security import OAuth2PasswordRequestForm
 
 from app.api import deps
 from app.schemas.common import ResponseBase
 from app.schemas.token import Token
 from app.schemas.user import UserResponse
-from app.services import auth_service
 
 router = APIRouter()
 
 
 @router.post("/login", response_model=ResponseBase[Token])
-async def login(
-    db: deps.SessionDep, form_data: Annotated[OAuth2PasswordRequestForm, Depends()], request: Request
+async def login_access_token(
+    request: Request,
+    background_tasks: BackgroundTasks,
+    form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
+    auth_service: deps.AuthServiceDep,
 ) -> ResponseBase[Token]:
     """
-    OAuth2 兼容的 Token 登录接口。
-
-    使用用户名/手机号 + 密码获取访问令牌 (Access Token)。
-
-    Args:
-        db (AsyncSession): 数据库会话依赖。
-        form_data (OAuth2PasswordRequestForm): 表单数据，包含 username 和 password。
-        request (Request): HTTP 请求对象，用于获取 IP 和 User-Agent 进行日志记录。
-
-    Returns:
-        ResponseBase[Token]: 包含 Access Token 的响应对象。
+    OAuth2 兼容的 Token 登录接口，获取 Access Token。
     """
-    token = await auth_service.login_access_token(db, form_data, request)
+    token = await auth_service.login_access_token(
+        form_data=form_data, request=request, background_tasks=background_tasks
+    )
     return ResponseBase(data=token)
 
 

@@ -20,8 +20,25 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import settings
 from app.core.db import AsyncSessionLocal
 from app.core.exceptions import ForbiddenException, NotFoundException, UnauthorizedException
+from app.crud.crud_menu import CRUDMenu
+from app.crud.crud_menu import menu as menu_crud_global
+from app.crud.crud_role import CRUDRole
+from app.crud.crud_role import role as role_crud_global
+from app.crud.crud_user import CRUDUser
+
+# --- CRUD Imports ---
+from app.crud.crud_user import user as user_crud_global
 from app.models.user import User
 from app.schemas.token import TokenPayload
+from app.services.auth_service import AuthService
+from app.services.log_service import LogService
+from app.services.menu_service import MenuService
+from app.services.role_service import RoleService
+
+# --- Services Import ---
+from app.services.user_service import UserService
+
+# -----------------------
 
 reusable_oauth2 = OAuth2PasswordBearer(tokenUrl=f"{settings.API_V1_STR}/auth/login")
 
@@ -47,18 +64,6 @@ TokenDep = Annotated[str, Depends(reusable_oauth2)]
 async def get_current_user(session: SessionDep, token: TokenDep) -> User:
     """
     解析 Token 并获取当前登录用户。
-
-    Args:
-        session (SessionDep): 数据库会话。
-        token (TokenDep): JWT 令牌。
-
-    Raises:
-        UnauthorizedException: 认证失败。
-        NotFoundException: 用户不存在。
-        ForbiddenException: 用户被禁用。
-
-    Returns:
-        User: 当前用户对象。
     """
     try:
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=["HS256"])
@@ -69,7 +74,7 @@ async def get_current_user(session: SessionDep, token: TokenDep) -> User:
     if token_data.sub is None:
         raise UnauthorizedException(message="无法验证凭据 (Token 缺失 sub)")
 
-    # 直接查询数据库获取用户 (避免循环引用 Service/CRUD)
+    # 直接查询数据库获取用户
     result = await session.execute(select(User).where(User.id == token_data.sub))
     user = result.scalars().first()
 
@@ -91,3 +96,56 @@ async def get_current_active_superuser(current_user: CurrentUser) -> User:
     if not current_user.is_superuser:
         raise ForbiddenException(message="权限不足: 需要超级管理员权限")
     return current_user
+
+
+# --- Repository Injectors ---
+# 如果 Repository 也是类且有依赖，也应在此定义 Injector。
+# 目前 Repository 是作为 Singletons 初始化的 (在 crud 模块底部)。
+# 为了"Dependency Parameterization" 和 Mocking，我们可以通过依赖返回这些实例。
+
+
+def get_user_crud() -> CRUDUser:
+    return user_crud_global
+
+
+def get_role_crud() -> CRUDRole:
+    return role_crud_global
+
+
+def get_menu_crud() -> CRUDMenu:
+    return menu_crud_global
+
+
+# --- Service Injectors ---
+# 使用 Depends 注入 Service 和 Repositories
+
+
+def get_user_service(db: SessionDep, user_crud: Annotated[CRUDUser, Depends(get_user_crud)]) -> UserService:
+    return UserService(db, user_crud)
+
+
+def get_log_service(db: SessionDep) -> LogService:
+    return LogService(db)
+
+
+def get_role_service(db: SessionDep, role_crud: Annotated[CRUDRole, Depends(get_role_crud)]) -> RoleService:
+    return RoleService(db, role_crud)
+
+
+def get_menu_service(db: SessionDep, menu_crud: Annotated[CRUDMenu, Depends(get_menu_crud)]) -> MenuService:
+    return MenuService(db, menu_crud)
+
+
+def get_auth_service(
+    db: SessionDep,
+    log_service: Annotated[LogService, Depends(get_log_service)],
+    user_crud: Annotated[CRUDUser, Depends(get_user_crud)],
+) -> AuthService:
+    return AuthService(db, log_service, user_crud)
+
+
+UserServiceDep = Annotated[UserService, Depends(get_user_service)]
+LogServiceDep = Annotated[LogService, Depends(get_log_service)]
+RoleServiceDep = Annotated[RoleService, Depends(get_role_service)]
+MenuServiceDep = Annotated[MenuService, Depends(get_menu_service)]
+AuthServiceDep = Annotated[AuthService, Depends(get_auth_service)]

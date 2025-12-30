@@ -11,44 +11,49 @@ from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import BadRequestException, NotFoundException
-from app.crud.crud_role import role as role_crud
+from app.crud.crud_role import CRUDRole
 from app.models.rbac import Role
 from app.schemas.role import RoleCreate, RoleUpdate
 
 
-async def get_roles(db: AsyncSession, skip: int = 0, limit: int = 100) -> list[Role]:
-    return await role_crud.get_multi(db, skip=skip, limit=limit)
+class RoleService:
+    """
+    角色服务类。
+    """
 
+    def __init__(self, db: AsyncSession, role_crud: CRUDRole):
+        self.db = db
+        self.role_crud = role_crud
 
-async def create_role(db: AsyncSession, obj_in: RoleCreate) -> Role:
-    role = await role_crud.get_by_code(db, code=obj_in.code)
-    if role:
-        raise BadRequestException(message="角色编码已存在")
+    async def get_roles(self, skip: int = 0, limit: int = 100) -> list[Role]:
+        return await self.role_crud.get_multi(self.db, skip=skip, limit=limit)
 
-    return await role_crud.create(db, obj_in=obj_in)
+    async def create_role(self, obj_in: RoleCreate) -> Role:
+        existing_role = await self.role_crud.get_by_code(self.db, code=obj_in.code)
+        if existing_role:
+            raise BadRequestException(message="角色编码已存在")
 
+        return await self.role_crud.create(self.db, obj_in=obj_in)
 
-async def update_role(db: AsyncSession, id: UUID, obj_in: RoleUpdate) -> Role:
-    role = await role_crud.get(db, id=id)
-    if not role:
-        raise NotFoundException(message="角色不存在")
+    async def update_role(self, id: UUID, obj_in: RoleUpdate) -> Role:
+        role = await self.role_crud.get(self.db, id=id)
+        if not role:
+            raise NotFoundException(message="角色不存在")
 
-    if obj_in.code:
-        # 检查编码是否被其他角色占用
-        existing_role = await role_crud.get_by_code(db, code=obj_in.code)
-        if existing_role and existing_role.id != id:
-            raise BadRequestException(message="角色编码被占用")
+        if obj_in.code:
+            existing_role = await self.role_crud.get_by_code(self.db, code=obj_in.code)
+            if existing_role and existing_role.id != id:
+                raise BadRequestException(message="角色编码被占用")
 
-    return await role_crud.update(db, db_obj=role, obj_in=obj_in)
+        return await self.role_crud.update(self.db, db_obj=role, obj_in=obj_in)
 
+    async def delete_role(self, id: UUID) -> Role:
+        role = await self.role_crud.get(self.db, id=id)
+        if not role:
+            raise NotFoundException(message="角色不存在")
 
-async def delete_role(db: AsyncSession, id: UUID) -> Role:
-    role = await role_crud.get(db, id=id)
-    if not role:
-        raise NotFoundException(message="角色不存在")
+        deleted_role = await self.role_crud.remove(self.db, id=id)
+        if not deleted_role:
+            raise NotFoundException(message="角色删除失败")
 
-    deleted_role = await role_crud.remove(db, id=id)
-    if not deleted_role:
-        raise NotFoundException(message="角色删除失败")
-
-    return deleted_role
+        return deleted_role

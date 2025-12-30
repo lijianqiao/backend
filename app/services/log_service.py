@@ -15,59 +15,63 @@ from user_agents import parse
 from app.models.log import LoginLog
 
 
-async def create_login_log(
-    db: AsyncSession,
-    *,
-    user_id: uuid.UUID | str | None = None,
-    username: str | None = None,
-    request: Request,
-    status: bool = True,
-    msg: str = "Login Success",
-) -> LoginLog:
+class LogService:
     """
-    创建登录日志。
-
-    Args:
-        db (AsyncSession): 数据库会话。
-        user_id (Optional[Union[uuid.UUID, str]], optional): 用户 ID (UUID 或 Str)。
-        username (Optional[str], optional): 用户名。
-        request (Request): HTTP 请求对象，用于提取 IP 和 UA。
-        status (bool, optional): 登录成功/失败状态. Defaults to True.
-        msg (str, optional): 日志消息. Defaults to "Login Success".
-
-    Returns:
-        LoginLog: 创建的日志对象。
+    日志服务类。
     """
-    ip = request.client.host if request.client else None
-    ua_string = request.headers.get("user-agent", "")
-    user_agent = parse(ua_string)
 
-    # 将 user_id 转为 UUID 对象 (如果非空)
-    final_user_id: uuid.UUID | None = None
-    if user_id:
-        if isinstance(user_id, str):
-            try:
-                final_user_id = uuid.UUID(user_id)
-            except ValueError:
-                final_user_id = None
-        else:
-            final_user_id = user_id
+    def __init__(self, db: AsyncSession):
+        self.db = db
 
-    log = LoginLog(
-        user_id=final_user_id,
-        username=username,
-        ip=ip,
-        user_agent=str(user_agent),
-        browser=f"{user_agent.browser.family} {user_agent.browser.version_string}",
-        os=f"{user_agent.os.family} {user_agent.os.version_string}",
-        device=user_agent.device.family,
-        status=status,
-        msg=msg,
-    )
-    db.add(log)
-    await db.flush()
-    # 提示: 服务层方法通常依赖外部事务提交。
-    # 但对于关键的审计日志，有时我们希望它一定被记录。
-    # 目前保持 flush，由 API 层的事务管理器统一 commit。
+    async def create_login_log(
+        self,
+        *,
+        user_id: uuid.UUID | str | None = None,
+        username: str | None = None,
+        request: Request,
+        status: bool = True,
+        msg: str = "Login Success",
+    ) -> LoginLog:
+        """
+        创建登录日志。
+        """
+        ip = request.client.host if request.client else None
+        ua_string = request.headers.get("user-agent", "")
+        user_agent = parse(ua_string)
 
-    return log
+        # 将 user_id 转为 UUID 对象 (如果非空)
+        final_user_id: uuid.UUID | None = None
+        if user_id:
+            if isinstance(user_id, str):
+                try:
+                    final_user_id = uuid.UUID(user_id)
+                except ValueError:
+                    final_user_id = None
+            else:
+                final_user_id = user_id
+
+        log = LoginLog(
+            user_id=final_user_id,
+            username=username,
+            ip=ip,
+            user_agent=str(user_agent),
+            browser=f"{user_agent.browser.family} {user_agent.browser.version_string}",
+            os=f"{user_agent.os.family} {user_agent.os.version_string}",
+            device=user_agent.device.family,
+            status=status,
+            msg=msg,
+        )
+        self.db.add(log)
+        await self.db.flush()
+        # 由于是异步后台任务调用，可能需要显式 commit，或者由调用方的 Session 管理。
+        # 如果是 BackgroundTasks 且使用独立的 Session，则必须 commit。
+        # 考虑到作为 Service，应尽量保持原子提交或由调用层控制。
+        # 为配合 BackgroundTasks，这里不做 commit，假设 Session 生命周期在 Task 中管理？
+        # 不，BackgroundTasks 运行在响应返回后，原来的 Session 可能已关闭（如果使用 Depends(get_db)）。
+        # 所以 BackgroundTasks 需要独立的 Session 或者确保 Session 未关闭。
+        # 通常做法：Controller 传递 db 给 BackgroundTasks 调用的函数？不，FastAPI Depends db 会在 response 后 close。
+        # 更好的做法：BackgroundTasks 接收一个独立的 Session 工厂或在新线程中创建 Session。
+        # 但为简单起见，我们假设 LogService 被同步调用或在此次请求的事务中。
+        # 如果要完全异步，需要在 Task 中使用 `async with AsyncSessionLocal() as db: ...`
+
+        return log

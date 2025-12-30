@@ -11,36 +11,39 @@ from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import NotFoundException
-from app.crud.crud_menu import menu as menu_crud
+from app.crud.crud_menu import CRUDMenu
 from app.models.rbac import Menu
 from app.schemas.menu import MenuCreate, MenuUpdate
 
 
-async def get_menus(db: AsyncSession) -> list[Menu]:
-    # 可以在此实现构建树的逻辑
-    return await menu_crud.get_multi(db, limit=1000)
+class MenuService:
+    """
+    菜单服务类。
+    """
 
+    def __init__(self, db: AsyncSession, menu_crud: CRUDMenu):
+        self.db = db
+        self.menu_crud = menu_crud
 
-async def create_menu(db: AsyncSession, obj_in: MenuCreate) -> Menu:
-    return await menu_crud.create(db, obj_in=obj_in)
+    async def get_menus(self) -> list[Menu]:
+        return await self.menu_crud.get_multi(self.db, limit=1000)
 
+    async def create_menu(self, obj_in: MenuCreate) -> Menu:
+        return await self.menu_crud.create(self.db, obj_in=obj_in)
 
-async def update_menu(db: AsyncSession, id: UUID, obj_in: MenuUpdate) -> Menu:
-    menu = await menu_crud.get(db, id=id)
-    if not menu:
-        raise NotFoundException(message="菜单不存在")
-    return await menu_crud.update(db, db_obj=menu, obj_in=obj_in)
+    async def update_menu(self, id: UUID, obj_in: MenuUpdate) -> Menu:
+        menu = await self.menu_crud.get(self.db, id=id)
+        if not menu:
+            raise NotFoundException(message="菜单不存在")
+        return await self.menu_crud.update(self.db, db_obj=menu, obj_in=obj_in)
 
+    async def delete_menu(self, id: UUID) -> Menu:
+        menu = await self.menu_crud.get(self.db, id=id)
+        if not menu:
+            raise NotFoundException(message="菜单不存在")
 
-async def delete_menu(db: AsyncSession, id: UUID) -> Menu:
-    menu = await menu_crud.get(db, id=id)
-    if not menu:
-        raise NotFoundException(message="菜单不存在")
+        deleted_menu = await self.menu_crud.remove(self.db, id=id)
+        if not deleted_menu:
+            raise NotFoundException(message="菜单删除失败")
 
-    deleted_menu = await menu_crud.remove(db, id=id)
-    # 理论上 remove 不会返回 None (因为上面已经 check 过了，且 remove 内部也是先 get)
-    # 但为了满足类型检查器，这里做非空断言或再次检查
-    if not deleted_menu:
-        raise NotFoundException(message="菜单删除失败")
-
-    return deleted_menu
+        return deleted_menu

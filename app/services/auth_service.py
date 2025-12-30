@@ -2,90 +2,79 @@
 @Author: li
 @Email: lijianqiao2906@live.com
 @FileName: auth_service.py
-@DateTime: 2025-12-30 12:20:00
-@Docs: 认证服务业务逻辑 (Authentication Business Service).
+@DateTime: 2025-12-30 13:02:00
+@Docs: 认证服务业务逻辑 (Authentication Service Logic) - 包含异步日志。
 """
 
 from datetime import timedelta
+from typing import Any
 
-from fastapi import Request
-from fastapi.security import OAuth2PasswordRequestForm
+from fastapi import BackgroundTasks, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core import security
-from app.core.exceptions import UnauthorizedException
-from app.crud.crud_user import user as user_crud
-from app.models.user import User
+from app.core.config import settings
+from app.core.exceptions import CustomException
+from app.crud.crud_user import CRUDUser
 from app.schemas.token import Token
-from app.services import log_service
+from app.services.log_service import LogService
 
 
-async def authenticate(db: AsyncSession, username_or_phone: str, password: str) -> User | None:
+class AuthService:
     """
-    验证用户凭据 (用户名或手机号 + 密码)。
-
-    Args:
-        db (AsyncSession): 数据库会话。
-        username_or_phone (str): 用户名或手机号。
-        password (str): 明文密码。
-
-    Returns:
-        User | None: 验证成功返回用户对象，否则返回 None。
+    认证服务类。
+    依赖 LogService 和 CRUDUser。
     """
-    # 尝试使用用户名查找
-    user = await user_crud.get_by_username(db, username=username_or_phone)
-    if not user:
-        # 尝试使用手机号查找
-        user = await user_crud.get_by_phone(db, phone=username_or_phone)
 
-    if not user:
-        return None
+    def __init__(self, db: AsyncSession, log_service: LogService, user_crud: CRUDUser):
+        self.db = db
+        self.log_service = log_service
+        self.user_crud = user_crud
 
-    if not security.verify_password(password, user.password):
-        return None
+    async def authenticate(self, username: str, password: str) -> Any:
+        """
+        验证用户名/密码。支持用户名或手机号。
+        """
+        user = await self.user_crud.get_by_username(self.db, username=username)
+        if not user:
+            # 尝试通过手机号查找
+            user = await self.user_crud.get_by_phone(self.db, phone=username)
 
-    return user
+        if not user or not user.is_active or user.is_deleted:
+            return None
 
+        if not security.verify_password(password, user.password):
+            return None
 
-async def login_access_token(db: AsyncSession, form_data: OAuth2PasswordRequestForm, request: Request) -> Token:
-    """
-    用户登录并生成访问令牌 (JWT)。
-    此方法会处理登录日志记录 (成功/失败)。
+        return user
 
-    Args:
-        db (AsyncSession): 数据库会话。
-        form_data (OAuth2PasswordRequestForm): 登录表单。
-        request (Request): HTTP 请求对象。
+    async def login_access_token(self, form_data: Any, request: Request, background_tasks: BackgroundTasks) -> Token:
+        """
+        处理登录并返回 Token，异步记录日志。
+        """
+        user = await self.authenticate(form_data.username, form_data.password)
+        if not user:
+            # 记录失败日志 (异步)
+            background_tasks.add_task(
+                self.log_service.create_login_log,
+                request=request,
+                username=form_data.username,
+                status=False,
+                msg="用户名或密码错误",
+            )
+            raise CustomException(code=400, message="用户名或密码错误")
 
-    Returns:
-        Token: 包含 access_token 的对象。
+        access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+        access_token = security.create_access_token(subject=user.id, expires_delta=access_token_expires)
 
-    Raises:
-        UnauthorizedException: 登录失败或用户被禁用。
-    """
-    user = await authenticate(db, form_data.username, form_data.password)
-    if not user:
-        # 记录登录失败日志
-        await log_service.create_login_log(
-            db, username=form_data.username, request=request, status=False, msg="用户名或密码错误"
+        # 记录成功日志 (异步)
+        background_tasks.add_task(
+            self.log_service.create_login_log,
+            user_id=user.id,
+            username=user.username,
+            request=request,
+            status=True,
+            msg="登录成功",
         )
-        raise UnauthorizedException("用户名或密码错误")
 
-    if not user.is_active:
-        # 记录用户被禁用日志
-        await log_service.create_login_log(
-            db, username=form_data.username, request=request, status=False, msg="用户已被禁用"
-        )
-        raise UnauthorizedException("用户已被禁用")
-
-    access_token_expires = timedelta(minutes=security.settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-    access_token = security.create_access_token(subject=user.id, expires_delta=access_token_expires)
-
-    # 记录登录成功日志
-    # 注意: log_service.create_login_log user_id 需要确保类型匹配。
-    # User.id 是 UUID 类型，create_login_log 应该接受 UUID 或 str 并做转换。
-    await log_service.create_login_log(
-        db, user_id=user.id, username=user.username, request=request, status=True, msg="登录成功"
-    )
-
-    return Token(access_token=access_token, token_type="bearer")
+        return Token(access_token=access_token, token_type="bearer")
