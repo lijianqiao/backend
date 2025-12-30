@@ -88,8 +88,9 @@ async def get_current_user(request: Request, session: SessionDep, token: TokenDe
     if not user.is_active:
         raise ForbiddenException(message="用户已被禁用")
 
-    # 将用户绑定到 request state，供中间件使用
-    request.state.user = user
+    # 将用户信息绑定到 request state，供中间件使用 (存储简单值避免 Session 关闭后的 DetachedInstanceError)
+    request.state.user_id = str(user.id)
+    request.state.username = user.username
     return user
 
 

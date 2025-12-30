@@ -61,13 +61,12 @@ class RequestLogMiddleware(BaseHTTPMiddleware):
                 request.method != "GET"
                 and "/auth/login" not in request.url.path
                 and hasattr(request, "state")
-                and hasattr(request.state, "user")
+                and hasattr(request.state, "user_id")
             ):
-                user = request.state.user
                 await event_bus.publish(
                     OperationLogEvent(
-                        user_id=str(user.id),
-                        username=user.username,
+                        user_id=request.state.user_id,
+                        username=request.state.username,
                         ip=request.client.host if request.client else None,
                         method=request.method,
                         path=request.url.path,

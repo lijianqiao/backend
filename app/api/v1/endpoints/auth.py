@@ -19,20 +19,19 @@ from app.schemas.user import UserResponse
 router = APIRouter()
 
 
-@router.post("/login", response_model=ResponseBase[Token])
+@router.post("/login", response_model=Token)
 async def login_access_token(
     request: Request,
     background_tasks: BackgroundTasks,
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
     auth_service: deps.AuthServiceDep,
-) -> ResponseBase[Token]:
+) -> Token:
     """
     OAuth2 兼容的 Token 登录接口，获取 Access Token。
     """
-    token = await auth_service.login_access_token(
+    return await auth_service.login_access_token(
         form_data=form_data, request=request, background_tasks=background_tasks
     )
-    return ResponseBase(data=token)
 
 
 @router.post("/test-token", response_model=ResponseBase[UserResponse])

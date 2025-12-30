@@ -8,15 +8,14 @@
 
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Request
-from fastapi.exceptions import RequestValidationError
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.api.v1.api import api_router
 from app.core.cache import close_redis, init_redis
 from app.core.config import settings
-from app.core.exceptions import CustomException
+from app.core.exception_handlers import register_exception_handlers
 from app.core.logger import logger, setup_logging
 from app.core.middleware import RequestLogMiddleware
 from app.subscribers.log_subscriber import register_log_subscribers
@@ -63,27 +62,8 @@ if settings.BACKEND_CORS_ORIGINS:
 # 添加请求日志中间件
 app.add_middleware(RequestLogMiddleware)
 
+# 注册全局异常处理器
+register_exception_handlers(app)
+
 # 注册 API 路由
 app.include_router(api_router, prefix=settings.API_V1_STR)
-
-
-@app.exception_handler(CustomException)
-async def custom_exception_handler(request: Request, exc: CustomException):
-    """
-    自定义业务异常处理器。
-    """
-    return JSONResponse(
-        status_code=exc.code,
-        content={"error_code": exc.code, "message": exc.message, "details": exc.details},
-    )
-
-
-@app.exception_handler(RequestValidationError)
-async def validation_exception_handler(request: Request, exc: RequestValidationError):
-    """
-    参数验证异常处理器 (覆盖 FastAPI 默认行为，返回 JSON)。
-    """
-    return JSONResponse(
-        status_code=422,
-        content={"error_code": 422, "message": "参数验证错误", "details": exc.errors()},
-    )
