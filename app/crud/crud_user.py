@@ -8,7 +8,7 @@
 
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.security import get_password_hash
@@ -38,6 +38,15 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
         """
         result = await db.execute(select(User).where(User.phone == phone, User.is_deleted.is_(False)))
         return result.scalars().first()
+
+    async def count_active(self, db: AsyncSession) -> int:
+        """
+        统计活跃用户数。
+        """
+        result = await db.execute(
+            select(func.count(User.id)).where(User.is_active.is_(True), User.is_deleted.is_(False))
+        )
+        return result.scalar_one()
 
     async def create(self, db: AsyncSession, *, obj_in: UserCreate) -> User:
         db_obj = User(

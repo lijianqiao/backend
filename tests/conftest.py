@@ -19,9 +19,14 @@ from app.api.deps import get_db
 from app.core.config import settings
 from app.core.rate_limiter import limiter
 from app.core.security import get_password_hash
+from app.crud.crud_log import login_log, operation_log
+from app.crud.crud_menu import menu as menu_crud
+from app.crud.crud_role import role as role_crud
+from app.crud.crud_user import user as user_crud
 from app.main import app
 from app.models.base import Base
 from app.models.user import User
+from app.services.dashboard_service import DashboardService
 
 # 测试数据库 URL (使用内存 SQLite)
 TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
@@ -156,3 +161,18 @@ def override_settings():
     """
     settings.PASSWORD_COMPLEXITY_ENABLED = True
     limiter.enabled = False
+
+
+@pytest.fixture(scope="function")
+def dashboard_service(db_session: AsyncSession) -> DashboardService:
+    """
+    创建 DashboardService fixture.
+    """
+    return DashboardService(
+        db=db_session,
+        user_crud=user_crud,
+        role_crud=role_crud,
+        menu_crud=menu_crud,
+        login_log_crud=login_log,
+        operation_log_crud=operation_log,
+    )

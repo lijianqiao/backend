@@ -34,6 +34,7 @@ from app.crud.crud_user import user as user_crud_global
 from app.models.user import User
 from app.schemas.token import TokenPayload
 from app.services.auth_service import AuthService
+from app.services.dashboard_service import DashboardService
 from app.services.log_service import LogService
 from app.services.menu_service import MenuService
 from app.services.role_service import RoleService
@@ -171,8 +172,20 @@ def get_auth_service(
     return AuthService(db, log_service, user_crud)
 
 
+def get_dashboard_service(
+    db: SessionDep,
+    user_crud: Annotated[CRUDUser, Depends(get_user_crud)],
+    role_crud: Annotated[CRUDRole, Depends(get_role_crud)],
+    menu_crud: Annotated[CRUDMenu, Depends(get_menu_crud)],
+    login_log_crud: Annotated[CRUDLoginLog, Depends(get_login_log_crud)],
+    operation_log_crud: Annotated[CRUDOperationLog, Depends(get_operation_log_crud)],
+) -> DashboardService:
+    return DashboardService(db, user_crud, role_crud, menu_crud, login_log_crud, operation_log_crud)
+
+
 UserServiceDep = Annotated[UserService, Depends(get_user_service)]
 LogServiceDep = Annotated[LogService, Depends(get_log_service)]
 RoleServiceDep = Annotated[RoleService, Depends(get_role_service)]
 MenuServiceDep = Annotated[MenuService, Depends(get_menu_service)]
 AuthServiceDep = Annotated[AuthService, Depends(get_auth_service)]
+DashboardServiceDep = Annotated[DashboardService, Depends(get_dashboard_service)]
