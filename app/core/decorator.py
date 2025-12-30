@@ -40,13 +40,13 @@ def with_db_retry(max_retries: int = 3, initial_delay: float = 0.1) -> Callable:
                     # 可以在这里添加具体的错误码判断，例如 PG 的 40001 (Serialization failure)
                     retries += 1
                     if retries > max_retries:
-                        logger.error(f"Database operation failed after {max_retries} retries: {e}")
+                        logger.error(f"数据库操作失败，已重试 {max_retries} 次: {e}")
                         raise
 
                     import asyncio
 
                     delay = initial_delay * (2 ** (retries - 1))
-                    logger.warning(f"Database error {e}, retrying in {delay}s ({retries}/{max_retries})...")
+                    logger.warning(f"数据库错误 {e}，{delay}秒后重试 ({retries}/{max_retries})...")
                     await asyncio.sleep(delay)
 
         return wrapper

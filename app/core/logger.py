@@ -107,44 +107,38 @@ def setup_logging() -> None:
         structlog.processors.UnicodeDecoder(),
     ]
 
-    if settings.ENVIRONMENT == "local":
-        # 漂亮的印刷促进当地发展
-
-        processors = shared_processors + [
-            structlog.dev.ConsoleRenderer(),
-        ]
-    else:
-        # 用于生产的 JSON 输出
-
-        processors = shared_processors + [
-            structlog.processors.dict_tracebacks,
-            structlog.processors.JSONRenderer(),
-        ]
-
+    # 配置 structlog
+    # 注意: 我们不在这里添加 Renderer，而是让 stdlib 的 Formatter 来处理渲染
+    # 这样可以实现 控制台->彩色文本，文件->JSON 的混合输出
     structlog.configure(
-        processors=processors,
+        processors=shared_processors
+        + [
+            structlog.stdlib.ProcessorFormatter.wrap_for_formatter,
+        ],
         logger_factory=structlog.stdlib.LoggerFactory(),
         wrapper_class=structlog.stdlib.BoundLogger,
         cache_logger_on_first_use=True,
     )
 
     # 标准输出的格式化程序（取决于环境）
-
     stdout_formatter = structlog.stdlib.ProcessorFormatter(
         foreign_pre_chain=shared_processors,
+        # 这些 processor 在 "Formatter" 阶段运行
         processors=[
             structlog.stdlib.ProcessorFormatter.remove_processors_meta,
-            structlog.dev.ConsoleRenderer() if settings.ENVIRONMENT == "local" else structlog.processors.JSONRenderer(),
+            structlog.dev.ConsoleRenderer()
+            if settings.ENVIRONMENT == "local"
+            else structlog.processors.JSONRenderer(ensure_ascii=False),
         ],
     )
 
-    # 文件格式化程序（始终为 JSON）
-
+    # 文件格式化程序（始终为 JSON，且无颜色代码）
     file_formatter = structlog.stdlib.ProcessorFormatter(
         foreign_pre_chain=shared_processors,
         processors=[
             structlog.stdlib.ProcessorFormatter.remove_processors_meta,
-            structlog.processors.JSONRenderer(),
+            # 确保 file log 不包含 ANSI 颜色，并支持中文显示
+            structlog.processors.JSONRenderer(ensure_ascii=False),
         ],
     )
 

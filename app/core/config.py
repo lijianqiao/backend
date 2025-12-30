@@ -8,7 +8,7 @@
 
 from typing import Literal
 
-from pydantic import PostgresDsn, computed_field
+from pydantic import PostgresDsn, RedisDsn, computed_field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -49,6 +49,21 @@ class Settings(BaseSettings):
     FIRST_SUPERUSER_PASSWORD: str = "password"
     FIRST_SUPERUSER_EMAIL: str = "admin@example.com"
     FIRST_SUPERUSER_PHONE: str = "13800138000"
+
+    # Redis
+    REDIS_HOST: str = "localhost"
+    REDIS_PORT: int = 6379
+    REDIS_DB: int = 0
+    REDIS_PASSWORD: str = ""
+
+    @computed_field
+    @property
+    def REDIS_URL(self) -> RedisDsn:
+        """
+        根据配置生成 Redis 连接 URI.
+        """
+        password_part = f":{self.REDIS_PASSWORD}@" if self.REDIS_PASSWORD else ""
+        return RedisDsn(f"redis://{password_part}{self.REDIS_HOST}:{self.REDIS_PORT}/{self.REDIS_DB}")
 
     @computed_field
     @property

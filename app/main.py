@@ -12,14 +12,14 @@ from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from sqlalchemy import text
 
-from app.api.deps import SessionDep
 from app.api.v1.api import api_router
+from app.core.cache import close_redis, init_redis
 from app.core.config import settings
 from app.core.exceptions import CustomException
 from app.core.logger import logger, setup_logging
 from app.core.middleware import RequestLogMiddleware
+from app.subscribers.log_subscriber import register_log_subscribers
 
 
 @asynccontextmanager
@@ -29,7 +29,17 @@ async def lifespan(app: FastAPI):
     """
     setup_logging()
     logger.info("服务正在启动...")
+
+    # 初始化 Redis
+    await init_redis()
+
+    # 注册事件订阅者
+    register_log_subscribers()
+
     yield
+
+    # 关闭 Redis
+    await close_redis()
     logger.info("服务正在关闭...")
 
 
@@ -77,16 +87,3 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
         status_code=422,
         content={"error_code": 422, "message": "参数验证错误", "details": exc.errors()},
     )
-
-
-@app.get("/health")
-async def health_check(db: SessionDep):
-    """
-    健康检查接口 (Database Check).
-    """
-    try:
-        await db.execute(text("SELECT 1"))
-        return {"status": "ok", "database": "connected"}
-    except Exception as e:
-        logger.error(f"Health check failed: {e}")
-        return JSONResponse(status_code=503, content={"status": "unhealthy", "detail": str(e)})

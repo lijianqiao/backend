@@ -67,15 +67,15 @@ async def get_current_user(request: Request, session: SessionDep, token: TokenDe
     """
     try:
         # 添加解码调试日志
-        logger.debug(f"Decoding token: {token[:10]}...")
+        logger.debug(f"解析 Token: {token[:10]}...")
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=["HS256"])
         token_data = TokenPayload(**payload)
     except (InvalidTokenError, ValidationError) as e:
-        logger.error(f"Token validation failed: {str(e)}", error=str(e))
+        logger.error(f"Token 验证失败: {str(e)}", error=str(e))
         raise UnauthorizedException(message="无法验证凭据 (Token 无效)") from e
 
     if token_data.sub is None:
-        logger.error("Token missing sub subject")
+        logger.error("Token 缺少 sub 字段")
         raise UnauthorizedException(message="无法验证凭据 (Token 缺失 sub)")
 
     # 直接查询数据库获取用户
@@ -83,7 +83,7 @@ async def get_current_user(request: Request, session: SessionDep, token: TokenDe
     user = result.scalars().first()
 
     if not user:
-        logger.error(f"User not found for sub: {token_data.sub}")
+        logger.error(f"未找到用户: {token_data.sub}")
         raise NotFoundException(message="用户不存在")
     if not user.is_active:
         raise ForbiddenException(message="用户已被禁用")
