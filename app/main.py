@@ -11,13 +11,17 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
 
 from app.api.v1.api import api_router
 from app.core.cache import close_redis, init_redis
 from app.core.config import settings
 from app.core.exception_handlers import register_exception_handlers
 from app.core.logger import logger, setup_logging
+from app.core.metrics import metrics_endpoint
 from app.core.middleware import RequestLogMiddleware
+from app.core.rate_limiter import limiter
 from app.subscribers.log_subscriber import register_log_subscribers
 
 
@@ -65,5 +69,12 @@ app.add_middleware(RequestLogMiddleware)
 # 注册全局异常处理器
 register_exception_handlers(app)
 
+# 注册限流器
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)  # type: ignore
+
 # 注册 API 路由
 app.include_router(api_router, prefix=settings.API_V1_STR)
+
+# 注册 Prometheus 指标端点 (不走 API 路由前缀)
+app.add_route("/metrics", metrics_endpoint, methods=["GET"])

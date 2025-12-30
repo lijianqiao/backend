@@ -12,6 +12,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, Request
 from fastapi.security import OAuth2PasswordRequestForm
 
 from app.api import deps
+from app.core.rate_limiter import limiter
 from app.schemas.common import ResponseBase
 from app.schemas.token import Token
 from app.schemas.user import UserResponse
@@ -20,6 +21,7 @@ router = APIRouter()
 
 
 @router.post("/login", response_model=Token)
+@limiter.limit("5/minute")
 async def login_access_token(
     request: Request,
     background_tasks: BackgroundTasks,
@@ -28,6 +30,7 @@ async def login_access_token(
 ) -> Token:
     """
     OAuth2 兼容的 Token 登录接口，获取 Access Token。
+    每个 IP 每分钟最多 5 次请求。
     """
     return await auth_service.login_access_token(
         form_data=form_data, request=request, background_tasks=background_tasks

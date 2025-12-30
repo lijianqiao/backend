@@ -33,6 +33,7 @@ class Settings(BaseSettings):
     # 安全
     SECRET_KEY: str = "changethis"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 8  # 8 天
+    PASSWORD_COMPLEXITY_ENABLED: bool = True  # 开启后需要大小写+数字+特殊字符且>=8位
 
     # CORS (跨域资源共享)
     BACKEND_CORS_ORIGINS: list[str] = ["*"]
@@ -43,6 +44,8 @@ class Settings(BaseSettings):
     POSTGRES_USER: str = "postgres"
     POSTGRES_PASSWORD: str = "password"
     POSTGRES_DB: str = "admin_rbac"
+    DB_POOL_SIZE: int = 5  # 连接池大小
+    DB_MAX_OVERFLOW: int = 10  # 最大溢出连接数
 
     # 初始化超级管理员 (Initial Superuser)
     FIRST_SUPERUSER: str = "admin"

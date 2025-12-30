@@ -6,10 +6,36 @@
 @Docs: 用户 User 相关 Schema 定义。
 """
 
+import re
 from uuid import UUID
 
 import phonenumbers
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
+
+from app.core.config import settings
+
+
+def validate_password_strength(password: str) -> str:
+    """
+    验证密码强度。
+    如果开启密码复杂度验证，需要：大小写字母 + 数字 + 特殊字符 且 >= 8 位
+    否则仅要求 >= 6 位
+    """
+    if settings.PASSWORD_COMPLEXITY_ENABLED:
+        if len(password) < 8:
+            raise ValueError("密码长度至少为 8 位")
+        if not re.search(r"[a-z]", password):
+            raise ValueError("密码必须包含小写字母")
+        if not re.search(r"[A-Z]", password):
+            raise ValueError("密码必须包含大写字母")
+        if not re.search(r"\d", password):
+            raise ValueError("密码必须包含数字")
+        if not re.search(r"[!@#$%^&*(),.?\":{}|<>]", password):
+            raise ValueError('密码必须包含特殊字符 (!@#$%^&*(),.?":{}|<>)')
+    else:
+        if len(password) < 6:
+            raise ValueError("密码长度至少为 6 位")
+    return password
 
 
 class UserBase(BaseModel):
@@ -28,11 +54,9 @@ class UserBase(BaseModel):
         验证手机号格式 (支持国际化，默认推断或需加区号，这里假设中国大陆 +86 或用户输入带区号)
         """
         try:
-            # 默认尝试解析为中国大陆号码，如果输入不带 + 号
             parsed_number = phonenumbers.parse(v, "CN")
             if not phonenumbers.is_valid_number(parsed_number):
                 raise ValueError("无效的手机号码")
-            # 格式化为 E.164
             return phonenumbers.format_number(parsed_number, phonenumbers.PhoneNumberFormat.E164)
         except phonenumbers.NumberParseException as e:
             raise ValueError("手机号码格式错误") from e
@@ -40,6 +64,11 @@ class UserBase(BaseModel):
 
 class UserCreate(UserBase):
     password: str = Field(..., description="密码")
+
+    @field_validator("password")
+    @classmethod
+    def validate_password(cls, v: str) -> str:
+        return validate_password_strength(v)
 
 
 class UserUpdate(BaseModel):
@@ -65,6 +94,13 @@ class UserUpdate(BaseModel):
         except phonenumbers.NumberParseException as e:
             raise ValueError("手机号码格式错误") from e
 
+    @field_validator("password")
+    @classmethod
+    def validate_password(cls, v: str | None) -> str | None:
+        if v is None:
+            return None
+        return validate_password_strength(v)
+
 
 class UserResponse(UserBase):
     id: UUID
@@ -78,7 +114,12 @@ class ChangePasswordRequest(BaseModel):
     """
 
     old_password: str = Field(..., description="旧密码")
-    new_password: str = Field(..., min_length=6, description="新密码 (至少6位)")
+    new_password: str = Field(..., description="新密码")
+
+    @field_validator("new_password")
+    @classmethod
+    def validate_new_password(cls, v: str) -> str:
+        return validate_password_strength(v)
 
 
 class ResetPasswordRequest(BaseModel):
@@ -86,4 +127,9 @@ class ResetPasswordRequest(BaseModel):
     管理员重置用户密码请求。
     """
 
-    new_password: str = Field(..., min_length=6, description="新密码 (至少6位)")
+    new_password: str = Field(..., description="新密码")
+
+    @field_validator("new_password")
+    @classmethod
+    def validate_new_password(cls, v: str) -> str:
+        return validate_password_strength(v)

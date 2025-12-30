@@ -10,6 +10,7 @@ from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.crud.base import CRUDBase
 from app.models.rbac import Menu, Role
@@ -17,11 +18,31 @@ from app.schemas.role import RoleCreate, RoleUpdate
 
 
 class CRUDRole(CRUDBase[Role, RoleCreate, RoleUpdate]):
+    async def get(self, db: AsyncSession, id: Any) -> Role | None:
+        """
+        通过 ID 获取角色 (包含菜单关联，避免 N+1 问题)。
+        """
+        result = await db.execute(
+            select(Role).options(selectinload(Role.menus)).where(Role.id == id, Role.is_deleted.is_(False))
+        )
+        return result.scalars().first()
+
+    async def get_multi(self, db: AsyncSession, *, skip: int = 0, limit: int = 100) -> list[Role]:
+        """
+        获取多个角色 (包含菜单关联，避免 N+1 问题)。
+        """
+        result = await db.execute(
+            select(Role).options(selectinload(Role.menus)).where(Role.is_deleted.is_(False)).offset(skip).limit(limit)
+        )
+        return list(result.scalars().all())
+
     async def get_by_code(self, db: AsyncSession, *, code: str) -> Role | None:
         """
         根据角色编码查询角色 (排除已软删除)。
         """
-        result = await db.execute(select(Role).where(Role.code == code, Role.is_deleted.is_(False)))
+        result = await db.execute(
+            select(Role).options(selectinload(Role.menus)).where(Role.code == code, Role.is_deleted.is_(False))
+        )
         return result.scalars().first()
 
     async def create(self, db: AsyncSession, *, obj_in: RoleCreate) -> Role:

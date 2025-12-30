@@ -14,7 +14,9 @@ engine = create_async_engine(
     str(settings.SQLALCHEMY_DATABASE_URI),
     echo=False,
     future=True,
-    pool_pre_ping=True,
+    pool_pre_ping=True,  # 连接前检测连接是否有效
+    pool_size=settings.DB_POOL_SIZE,  # 连接池大小
+    max_overflow=settings.DB_MAX_OVERFLOW,  # 最大溢出连接数
 )
 
 AsyncSessionLocal = async_sessionmaker(
