@@ -17,7 +17,7 @@ from app.schemas.log import LoginLogResponse, OperationLogResponse
 router = APIRouter()
 
 
-@router.get("/login", response_model=ResponseBase[PaginatedResponse[LoginLogResponse]])
+@router.get("/login", response_model=ResponseBase[PaginatedResponse[LoginLogResponse]], summary="获取登录日志")
 async def read_login_logs(
     current_user: deps.CurrentUser,
     log_service: deps.LogServiceDep,
@@ -26,12 +26,23 @@ async def read_login_logs(
 ) -> Any:
     """
     获取登录日志 (分页)。
+
+    查询系统登录日志记录，支持分页。按创建时间倒序排列。
+
+    Args:
+        current_user (User): 当前登录用户。
+        log_service (LogService): 日志服务依赖。
+        page (int, optional): 页码. Defaults to 1.
+        page_size (int, optional): 每页数量. Defaults to 20.
+
+    Returns:
+        ResponseBase[PaginatedResponse[LoginLogResponse]]: 分页后的登录日志列表。
     """
     logs, total = await log_service.get_login_logs_paginated(page=page, page_size=page_size)
     return ResponseBase(data=PaginatedResponse(total=total, page=page, page_size=page_size, items=logs))
 
 
-@router.get("/operation", response_model=ResponseBase[PaginatedResponse[OperationLogResponse]])
+@router.get("/operation", response_model=ResponseBase[PaginatedResponse[OperationLogResponse]], summary="获取操作日志")
 async def read_operation_logs(
     current_user: deps.CurrentUser,
     log_service: deps.LogServiceDep,
@@ -40,6 +51,17 @@ async def read_operation_logs(
 ) -> Any:
     """
     获取操作日志 (分页)。
+
+    查询系统操作日志（API 调用记录），支持分页。按创建时间倒序排列。
+
+    Args:
+        current_user (User): 当前登录用户。
+        log_service (LogService): 日志服务依赖。
+        page (int, optional): 页码. Defaults to 1.
+        page_size (int, optional): 每页数量. Defaults to 20.
+
+    Returns:
+        ResponseBase[PaginatedResponse[OperationLogResponse]]: 分页后的操作日志列表。
     """
     logs, total = await log_service.get_operation_logs_paginated(page=page, page_size=page_size)
     return ResponseBase(data=PaginatedResponse(total=total, page=page, page_size=page_size, items=logs))

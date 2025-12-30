@@ -20,7 +20,7 @@ from app.schemas.user import UserResponse
 router = APIRouter()
 
 
-@router.post("/login", response_model=Token)
+@router.post("/login", response_model=Token, summary="用户登录")
 @limiter.limit("5/minute")
 async def login_access_token(
     request: Request,
@@ -29,34 +29,62 @@ async def login_access_token(
     auth_service: deps.AuthServiceDep,
 ) -> Token:
     """
-    OAuth2 兼容的 Token 登录接口，获取 Access Token。
-    每个 IP 每分钟最多 5 次请求。
+    OAuth2 兼容的 Token 登录接口。
+
+    验证用户名和密码，返回短期有效的 Access Token 和长期有效的 Refresh Token。
+    每个 IP 每分钟最多允许 5 次请求。
+
+    Args:
+        request (Request): 请求对象，用于获取 IP 地址。
+        background_tasks (BackgroundTasks): 后台任务，用于异步记录登录日志。
+        form_data (OAuth2PasswordRequestForm): 表单数据，包含 username 和 password。
+        auth_service (AuthService): 认证服务依赖。
+
+    Returns:
+        Token: 包含 Access Token 和 Refresh Token 的响应对象。
+
+    Raises:
+        CustomException: 当用户名或密码错误时抛出 400 错误。
     """
     return await auth_service.login_access_token(
         form_data=form_data, request=request, background_tasks=background_tasks
     )
 
 
-@router.post("/refresh", response_model=Token)
+@router.post("/refresh", response_model=Token, summary="刷新令牌")
 async def refresh_token(
     token_in: TokenRefresh,
     auth_service: deps.AuthServiceDep,
 ) -> Token:
     """
     使用 Refresh Token 换取新的 Access Token。
+
+    当 Access Token 过期时，可以使用此接口获取新的 Access Token，而无需重新登录。
+
+    Args:
+        token_in (TokenRefresh): 包含 refresh_token 的请求体。
+        auth_service (AuthService): 认证服务依赖。
+
+    Returns:
+        Token: 包含新的 Access Token 和 (可选) 新的 Refresh Token。
+
+    Raises:
+        UnauthorizedException: 当 Refresh Token 无效或过期时抛出 401 错误。
     """
     return await auth_service.refresh_token(refresh_token=token_in.refresh_token)
 
 
-@router.post("/test-token", response_model=ResponseBase[UserResponse])
+@router.post("/test-token", response_model=ResponseBase[UserResponse], summary="测试令牌有效性")
 async def test_token(current_user: deps.CurrentUser) -> ResponseBase[UserResponse]:
     """
     测试 Access Token 是否有效。
 
+    仅用于验证当前请求携带的 Token 是否合法，并返回当前用户信息。
+
     Args:
-        current_user (User): 当前登录用户依赖。
+        current_user (User): 当前登录用户 (由依赖自动注入)。
 
     Returns:
-        ResponseBase[UserResponse]: 返回当前用户信息。
+        ResponseBase[UserResponse]: 包含当前用户信息的统一响应结构。
     """
     return ResponseBase(data=UserResponse.model_validate(current_user))

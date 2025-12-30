@@ -18,7 +18,7 @@ from app.schemas.user import ChangePasswordRequest, ResetPasswordRequest, UserCr
 router = APIRouter()
 
 
-@router.get("/", response_model=ResponseBase[PaginatedResponse[UserResponse]])
+@router.get("/", response_model=ResponseBase[PaginatedResponse[UserResponse]], summary="获取用户列表")
 async def read_users(
     user_service: deps.UserServiceDep,
     current_user: deps.CurrentUser,
@@ -28,13 +28,24 @@ async def read_users(
 ) -> Any:
     """
     查询用户列表 (分页)。
-    需要超级管理员权限。
+
+    获取所有系统用户，支持分页。需要超级管理员权限。
+
+    Args:
+        user_service (UserService): 用户服务依赖。
+        current_user (User): 当前登录用户。
+        active_superuser (User): 超级管理员权限验证。
+        page (int, optional): 页码. Defaults to 1.
+        page_size (int, optional): 每页数量. Defaults to 20.
+
+    Returns:
+        ResponseBase[PaginatedResponse[UserResponse]]: 分页后的用户列表。
     """
     users, total = await user_service.get_users_paginated(page=page, page_size=page_size)
     return ResponseBase(data=PaginatedResponse(total=total, page=page, page_size=page_size, items=users))
 
 
-@router.post("/", response_model=ResponseBase[UserResponse])
+@router.post("/", response_model=ResponseBase[UserResponse], summary="创建用户")
 async def create_user(
     *,
     user_in: UserCreate,
@@ -44,13 +55,23 @@ async def create_user(
 ) -> Any:
     """
     创建新用户。
-    需要超级管理员权限。
+
+    注册新的系统用户。需要超级管理员权限。
+
+    Args:
+        user_in (UserCreate): 用户创建数据 (用户名, 密码, 邮箱等)。
+        current_user (User): 当前登录用户。
+        active_superuser (User): 超级管理员权限验证。
+        user_service (UserService): 用户服务依赖。
+
+    Returns:
+        ResponseBase[UserResponse]: 创建成功的用户对象。
     """
     user = await user_service.create_user(obj_in=user_in)
     return ResponseBase(data=user)
 
 
-@router.delete("/batch", response_model=ResponseBase[BatchOperationResult])
+@router.delete("/batch", response_model=ResponseBase[BatchOperationResult], summary="批量删除用户")
 async def batch_delete_users(
     *,
     request: BatchDeleteRequest,
@@ -60,7 +81,17 @@ async def batch_delete_users(
 ) -> Any:
     """
     批量删除用户。
-    需要超级管理员权限。
+
+    支持软删除和硬删除。需要超级管理员权限。
+
+    Args:
+        request (BatchDeleteRequest): 批量删除请求体 (包含 ID 列表和硬删除标志)。
+        current_user (User): 当前登录用户。
+        active_superuser (User): 超级管理员权限验证。
+        user_service (UserService): 用户服务依赖。
+
+    Returns:
+        ResponseBase[BatchOperationResult]: 批量操作结果（成功数量等）。
     """
     success_count, failed_ids = await user_service.batch_delete_users(ids=request.ids, hard_delete=request.hard_delete)
     return ResponseBase(
@@ -72,17 +103,25 @@ async def batch_delete_users(
     )
 
 
-@router.get("/me", response_model=ResponseBase[UserResponse])
+@router.get("/me", response_model=ResponseBase[UserResponse], summary="获取当前用户")
 async def read_user_me(
     current_user: deps.CurrentUser,
 ) -> Any:
     """
     获取当前用户信息。
+
+    返回当前登录用户的详细信息。
+
+    Args:
+        current_user (User): 当前登录用户 (由依赖自动注入)。
+
+    Returns:
+        ResponseBase[UserResponse]: 当前用户的详细信息。
     """
     return ResponseBase(data=current_user)
 
 
-@router.put("/me", response_model=ResponseBase[UserResponse])
+@router.put("/me", response_model=ResponseBase[UserResponse], summary="更新当前用户")
 async def update_user_me(
     *,
     user_service: deps.UserServiceDep,
@@ -91,12 +130,22 @@ async def update_user_me(
 ) -> Any:
     """
     更新当前用户信息。
+
+    用户自行修改个人资料（如昵称、邮箱、手机号等）。
+
+    Args:
+        user_service (UserService): 用户服务依赖。
+        user_in (UserUpdate): 用户更新数据。
+        current_user (User): 当前登录用户。
+
+    Returns:
+        ResponseBase[UserResponse]: 更新后的用户信息。
     """
     user = await user_service.update_user(user_id=current_user.id, obj_in=user_in)
     return ResponseBase(data=user)
 
 
-@router.put("/me/password", response_model=ResponseBase[UserResponse])
+@router.put("/me/password", response_model=ResponseBase[UserResponse], summary="修改密码 (当前用户)")
 async def change_password_me(
     *,
     user_service: deps.UserServiceDep,
@@ -105,7 +154,16 @@ async def change_password_me(
 ) -> Any:
     """
     修改当前用户密码。
-    需要验证旧密码。
+
+    需要验证旧密码是否正确。
+
+    Args:
+        user_service (UserService): 用户服务依赖。
+        password_data (ChangePasswordRequest): 密码修改请求 (包含旧密码和新密码)。
+        current_user (User): 当前登录用户。
+
+    Returns:
+        ResponseBase[UserResponse]: 用户信息 (密码修改成功后)。
     """
     user = await user_service.change_password(
         user_id=current_user.id,
@@ -115,7 +173,7 @@ async def change_password_me(
     return ResponseBase(data=user, message="密码修改成功")
 
 
-@router.put("/{user_id}/password", response_model=ResponseBase[UserResponse])
+@router.put("/{user_id}/password", response_model=ResponseBase[UserResponse], summary="重置密码 (管理员)")
 async def reset_user_password(
     *,
     user_id: UUID,
@@ -126,7 +184,18 @@ async def reset_user_password(
 ) -> Any:
     """
     管理员重置用户密码。
-    需要超级管理员权限，无需验证旧密码。
+
+    强制修改指定用户的密码，不需要知道旧密码。需要超级管理员权限。
+
+    Args:
+        user_id (UUID): 目标用户 ID。
+        password_data (ResetPasswordRequest): 密码重置请求 (包含新密码)。
+        current_user (User): 当前登录用户。
+        active_superuser (User): 超级管理员权限验证。
+        user_service (UserService): 用户服务依赖。
+
+    Returns:
+        ResponseBase[UserResponse]: 用户信息 (密码重置成功后)。
     """
     user = await user_service.reset_password(user_id=user_id, new_password=password_data.new_password)
     return ResponseBase(data=user, message="密码重置成功")

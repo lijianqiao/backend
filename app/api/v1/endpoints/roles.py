@@ -18,7 +18,7 @@ from app.schemas.role import RoleCreate, RoleResponse, RoleUpdate
 router = APIRouter()
 
 
-@router.get("/", response_model=ResponseBase[PaginatedResponse[RoleResponse]])
+@router.get("/", response_model=ResponseBase[PaginatedResponse[RoleResponse]], summary="获取角色列表")
 async def read_roles(
     role_service: deps.RoleServiceDep,
     current_user: deps.CurrentUser,
@@ -27,12 +27,23 @@ async def read_roles(
 ) -> Any:
     """
     获取角色列表 (分页)。
+
+    查询系统角色记录，支持分页。
+
+    Args:
+        role_service (RoleService): 角色服务依赖。
+        current_user (User): 当前登录用户。
+        page (int, optional): 页码. Defaults to 1.
+        page_size (int, optional): 每页数量. Defaults to 20.
+
+    Returns:
+        ResponseBase[PaginatedResponse[RoleResponse]]: 分页后的角色列表。
     """
     roles, total = await role_service.get_roles_paginated(page=page, page_size=page_size)
     return ResponseBase(data=PaginatedResponse(total=total, page=page, page_size=page_size, items=roles))
 
 
-@router.post("/", response_model=ResponseBase[RoleResponse])
+@router.post("/", response_model=ResponseBase[RoleResponse], summary="创建角色")
 async def create_role(
     *,
     role_in: RoleCreate,
@@ -41,12 +52,22 @@ async def create_role(
 ) -> Any:
     """
     创建新角色。
+
+    创建新的系统角色。
+
+    Args:
+        role_in (RoleCreate): 角色创建数据 (名称, 标识, 描述等)。
+        current_user (User): 当前登录用户。
+        role_service (RoleService): 角色服务依赖。
+
+    Returns:
+        ResponseBase[RoleResponse]: 创建成功的角色对象。
     """
     role = await role_service.create_role(obj_in=role_in)
     return ResponseBase(data=role)
 
 
-@router.delete("/batch", response_model=ResponseBase[BatchOperationResult])
+@router.delete("/batch", response_model=ResponseBase[BatchOperationResult], summary="批量删除角色")
 async def batch_delete_roles(
     *,
     request: BatchDeleteRequest,
@@ -55,6 +76,16 @@ async def batch_delete_roles(
 ) -> Any:
     """
     批量删除角色。
+
+    支持软删除和硬删除。
+
+    Args:
+        request (BatchDeleteRequest): 批量删除请求体 (包含 ID 列表和硬删除标志)。
+        current_user (User): 当前登录用户。
+        role_service (RoleService): 角色服务依赖。
+
+    Returns:
+        ResponseBase[BatchOperationResult]: 批量操作结果（成功数量等）。
     """
     success_count, failed_ids = await role_service.batch_delete_roles(ids=request.ids, hard_delete=request.hard_delete)
     return ResponseBase(
@@ -66,7 +97,7 @@ async def batch_delete_roles(
     )
 
 
-@router.put("/{id}", response_model=ResponseBase[RoleResponse])
+@router.put("/{id}", response_model=ResponseBase[RoleResponse], summary="更新角色")
 async def update_role(
     *,
     id: UUID,
@@ -76,12 +107,23 @@ async def update_role(
 ) -> Any:
     """
     更新角色。
+
+    更新指定 ID 的角色信息。
+
+    Args:
+        id (UUID): 角色 ID。
+        role_in (RoleUpdate): 角色更新数据。
+        current_user (User): 当前登录用户。
+        role_service (RoleService): 角色服务依赖。
+
+    Returns:
+        ResponseBase[RoleResponse]: 更新后的角色对象。
     """
     role = await role_service.update_role(id=id, obj_in=role_in)
     return ResponseBase(data=role)
 
 
-@router.delete("/{id}", response_model=ResponseBase[RoleResponse])
+@router.delete("/{id}", response_model=ResponseBase[RoleResponse], summary="删除角色")
 async def delete_role(
     *,
     id: UUID,
@@ -90,6 +132,16 @@ async def delete_role(
 ) -> Any:
     """
     删除角色。
+
+    删除指定 ID 的角色。
+
+    Args:
+        id (UUID): 角色 ID。
+        current_user (User): 当前登录用户。
+        role_service (RoleService): 角色服务依赖。
+
+    Returns:
+        ResponseBase[RoleResponse]: 已删除的角色对象信息。
     """
     role = await role_service.delete_role(id=id)
     return ResponseBase(data=role)
