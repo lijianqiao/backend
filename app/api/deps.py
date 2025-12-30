@@ -10,7 +10,7 @@ from collections.abc import AsyncGenerator
 from typing import Annotated
 
 import jwt
-from fastapi import Depends
+from fastapi import Depends, Request
 from fastapi.security import OAuth2PasswordBearer
 from jwt.exceptions import InvalidTokenError
 from pydantic import ValidationError
@@ -20,6 +20,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import settings
 from app.core.db import AsyncSessionLocal
 from app.core.exceptions import ForbiddenException, NotFoundException, UnauthorizedException
+from app.core.logger import logger
 from app.crud.crud_log import CRUDLoginLog, CRUDOperationLog
 from app.crud.crud_log import login_log as login_log_crud_global
 from app.crud.crud_log import operation_log as operation_log_crud_global
@@ -28,8 +29,6 @@ from app.crud.crud_menu import menu as menu_crud_global
 from app.crud.crud_role import CRUDRole
 from app.crud.crud_role import role as role_crud_global
 from app.crud.crud_user import CRUDUser
-
-# --- CRUD Imports ---
 from app.crud.crud_user import user as user_crud_global
 from app.models.user import User
 from app.schemas.token import TokenPayload
@@ -37,8 +36,6 @@ from app.services.auth_service import AuthService
 from app.services.log_service import LogService
 from app.services.menu_service import MenuService
 from app.services.role_service import RoleService
-
-# --- Services Import ---
 from app.services.user_service import UserService
 
 # -----------------------
@@ -64,17 +61,21 @@ SessionDep = Annotated[AsyncSession, Depends(get_db)]
 TokenDep = Annotated[str, Depends(reusable_oauth2)]
 
 
-async def get_current_user(session: SessionDep, token: TokenDep) -> User:
+async def get_current_user(request: Request, session: SessionDep, token: TokenDep) -> User:
     """
     解析 Token 并获取当前登录用户。
     """
     try:
+        # 添加解码调试日志
+        logger.debug(f"Decoding token: {token[:10]}...")
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=["HS256"])
         token_data = TokenPayload(**payload)
     except (InvalidTokenError, ValidationError) as e:
+        logger.error(f"Token validation failed: {str(e)}", error=str(e))
         raise UnauthorizedException(message="无法验证凭据 (Token 无效)") from e
 
     if token_data.sub is None:
+        logger.error("Token missing sub subject")
         raise UnauthorizedException(message="无法验证凭据 (Token 缺失 sub)")
 
     # 直接查询数据库获取用户
@@ -82,10 +83,13 @@ async def get_current_user(session: SessionDep, token: TokenDep) -> User:
     user = result.scalars().first()
 
     if not user:
+        logger.error(f"User not found for sub: {token_data.sub}")
         raise NotFoundException(message="用户不存在")
     if not user.is_active:
         raise ForbiddenException(message="用户已被禁用")
 
+    # 将用户绑定到 request state，供中间件使用
+    request.state.user = user
     return user
 
 
