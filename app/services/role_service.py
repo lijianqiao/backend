@@ -29,6 +29,12 @@ class RoleService:
     async def get_roles(self, skip: int = 0, limit: int = 100) -> list[Role]:
         return await self.role_crud.get_multi(self.db, skip=skip, limit=limit)
 
+    async def get_roles_paginated(self, page: int = 1, page_size: int = 20) -> tuple[list[Role], int]:
+        """
+        获取分页角色列表。
+        """
+        return await self.role_crud.get_multi_paginated(self.db, page=page, page_size=page_size)
+
     @transactional()
     async def create_role(self, obj_in: RoleCreate) -> Role:
         existing_role = await self.role_crud.get_by_code(self.db, code=obj_in.code)
@@ -61,3 +67,10 @@ class RoleService:
             raise NotFoundException(message="角色删除失败")
 
         return deleted_role
+
+    @transactional()
+    async def batch_delete_roles(self, ids: list[UUID], hard_delete: bool = False) -> tuple[int, list[UUID]]:
+        """
+        批量删除角色。
+        """
+        return await self.role_crud.batch_remove(self.db, ids=ids, hard_delete=hard_delete)

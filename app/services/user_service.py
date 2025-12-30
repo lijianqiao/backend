@@ -10,6 +10,7 @@ from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core import security
 from app.core.decorator import transactional
 from app.core.exceptions import BadRequestException, NotFoundException
 from app.crud.crud_user import CRUDUser
@@ -56,6 +57,15 @@ class UserService:
         """
         return await self.user_crud.get_multi(self.db, skip=skip, limit=limit)
 
+    async def get_users_paginated(self, page: int = 1, page_size: int = 20) -> tuple[list[User], int]:
+        """
+        获取分页用户列表。
+
+        Returns:
+            (users, total): 用户列表和总数
+        """
+        return await self.user_crud.get_multi_paginated(self.db, page=page, page_size=page_size)
+
     @transactional()
     async def update_user(self, user_id: UUID, obj_in: UserUpdate) -> User:
         """
@@ -79,3 +89,44 @@ class UserService:
                 raise BadRequestException(message="邮箱已存在")
 
         return await self.user_crud.update(self.db, db_obj=user, obj_in=obj_in)
+
+    @transactional()
+    async def change_password(self, user_id: UUID, old_password: str, new_password: str) -> User:
+        """
+        用户修改自己的密码 (需验证旧密码)。
+        """
+        user = await self.user_crud.get(self.db, id=user_id)
+        if not user:
+            raise NotFoundException(message="用户不存在")
+
+        if not security.verify_password(old_password, user.password):
+            raise BadRequestException(message="旧密码错误")
+
+        hashed_password = security.get_password_hash(new_password)
+        return await self.user_crud.update(self.db, db_obj=user, obj_in={"password": hashed_password})
+
+    @transactional()
+    async def reset_password(self, user_id: UUID, new_password: str) -> User:
+        """
+        管理员重置用户密码 (无需验证旧密码)。
+        """
+        user = await self.user_crud.get(self.db, id=user_id)
+        if not user:
+            raise NotFoundException(message="用户不存在")
+
+        hashed_password = security.get_password_hash(new_password)
+        return await self.user_crud.update(self.db, db_obj=user, obj_in={"password": hashed_password})
+
+    @transactional()
+    async def batch_delete_users(self, ids: list[UUID], hard_delete: bool = False) -> tuple[int, list[UUID]]:
+        """
+        批量删除用户。
+
+        Args:
+            ids: 要删除的用户 ID 列表
+            hard_delete: 是否硬删除
+
+        Returns:
+            (success_count, failed_ids): 成功数量和失败的 ID 列表
+        """
+        return await self.user_crud.batch_remove(self.db, ids=ids, hard_delete=hard_delete)

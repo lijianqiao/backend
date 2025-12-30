@@ -70,3 +70,20 @@ class UserResponse(UserBase):
     id: UUID
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class ChangePasswordRequest(BaseModel):
+    """
+    用户修改密码请求。
+    """
+
+    old_password: str = Field(..., description="旧密码")
+    new_password: str = Field(..., min_length=6, description="新密码 (至少6位)")
+
+
+class ResetPasswordRequest(BaseModel):
+    """
+    管理员重置用户密码请求。
+    """
+
+    new_password: str = Field(..., min_length=6, description="新密码 (至少6位)")

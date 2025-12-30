@@ -11,35 +11,35 @@ from typing import Any
 from fastapi import APIRouter
 
 from app.api import deps
-from app.schemas.common import ResponseBase
+from app.schemas.common import PaginatedResponse, ResponseBase
 from app.schemas.log import LoginLogResponse, OperationLogResponse
 
 router = APIRouter()
 
 
-@router.get("/login", response_model=ResponseBase[list[LoginLogResponse]])
+@router.get("/login", response_model=ResponseBase[PaginatedResponse[LoginLogResponse]])
 async def read_login_logs(
     current_user: deps.CurrentUser,
     log_service: deps.LogServiceDep,
-    skip: int = 0,
-    limit: int = 100,
+    page: int = 1,
+    page_size: int = 20,
 ) -> Any:
     """
-    获取登录日志。
+    获取登录日志 (分页)。
     """
-    logs = await log_service.get_login_logs(skip=skip, limit=limit)
-    return ResponseBase(data=logs)
+    logs, total = await log_service.get_login_logs_paginated(page=page, page_size=page_size)
+    return ResponseBase(data=PaginatedResponse(total=total, page=page, page_size=page_size, items=logs))
 
 
-@router.get("/operation", response_model=ResponseBase[list[OperationLogResponse]])
+@router.get("/operation", response_model=ResponseBase[PaginatedResponse[OperationLogResponse]])
 async def read_operation_logs(
     current_user: deps.CurrentUser,
     log_service: deps.LogServiceDep,
-    skip: int = 0,
-    limit: int = 100,
+    page: int = 1,
+    page_size: int = 20,
 ) -> Any:
     """
-    获取操作日志。
+    获取操作日志 (分页)。
     """
-    logs = await log_service.get_operation_logs(skip=skip, limit=limit)
-    return ResponseBase(data=logs)
+    logs, total = await log_service.get_operation_logs_paginated(page=page, page_size=page_size)
+    return ResponseBase(data=PaginatedResponse(total=total, page=page, page_size=page_size, items=logs))

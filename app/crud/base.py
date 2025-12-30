@@ -3,13 +3,14 @@
 @Email: lijianqiao2906@live.com
 @FileName: base.py
 @DateTime: 2025-12-30 12:10:00
-@Docs: 通用 CRUD 仓库基类 (Generic CRUD Repository) - 支持软删除。
+@Docs: 通用 CRUD 仓库基类 (Generic CRUD Repository) - 支持软删除和批量操作。
 """
 
 from typing import Any, TypeVar
+from uuid import UUID
 
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.base import Base, SoftDeleteMixin
@@ -23,7 +24,7 @@ UpdateSchemaType = TypeVar("UpdateSchemaType", bound=BaseModel)
 class CRUDBase[ModelType: Base, CreateSchemaType: BaseModel, UpdateSchemaType: BaseModel]:
     """
     拥有默认 CRUD 操作的基类。
-    支持软删除和乐观锁。
+    支持软删除、乐观锁和批量操作。
 
     Attributes:
         model (Type[ModelType]): SQLAlchemy 模型类。
@@ -42,15 +43,25 @@ class CRUDBase[ModelType: Base, CreateSchemaType: BaseModel, UpdateSchemaType: B
         """
         通过 ID 获取单个记录。
         """
-        # 构建查询
         query = select(self.model).where(self.model.id == id)  # pyright: ignore[reportAttributeAccessIssue]
 
-        # 如果模型支持软删除，过滤掉已删除的
         if issubclass(self.model, SoftDeleteMixin):
             query = query.where(self.model.is_deleted.is_(False))
 
         result = await db.execute(query)
         return result.scalars().first()
+
+    async def count(self, db: AsyncSession) -> int:
+        """
+        获取记录总数 (支持软删除过滤)。
+        """
+        query = select(func.count()).select_from(self.model)
+
+        if issubclass(self.model, SoftDeleteMixin):
+            query = query.where(self.model.is_deleted.is_(False))
+
+        result = await db.execute(query)
+        return result.scalar() or 0
 
     async def get_multi(self, db: AsyncSession, *, skip: int = 0, limit: int = 100) -> list[ModelType]:
         """
@@ -58,13 +69,30 @@ class CRUDBase[ModelType: Base, CreateSchemaType: BaseModel, UpdateSchemaType: B
         """
         query = select(self.model)
 
-        # 软删除过滤
         if issubclass(self.model, SoftDeleteMixin):
             query = query.where(self.model.is_deleted.is_(False))
 
         query = query.offset(skip).limit(limit)
         result = await db.execute(query)
         return list(result.scalars().all())
+
+    async def get_multi_paginated(
+        self, db: AsyncSession, *, page: int = 1, page_size: int = 20
+    ) -> tuple[list[ModelType], int]:
+        """
+        获取分页数据，返回 (items, total)。
+
+        Args:
+            page: 页码 (从 1 开始)
+            page_size: 每页大小
+
+        Returns:
+            (items, total): 数据列表和总数
+        """
+        total = await self.count(db)
+        skip = (page - 1) * page_size
+        items = await self.get_multi(db, skip=skip, limit=page_size)
+        return items, total
 
     async def create(self, db: AsyncSession, *, obj_in: CreateSchemaType) -> ModelType:
         """
@@ -100,15 +128,56 @@ class CRUDBase[ModelType: Base, CreateSchemaType: BaseModel, UpdateSchemaType: B
         """
         obj = await self.get(db, id=id)
         if obj:
-            # 使用 isinstance 检查 Mixin，以实现更好的类型安全
             if isinstance(obj, SoftDeleteMixin):
-                # 软删除
                 obj.is_deleted = True
-
                 db.add(obj)
             else:
-                # 硬删除
                 await db.delete(obj)
 
             await db.flush()
         return obj
+
+    async def batch_remove(
+        self, db: AsyncSession, *, ids: list[UUID], hard_delete: bool = False
+    ) -> tuple[int, list[UUID]]:
+        """
+        批量删除记录。
+
+        Args:
+            ids: 要删除的 ID 列表
+            hard_delete: 是否硬删除 (默认软删除)
+
+        Returns:
+            (success_count, failed_ids): 成功数量和失败的 ID 列表
+        """
+        success_count = 0
+        failed_ids: list[UUID] = []
+
+        for id_ in ids:
+            # 获取记录 (包括已软删除的，用于硬删除场景)
+            if hard_delete:
+                query = select(self.model).where(self.model.id == id_)  # pyright: ignore
+                result = await db.execute(query)
+                obj = result.scalars().first()
+            else:
+                obj = await self.get(db, id=id_)
+
+            if not obj:
+                failed_ids.append(id_)
+                continue
+
+            try:
+                if hard_delete:
+                    await db.delete(obj)
+                elif isinstance(obj, SoftDeleteMixin):
+                    obj.is_deleted = True
+                    db.add(obj)
+                else:
+                    await db.delete(obj)
+
+                success_count += 1
+            except Exception:
+                failed_ids.append(id_)
+
+        await db.flush()
+        return success_count, failed_ids

@@ -29,6 +29,12 @@ class MenuService:
     async def get_menus(self) -> list[Menu]:
         return await self.menu_crud.get_multi(self.db, limit=1000)
 
+    async def get_menus_paginated(self, page: int = 1, page_size: int = 20) -> tuple[list[Menu], int]:
+        """
+        获取分页菜单列表。
+        """
+        return await self.menu_crud.get_multi_paginated(self.db, page=page, page_size=page_size)
+
     @transactional()
     async def create_menu(self, obj_in: MenuCreate) -> Menu:
         return await self.menu_crud.create(self.db, obj_in=obj_in)
@@ -51,3 +57,10 @@ class MenuService:
             raise NotFoundException(message="菜单删除失败")
 
         return deleted_menu
+
+    @transactional()
+    async def batch_delete_menus(self, ids: list[UUID], hard_delete: bool = False) -> tuple[int, list[UUID]]:
+        """
+        批量删除菜单。
+        """
+        return await self.menu_crud.batch_remove(self.db, ids=ids, hard_delete=hard_delete)

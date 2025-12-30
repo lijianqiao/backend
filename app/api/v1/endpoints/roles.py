@@ -12,24 +12,24 @@ from uuid import UUID
 from fastapi import APIRouter
 
 from app.api import deps
-from app.schemas.common import ResponseBase
+from app.schemas.common import BatchDeleteRequest, BatchOperationResult, PaginatedResponse, ResponseBase
 from app.schemas.role import RoleCreate, RoleResponse, RoleUpdate
 
 router = APIRouter()
 
 
-@router.get("/", response_model=ResponseBase[list[RoleResponse]])
+@router.get("/", response_model=ResponseBase[PaginatedResponse[RoleResponse]])
 async def read_roles(
     role_service: deps.RoleServiceDep,
     current_user: deps.CurrentUser,
-    skip: int = 0,
-    limit: int = 100,
+    page: int = 1,
+    page_size: int = 20,
 ) -> Any:
     """
-    获取角色列表。
+    获取角色列表 (分页)。
     """
-    roles = await role_service.get_roles(skip=skip, limit=limit)
-    return ResponseBase(data=roles)
+    roles, total = await role_service.get_roles_paginated(page=page, page_size=page_size)
+    return ResponseBase(data=PaginatedResponse(total=total, page=page, page_size=page_size, items=roles))
 
 
 @router.post("/", response_model=ResponseBase[RoleResponse])
@@ -44,6 +44,26 @@ async def create_role(
     """
     role = await role_service.create_role(obj_in=role_in)
     return ResponseBase(data=role)
+
+
+@router.delete("/batch", response_model=ResponseBase[BatchOperationResult])
+async def batch_delete_roles(
+    *,
+    request: BatchDeleteRequest,
+    current_user: deps.CurrentUser,
+    role_service: deps.RoleServiceDep,
+) -> Any:
+    """
+    批量删除角色。
+    """
+    success_count, failed_ids = await role_service.batch_delete_roles(ids=request.ids, hard_delete=request.hard_delete)
+    return ResponseBase(
+        data=BatchOperationResult(
+            success_count=success_count,
+            failed_ids=failed_ids,
+            message=f"成功删除 {success_count} 个角色" if not failed_ids else "部分删除成功",
+        )
+    )
 
 
 @router.put("/{id}", response_model=ResponseBase[RoleResponse])
