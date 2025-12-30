@@ -3,7 +3,7 @@
 @Email: lijianqiao2906@live.com
 @FileName: base.py
 @DateTime: 2025-12-30 11:41:00
-@Docs: Base model definition with UUIDv7 and audit timestamps.
+@Docs: 基础模型定义，包含 UUIDv7 和审计时间戳。
 """
 
 import uuid
@@ -12,9 +12,9 @@ from datetime import datetime
 import uuid6
 from sqlalchemy import Boolean, DateTime, MetaData, String
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
-from sqlalchemy.sql import func
+from sqlalchemy.sql import func as sql_func
 
-# Recommended naming convention for constraints
+# 推荐的命名约定
 meta = MetaData(
     naming_convention={
         "ix": "ix_%(column_0_label)s",
@@ -31,11 +31,11 @@ class Base(DeclarativeBase):
 
 
 class TimestampMixin:
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=sql_func.now(), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        server_default=func.now(),
-        onupdate=func.now(),
+        server_default=sql_func.now(),
+        onupdate=sql_func.now(),
         nullable=False,
     )
 
@@ -48,7 +48,7 @@ class UUIDMixin:
     id: Mapped[uuid.UUID] = mapped_column(
         primary_key=True,
         default=uuid6.uuid7,
-        server_default=func.gen_random_uuid(),  # Postgres has this, or we can rely on app-side generation. uuid7 is better generated app side usually or via specific pg extension. Let's rely on app-side default for uuid7 logic consistency.
+        server_default=sql_func.gen_random_uuid(),
         unique=True,
         index=True,
         nullable=False,
@@ -60,14 +60,20 @@ class VersionMixin:
         String, default=lambda: uuid.uuid4().hex, onupdate=lambda: uuid.uuid4().hex, nullable=False
     )
 
+    # 启用 SQLAlchemy 的乐观锁功能
+    __mapper_args__ = {
+        "version_id_col": version_id,
+        "version_id_generator": False,
+    }
+
 
 class AuditableModel(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin, VersionMixin):
     """
-    Abstract base model that includes:
-    - UUIDv7 Primary Key
-    - Created/Updated timestamps
-    - Soft delete flag
-    - Optimistic locking version
+    抽象基础模型包括：
+    - UUIDv7 主键
+    - 创建/更新时间戳
+    - 软删除标志
+    - 乐观锁定版本
     """
 
     __abstract__ = True

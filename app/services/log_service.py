@@ -12,7 +12,9 @@ from fastapi import Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from user_agents import parse
 
-from app.models.log import LoginLog
+from app.crud.crud_log import CRUDLoginLog, CRUDOperationLog
+from app.models.log import LoginLog, OperationLog
+from app.schemas.log import LoginLogCreate
 
 
 class LogService:
@@ -20,8 +22,22 @@ class LogService:
     日志服务类。
     """
 
-    def __init__(self, db: AsyncSession):
+    def __init__(self, db: AsyncSession, login_log_crud: CRUDLoginLog, operation_log_crud: CRUDOperationLog):
         self.db = db
+        self.login_log_crud = login_log_crud
+        self.operation_log_crud = operation_log_crud
+
+    async def get_login_logs(self, skip: int = 0, limit: int = 100) -> list[LoginLog]:
+        """
+        获取登录日志列表。
+        """
+        return await self.login_log_crud.get_multi(self.db, skip=skip, limit=limit)
+
+    async def get_operation_logs(self, skip: int = 0, limit: int = 100) -> list[OperationLog]:
+        """
+        获取操作日志列表。
+        """
+        return await self.operation_log_crud.get_multi(self.db, skip=skip, limit=limit)
 
     async def create_login_log(
         self,
@@ -50,7 +66,7 @@ class LogService:
             else:
                 final_user_id = user_id
 
-        log = LoginLog(
+        log_in = LoginLogCreate(
             user_id=final_user_id,
             username=username,
             ip=ip,
@@ -61,17 +77,5 @@ class LogService:
             status=status,
             msg=msg,
         )
-        self.db.add(log)
-        await self.db.flush()
-        # 由于是异步后台任务调用，可能需要显式 commit，或者由调用方的 Session 管理。
-        # 如果是 BackgroundTasks 且使用独立的 Session，则必须 commit。
-        # 考虑到作为 Service，应尽量保持原子提交或由调用层控制。
-        # 为配合 BackgroundTasks，这里不做 commit，假设 Session 生命周期在 Task 中管理？
-        # 不，BackgroundTasks 运行在响应返回后，原来的 Session 可能已关闭（如果使用 Depends(get_db)）。
-        # 所以 BackgroundTasks 需要独立的 Session 或者确保 Session 未关闭。
-        # 通常做法：Controller 传递 db 给 BackgroundTasks 调用的函数？不，FastAPI Depends db 会在 response 后 close。
-        # 更好的做法：BackgroundTasks 接收一个独立的 Session 工厂或在新线程中创建 Session。
-        # 但为简单起见，我们假设 LogService 被同步调用或在此次请求的事务中。
-        # 如果要完全异步，需要在 Task 中使用 `async with AsyncSessionLocal() as db: ...`
 
-        return log
+        return await self.login_log_crud.create(self.db, obj_in=log_in)

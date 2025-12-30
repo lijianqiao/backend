@@ -20,6 +20,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import settings
 from app.core.db import AsyncSessionLocal
 from app.core.exceptions import ForbiddenException, NotFoundException, UnauthorizedException
+from app.crud.crud_log import CRUDLoginLog, CRUDOperationLog
+from app.crud.crud_log import login_log as login_log_crud_global
+from app.crud.crud_log import operation_log as operation_log_crud_global
 from app.crud.crud_menu import CRUDMenu
 from app.crud.crud_menu import menu as menu_crud_global
 from app.crud.crud_role import CRUDRole
@@ -116,6 +119,14 @@ def get_menu_crud() -> CRUDMenu:
     return menu_crud_global
 
 
+def get_login_log_crud() -> CRUDLoginLog:
+    return login_log_crud_global
+
+
+def get_operation_log_crud() -> CRUDOperationLog:
+    return operation_log_crud_global
+
+
 # --- Service Injectors ---
 # 使用 Depends 注入 Service 和 Repositories
 
@@ -124,8 +135,12 @@ def get_user_service(db: SessionDep, user_crud: Annotated[CRUDUser, Depends(get_
     return UserService(db, user_crud)
 
 
-def get_log_service(db: SessionDep) -> LogService:
-    return LogService(db)
+def get_log_service(
+    db: SessionDep,
+    login_log_crud: Annotated[CRUDLoginLog, Depends(get_login_log_crud)],
+    operation_log_crud: Annotated[CRUDOperationLog, Depends(get_operation_log_crud)],
+) -> LogService:
+    return LogService(db, login_log_crud, operation_log_crud)
 
 
 def get_role_service(db: SessionDep, role_crud: Annotated[CRUDRole, Depends(get_role_crud)]) -> RoleService:

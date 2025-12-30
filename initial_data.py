@@ -56,6 +56,7 @@ async def init_db() -> None:
                 gender="male",
             )
             await user_crud.create(db, obj_in=user_in)
+            await db.commit()
             logger.info("超级管理员创建成功。")
         else:
             logger.info("超级管理员已存在，跳过创建。")

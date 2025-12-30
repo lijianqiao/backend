@@ -16,26 +16,41 @@ class LogBase(BaseModel):
     user_id: UUID | None = None
     username: str | None = None
     ip: str | None = None
-    created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
 
 
-class LoginLogResponse(LogBase):
-    id: UUID
+class LoginLogBase(LogBase):
     user_agent: str | None = None
     browser: str | None = None
     os: str | None = None
     device: str | None = None
-    status: bool
+    status: bool = True
     msg: str | None = None
 
 
-class OperationLogResponse(LogBase):
+class LoginLogCreate(LoginLogBase):
+    created_at: datetime | None = None
+
+
+class LoginLogResponse(LoginLogBase):
     id: UUID
+    created_at: datetime
+
+
+class OperationLogBase(LogBase):
     module: str | None = None
     summary: str | None = None
     method: str | None = None
     path: str | None = None
     response_code: int | None = None
     duration: float | None = None
+
+
+class OperationLogCreate(OperationLogBase):
+    created_at: datetime | None = None
+
+
+class OperationLogResponse(OperationLogBase):
+    id: UUID
+    created_at: datetime
