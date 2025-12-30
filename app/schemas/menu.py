@@ -12,8 +12,6 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 class MenuBase(BaseModel):
-    title: str = Field(..., description="菜单标题")
-    name: str = Field(..., description="组件名称")
     parent_id: UUID | None = Field(None, description="父菜单ID")
     path: str | None = Field(None, description="路由路径")
     component: str | None = Field(None, description="组件路径")
@@ -24,16 +22,38 @@ class MenuBase(BaseModel):
 
 
 class MenuCreate(MenuBase):
-    pass
+    """
+    创建菜单 Schema
+    """
+
+    title: str = Field(..., description="菜单标题")
+    name: str = Field(..., description="组件名称")
 
 
-class MenuUpdate(MenuBase):
+class MenuUpdate(BaseModel):
+    """
+    更新菜单 Schema
+    """
+
     title: str | None = None
     name: str | None = None
+    parent_id: UUID | None = None
+    path: str | None = None
+    component: str | None = None
+    icon: str | None = None
+    sort: int | None = None
+    is_hidden: bool | None = None
+    permission: str | None = None
 
 
 class MenuResponse(MenuBase):
+    """
+    菜单响应 Schema
+    """
+
     id: UUID
+    title: str
+    name: str
     children: list["MenuResponse"] | None = None
 
     model_config = ConfigDict(from_attributes=True)

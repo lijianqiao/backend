@@ -12,10 +12,9 @@ from uuid import UUID
 from fastapi import APIRouter
 
 from app.api import deps
-from app.core.exceptions import BadRequestException
-from app.crud.crud_menu import menu as menu_crud
 from app.schemas.common import ResponseBase
 from app.schemas.menu import MenuCreate, MenuResponse, MenuUpdate
+from app.services import menu_service
 
 router = APIRouter()
 
@@ -26,11 +25,9 @@ async def read_menus(
     current_user: deps.CurrentUser,
 ) -> Any:
     """
-    获取菜单列表 (树形结构需前端组装或实现递归 Schema).
+    获取菜单列表。
     """
-    # 简单获取所有
-    menus = await menu_crud.get_multi(db, limit=1000)
-    # 可以在这里通过 utils 实现 build_tree，暂时直接返回列表
+    menus = await menu_service.get_menus(db)
     return ResponseBase(data=menus)
 
 
@@ -44,7 +41,7 @@ async def create_menu(
     """
     创建新菜单。
     """
-    menu = await menu_crud.create(db, obj_in=menu_in)
+    menu = await menu_service.create_menu(db, obj_in=menu_in)
     return ResponseBase(data=menu)
 
 
@@ -59,11 +56,7 @@ async def update_menu(
     """
     更新菜单。
     """
-    menu = await menu_crud.get(db, id=id)
-    if not menu:
-        raise BadRequestException(message="菜单不存在")
-
-    menu = await menu_crud.update(db, db_obj=menu, obj_in=menu_in)
+    menu = await menu_service.update_menu(db, id=id, obj_in=menu_in)
     return ResponseBase(data=menu)
 
 
@@ -77,9 +70,5 @@ async def delete_menu(
     """
     删除菜单。
     """
-    menu = await menu_crud.get(db, id=id)
-    if not menu:
-        raise BadRequestException(message="菜单不存在")
-
-    menu = await menu_crud.remove(db, id=id)
+    menu = await menu_service.delete_menu(db, id=id)
     return ResponseBase(data=menu)

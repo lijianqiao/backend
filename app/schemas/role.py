@@ -11,25 +11,43 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field
 
 
+# 基础字段，仅包含可选或通用定义，避免在 Update 中覆写 Required 字段
 class RoleBase(BaseModel):
-    name: str = Field(..., description="角色名称")
-    code: str = Field(..., description="角色编码")
     description: str | None = Field(None, description="描述")
     sort: int = Field(0, description="排序")
 
 
 class RoleCreate(RoleBase):
+    """
+    创建角色 Schema
+    """
+
+    name: str = Field(..., description="角色名称")
+    code: str = Field(..., description="角色编码")
     menu_ids: list[UUID] | None = Field(None, description="关联菜单ID列表")
 
 
-class RoleUpdate(RoleBase):
-    name: str | None = None
-    code: str | None = None
+class RoleUpdate(BaseModel):
+    """
+    更新角色 Schema
+    不继承 RoleBase 或 RoleCreate，避免字段类型变异冲突。
+    """
+
+    name: str | None = Field(None, description="角色名称")
+    code: str | None = Field(None, description="角色编码")
+    description: str | None = Field(None, description="描述")
+    sort: int | None = Field(None, description="排序")
     menu_ids: list[UUID] | None = Field(None, description="关联菜单ID列表")
 
 
 class RoleResponse(RoleBase):
+    """
+    角色响应 Schema
+    """
+
     id: UUID
+    name: str  # 响应中必须存在
+    code: str  # 响应中必须存在
     is_active: bool
 
     model_config = ConfigDict(from_attributes=True)

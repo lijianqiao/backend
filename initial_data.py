@@ -52,6 +52,8 @@ async def init_db() -> None:
                 phone=settings.FIRST_SUPERUSER_PHONE,
                 nickname="Administrator",
                 is_superuser=True,
+                is_active=True,
+                gender="male",
             )
             await user_crud.create(db, obj_in=user_in)
             logger.info("超级管理员创建成功。")

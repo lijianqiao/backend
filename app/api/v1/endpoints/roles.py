@@ -12,10 +12,9 @@ from uuid import UUID
 from fastapi import APIRouter
 
 from app.api import deps
-from app.core.exceptions import BadRequestException
-from app.crud.crud_role import role as role_crud
 from app.schemas.common import ResponseBase
 from app.schemas.role import RoleCreate, RoleResponse, RoleUpdate
+from app.services import role_service
 
 router = APIRouter()
 
@@ -30,7 +29,7 @@ async def read_roles(
     """
     获取角色列表。
     """
-    roles = await role_crud.get_multi(db, skip=skip, limit=limit)
+    roles = await role_service.get_roles(db, skip=skip, limit=limit)
     return ResponseBase(data=roles)
 
 
@@ -43,14 +42,8 @@ async def create_role(
 ) -> Any:
     """
     创建新角色。
-    需要超级管理员权限或相应权限。
     """
-    # 简单检查 code 是否重复
-    role = await role_crud.get_by_code(db, code=role_in.code)
-    if role:
-        raise BadRequestException(message="角色编码已存在")
-
-    role = await role_crud.create(db, obj_in=role_in)
+    role = await role_service.create_role(db, obj_in=role_in)
     return ResponseBase(data=role)
 
 
@@ -65,11 +58,7 @@ async def update_role(
     """
     更新角色。
     """
-    role = await role_crud.get(db, id=id)
-    if not role:
-        raise BadRequestException(message="角色不存在")
-
-    role = await role_crud.update(db, db_obj=role, obj_in=role_in)
+    role = await role_service.update_role(db, id=id, obj_in=role_in)
     return ResponseBase(data=role)
 
 
@@ -83,9 +72,5 @@ async def delete_role(
     """
     删除角色。
     """
-    role = await role_crud.get(db, id=id)
-    if not role:
-        raise BadRequestException(message="角色不存在")
-
-    role = await role_crud.remove(db, id=id)
+    role = await role_service.delete_role(db, id=id)
     return ResponseBase(data=role)
