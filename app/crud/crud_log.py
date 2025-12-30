@@ -6,9 +6,10 @@
 @Docs: 日志 CRUD 操作 (Log CRUD).
 """
 
+from datetime import datetime, timedelta
 from typing import Any
 
-from sqlalchemy import func, select, text
+from sqlalchemy import Date, cast, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.crud.base import CRUDBase
@@ -19,52 +20,101 @@ from app.schemas.log import LoginLogCreate, OperationLogCreate
 class CRUDLoginLog(CRUDBase[LoginLog, LoginLogCreate, LoginLogCreate]):
     async def count_today(self, db: AsyncSession) -> int:
         """
-        统计今日登录次数 (SQLite/PG 通用近似实现，严格来说需根据 DB 类型处理时区，这里简化处理).
+        统计今日登录次数。
+
+        Args:
+            db (AsyncSession): 数据库会话。
+
+        Returns:
+            int: 今日登录总数。
         """
-        # 使用 SQLite 的 date('now')
-        # 如果是 PG 需用 current_date
-        sql = text("SELECT count(*) FROM sys_login_log WHERE date(created_at) = date('now')")
-        try:
-            result = await db.execute(sql)
-            return result.scalar_one()
-        except Exception:
-            # Fallback
-            return 0
+        now = datetime.now()
+        today_start = datetime(now.year, now.month, now.day)
+        today_end = today_start + timedelta(days=1)
+        return await self.count_by_range(db, today_start, today_end)
 
     async def count_by_range(self, db: AsyncSession, start: Any, end: Any) -> int:
+        """
+        统计指定时间范围内的登录次数。
+
+        Args:
+            db (AsyncSession): 数据库会话。
+            start (Any): 开始时间。
+            end (Any): 结束时间。
+
+        Returns:
+            int: 该时间段内的登录总数。
+        """
         result = await db.execute(
-            select(func.count(LoginLog.id)).where(LoginLog.created_at >= start, LoginLog.created_at <= end)
+            select(func.count(LoginLog.id)).where(LoginLog.created_at >= start, LoginLog.created_at < end)
         )
         return result.scalar_one()
 
     async def get_trend(self, db: AsyncSession, days: int = 7) -> list[dict[str, Any]]:
         """
-        获取近 N 天趋势 (需要根据数据库类型编写不同的 Group By 语法).
-        此处仅提供 Python 层面聚合实现作为通用 fallback，或者针对 SQLite/PG 分别写 SQL.
-        为了简单通用，这里演示先拉取数据 (Limit 10000) 再 Python 聚合，或者使用简单的 date_trunc (PG) / strftime (SQLite).
+        获取近 N 天的登录趋势统计。
+
+        基于日期进行聚合统计，用于图表展示。
+
+        Args:
+            db (AsyncSession): 数据库会话。
+            days (int): 统计天数，默认为 7 天。
+
+        Returns:
+            list[dict[str, Any]]: 包含日期和计数的字典列表，例如:
+            [{"date": "2023-10-01", "count": 10}, ...]
         """
-        # 针对 SQLite 的实现
-        sql = text(
-            "SELECT date(created_at) as d, count(*) as c FROM sys_login_log "
-            "WHERE created_at >= date('now', :days) "
-            "GROUP BY d ORDER BY d ASC"
+        # 计算日期范围 (过去 N-1 天 + 今天)
+        end_date = datetime.now().date()
+        start_date = end_date - timedelta(days=days - 1)
+
+        # 构造跨数据库通用的 Group By Date 查询
+        # SQLite/Postgres 都支持 sqlalchemy.cast(..., Date)
+        date_col = cast(LoginLog.created_at, Date)
+
+        stmt = (
+            select(date_col.label("d"), func.count().label("c"))
+            .where(date_col >= start_date)
+            .group_by(date_col)
+            .order_by(date_col.asc())
         )
-        # 注意: datetime 字段在 SQLite 中默认是字符串存储 ISO8601，使用 date() 函数截取
-        # :days 参数格式如 '-6 days'
+
         try:
-            result = await db.execute(sql, {"days": f"-{days - 1} days"})
-            return [{"date": str(row[0]), "count": row[1]} for row in result.all()]
-        except Exception:
-            # Fallback for empty or non-SQLite (safety)
+            result = await db.execute(stmt)
+            return [{"date": str(row.d), "count": row.c} for row in result.all()]
+        except Exception as e:
+            # 记录错误但不崩溃，返回空列表
+            print(f"Error getting trend: {e}")
             return []
 
     async def get_recent(self, db: AsyncSession, limit: int = 10) -> list[LoginLog]:
+        """
+        获取最近的登录日志。
+
+        Args:
+            db (AsyncSession): 数据库会话。
+            limit (int): 返回条数限制，默认为 10。
+
+        Returns:
+            list[LoginLog]: 最近的登录日志列表。
+        """
         result = await db.execute(select(LoginLog).order_by(LoginLog.created_at.desc()).limit(limit))
         return list(result.scalars().all())
 
 
 class CRUDOperationLog(CRUDBase[OperationLog, OperationLogCreate, OperationLogCreate]):
     async def count_by_range(self, db: AsyncSession, start: Any, end: Any) -> int:
+        """
+        统计指定时间范围内的操作日志数量。
+
+        Args:
+            db (AsyncSession): 数据库会话。
+            start (Any): 开始时间。
+            end (Any): 结束时间。
+
+        Returns:
+            int: 该时间段内的操作日志总数。
+        """
         result = await db.execute(
             select(func.count(OperationLog.id)).where(OperationLog.created_at >= start, OperationLog.created_at <= end)
         )
