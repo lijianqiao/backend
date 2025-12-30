@@ -8,7 +8,7 @@
 
 from typing import Literal
 
-from pydantic import PostgresDsn, RedisDsn, computed_field
+from pydantic import PostgresDsn, RedisDsn, computed_field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -83,6 +83,38 @@ class Settings(BaseSettings):
             port=self.POSTGRES_PORT,
             path=self.POSTGRES_DB,
         )
+
+    @model_validator(mode="after")
+    def check_security_settings(self) -> "Settings":
+        """
+        检查安全配置。在生产环境中，如果有不安全的默认值，则阻止启动。
+        """
+        # 1. 检查 SECRET_KEY
+        if self.SECRET_KEY == "changethis" or len(self.SECRET_KEY) < 12:
+            message = "[安全警告]: SECRET_KEY 使用了默认值 'changethis' 或长度过短! 这极不安全，会导致系统易受攻击。"
+            if self.ENVIRONMENT in ("production", "staging"):
+                raise ValueError(f"[BLOCK] {message} 请并在 .env 中修改 SECRET_KEY。")
+            else:
+                print(f"\033[91m{message}\033[0m")  # 红色打印
+
+        # 2. 检查 默认密码 (仅检查显而易见的默认值)
+        insecure_passwords = ["password", "123123", "admin"]
+
+        if self.POSTGRES_PASSWORD in insecure_passwords:
+            msg = f"[安全警告]: 数据库密码使用了弱密码 '{self.POSTGRES_PASSWORD}'。"
+            if self.ENVIRONMENT == "production":
+                raise ValueError(f"[BLOCK] {msg} 生产环境严禁使用弱密码！")
+            else:
+                print(f"\033[93m{msg}\033[0m")  # 黄色打印
+
+        if self.FIRST_SUPERUSER_PASSWORD in insecure_passwords:
+            msg = f"[安全警告]: 初始管理员密码使用了弱密码 '{self.FIRST_SUPERUSER_PASSWORD}'。"
+            if self.ENVIRONMENT == "production":
+                raise ValueError(f"[BLOCK] {msg} 生产环境严禁使用弱密码！")
+            else:
+                print(f"\033[93m{msg}\033[0m")
+
+        return self
 
 
 settings = Settings()
