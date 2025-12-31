@@ -199,3 +199,30 @@ async def reset_user_password(
     """
     user = await user_service.reset_password(user_id=user_id, new_password=password_data.new_password)
     return ResponseBase(data=user, message="密码重置成功")
+
+
+@router.put("/{user_id}", response_model=ResponseBase[UserResponse], summary="更新用户信息 (管理员)")
+async def update_user(
+    *,
+    user_id: UUID,
+    user_in: UserUpdate,
+    active_superuser: deps.User = Depends(deps.get_current_active_superuser),
+    user_service: deps.UserServiceDep,
+) -> Any:
+    """
+    管理员更新用户信息。
+
+    允许超级管理员修改任意用户的资料 (昵称、手机号、邮箱、状态等)。
+    不包含密码修改 (请使用重置密码接口)。
+
+    Args:
+        user_id (UUID): 目标用户 ID。
+        user_in (UserUpdate): 更新的用户数据。
+        active_superuser (User): 超级管理员权限验证。
+        user_service (UserService): 用户服务依赖。
+
+    Returns:
+        ResponseBase[UserResponse]: 更新后的用户信息。
+    """
+    user = await user_service.update_user(user_id=user_id, obj_in=user_in)
+    return ResponseBase(data=user, message="用户信息更新成功")
