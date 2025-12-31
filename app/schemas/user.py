@@ -13,6 +13,7 @@ import phonenumbers
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
 from app.core.config import settings
+from app.schemas.common import TimestampSchema
 
 
 def validate_password_strength(password: str) -> str:
@@ -94,8 +95,9 @@ class UserUpdate(BaseModel):
             raise ValueError("手机号码格式错误") from e
 
 
-class UserResponse(UserBase):
+class UserResponse(UserBase, TimestampSchema):
     id: UUID
+    is_deleted: bool = Field(False, description="是否删除")
 
     model_config = ConfigDict(from_attributes=True)
 

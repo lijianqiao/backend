@@ -10,6 +10,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.schemas.common import TimestampSchema
+
 
 class MenuBase(BaseModel):
     parent_id: UUID | None = Field(None, description="父菜单ID")
@@ -46,7 +48,7 @@ class MenuUpdate(BaseModel):
     permission: str | None = None
 
 
-class MenuResponse(MenuBase):
+class MenuResponse(MenuBase, TimestampSchema):
     """
     菜单响应 Schema
     """

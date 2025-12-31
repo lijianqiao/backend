@@ -2,7 +2,7 @@
 
 Version: 0.1.0
 
-## 后端基础地址： `http://127.0.0.1:8000`
+## 基础路由：`http://localhost:8000`
 
 [TOC]
 
@@ -774,17 +774,15 @@ Format: `application/json`
 
 **Description**:
 
-删除角色。
-
-删除指定 ID 的角色。
+删除角色 (软删除)。
 
 Args:
 id (UUID): 角色 ID。
-current_user (User): 当前登录用户。
+active_superuser (User): 当前登录超级用户。
 role_service (RoleService): 角色服务依赖。
 
 Returns:
-ResponseBase[RoleResponse]: 已删除的角色对象信息。
+ResponseBase[RoleResponse]: 删除后的角色对象。
 
 #### Requests Parameters (Query/Path)
 
@@ -1163,6 +1161,92 @@ ResponseBase[UserResponse]: 用户信息 (密码重置成功后)。
 | 参数名         | 类型     | 必填 | 描述   |
 | :------------- | :------- | :--- | :----- |
 | `new_password` | `string` | 是   | 新密码 |
+
+#### Responses
+
+**Status Code**: `200` - Successful Response
+
+Format: `application/json`
+
+| 参数名    | 类型           | 必填 | 描述    |
+| :-------- | :------------- | :--- | :------ |
+| `code`    | `integer`      | 否   | Code    |
+| `message` | `string`       | 否   | Message |
+| `data`    | `UserResponse` | 否   |         |
+
+**Status Code**: `422` - Validation Error
+
+Format: `application/json`
+
+| 参数名   | 类型                     | 必填 | 描述   |
+| :------- | :----------------------- | :--- | :----- |
+| `detail` | `Array[ValidationError]` | 否   | Detail |
+
+---
+
+### 获取用户回收站列表
+
+**URL**: `/api/v1/users/recycle-bin`
+
+**Method**: `GET`
+
+**Description**:
+
+获取已删除的用户列表 (回收站)。
+仅限超级管理员。
+
+#### Requests Parameters (Query/Path)
+
+| 参数名      | 位置    | 类型      | 必填 | 描述      | Default |
+| :---------- | :------ | :-------- | :--- | :-------- | :------ |
+| `page`      | `query` | `integer` | 否   | Page      | 1       |
+| `page_size` | `query` | `integer` | 否   | Page Size | 20      |
+
+#### Responses
+
+**Status Code**: `200` - Successful Response
+
+Format: `application/json`
+
+| 参数名    | 类型                              | 必填 | 描述    |
+| :-------- | :-------------------------------- | :--- | :------ |
+| `code`    | `integer`                         | 否   | Code    |
+| `message` | `string`                          | 否   | Message |
+| `data`    | `PaginatedResponse_UserResponse_` | 否   |         |
+
+**Status Code**: `422` - Validation Error
+
+Format: `application/json`
+
+| 参数名   | 类型                     | 必填 | 描述   |
+| :------- | :----------------------- | :--- | :----- |
+| `detail` | `Array[ValidationError]` | 否   | Detail |
+
+---
+
+### 获取特定用户信息
+
+**URL**: `/api/v1/users/{user_id}`
+
+**Method**: `GET`
+
+**Description**:
+
+获取特定用户的详细信息 (管理员)。
+
+Args:
+user_id (UUID): 目标用户 ID。
+active_superuser (User): 超级管理员权限验证。
+user_service (UserService): 用户服务依赖。
+
+Returns:
+ResponseBase[UserResponse]: 用户详细信息。
+
+#### Requests Parameters (Query/Path)
+
+| 参数名    | 位置   | 类型     | 必填 | 描述    | Default |
+| :-------- | :----- | :------- | :--- | :------ | :------ |
+| `user_id` | `path` | `string` | 是   | User Id |         |
 
 #### Responses
 

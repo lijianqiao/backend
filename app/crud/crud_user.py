@@ -25,6 +25,13 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
         result = await db.execute(select(User).where(User.username == username, User.is_deleted.is_(False)))
         return result.scalars().first()
 
+    async def get_by_username_include_deleted(self, db: AsyncSession, *, username: str) -> User | None:
+        """
+        根据用户名查询用户 (包含已软删除)。
+        """
+        result = await db.execute(select(User).where(User.username == username))
+        return result.scalars().first()
+
     async def get_by_email(self, db: AsyncSession, *, email: str) -> User | None:
         """
         根据邮箱查询用户 (排除已软删除)。
@@ -32,11 +39,25 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
         result = await db.execute(select(User).where(User.email == email, User.is_deleted.is_(False)))
         return result.scalars().first()
 
+    async def get_by_email_include_deleted(self, db: AsyncSession, *, email: str) -> User | None:
+        """
+        根据邮箱查询用户 (包含已软删除)。
+        """
+        result = await db.execute(select(User).where(User.email == email))
+        return result.scalars().first()
+
     async def get_by_phone(self, db: AsyncSession, *, phone: str) -> User | None:
         """
         根据手机号查询用户 (排除已软删除)。
         """
         result = await db.execute(select(User).where(User.phone == phone, User.is_deleted.is_(False)))
+        return result.scalars().first()
+
+    async def get_by_phone_include_deleted(self, db: AsyncSession, *, phone: str) -> User | None:
+        """
+        根据手机号查询用户 (包含已软删除)。
+        """
+        result = await db.execute(select(User).where(User.phone == phone))
         return result.scalars().first()
 
     async def count_active(self, db: AsyncSession) -> int:
@@ -47,6 +68,24 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
             select(func.count(User.id)).where(User.is_active.is_(True), User.is_deleted.is_(False))
         )
         return result.scalar_one()
+
+    async def count_deleted(self, db: AsyncSession) -> int:
+        """
+        统计已删除用户数。
+        """
+        result = await db.execute(select(func.count(User.id)).where(User.is_deleted.is_(True)))
+        return result.scalar_one()
+
+    async def get_multi_deleted_paginated(
+        self, db: AsyncSession, *, page: int = 1, page_size: int = 20
+    ) -> tuple[list[User], int]:
+        """
+        获取已删除用户列表 (分页)。
+        """
+        total = await self.count_deleted(db)
+        stmt = select(User).where(User.is_deleted.is_(True)).offset((page - 1) * page_size).limit(page_size)
+        result = await db.execute(stmt)
+        return list(result.scalars().all()), total
 
     async def create(self, db: AsyncSession, *, obj_in: UserCreate) -> User:
         db_obj = User(

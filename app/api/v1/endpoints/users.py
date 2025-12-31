@@ -201,6 +201,44 @@ async def reset_user_password(
     return ResponseBase(data=user, message="密码重置成功")
 
 
+@router.get("/recycle-bin", response_model=ResponseBase[PaginatedResponse[UserResponse]], summary="获取用户回收站列表")
+async def get_recycle_bin(
+    *,
+    page: int = 1,
+    page_size: int = 20,
+    active_superuser: deps.User = Depends(deps.get_current_active_superuser),
+    user_service: deps.UserServiceDep,
+) -> Any:
+    """
+    获取已删除的用户列表 (回收站)。
+    仅限超级管理员。
+    """
+    users, total = await user_service.get_deleted_users(page=page, page_size=page_size)
+    return ResponseBase(data=PaginatedResponse(total=total, page=page, page_size=page_size, items=users))
+
+
+@router.get("/{user_id}", response_model=ResponseBase[UserResponse], summary="获取特定用户信息")
+async def read_user_by_id(
+    *,
+    user_id: UUID,
+    active_superuser: deps.User = Depends(deps.get_current_active_superuser),
+    user_service: deps.UserServiceDep,
+) -> Any:
+    """
+    获取特定用户的详细信息 (管理员)。
+
+    Args:
+        user_id (UUID): 目标用户 ID。
+        active_superuser (User): 超级管理员权限验证。
+        user_service (UserService): 用户服务依赖。
+
+    Returns:
+        ResponseBase[UserResponse]: 用户详细信息。
+    """
+    user = await user_service.get_user(user_id=user_id)
+    return ResponseBase(data=user)
+
+
 @router.put("/{user_id}", response_model=ResponseBase[UserResponse], summary="更新用户信息 (管理员)")
 async def update_user(
     *,

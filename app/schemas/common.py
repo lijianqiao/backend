@@ -6,12 +6,22 @@
 @Docs: 通用 Schema 定义 (Common Schemas).
 """
 
+from datetime import datetime
 from typing import TypeVar
 from uuid import UUID
 
 from pydantic import BaseModel, Field
 
 T = TypeVar("T")
+
+
+class TimestampSchema(BaseModel):
+    """
+    时间戳混入 Schema。
+    """
+
+    created_at: datetime = Field(..., description="创建时间")
+    updated_at: datetime = Field(..., description="更新时间")
 
 
 class ResponseBase[T](BaseModel):

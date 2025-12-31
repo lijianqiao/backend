@@ -9,7 +9,7 @@
 from typing import Any
 from uuid import UUID
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 
 from app.api import deps
 from app.schemas.common import BatchDeleteRequest, BatchOperationResult, PaginatedResponse, ResponseBase
@@ -127,21 +127,19 @@ async def update_role(
 async def delete_role(
     *,
     id: UUID,
-    current_user: deps.CurrentUser,
+    active_superuser: deps.User = Depends(deps.get_current_active_superuser),
     role_service: deps.RoleServiceDep,
 ) -> Any:
     """
-    删除角色。
-
-    删除指定 ID 的角色。
+    删除角色 (软删除)。
 
     Args:
         id (UUID): 角色 ID。
-        current_user (User): 当前登录用户。
+        active_superuser (User): 当前登录超级用户。
         role_service (RoleService): 角色服务依赖。
 
     Returns:
-        ResponseBase[RoleResponse]: 已删除的角色对象信息。
+        ResponseBase[RoleResponse]: 删除后的角色对象。
     """
     role = await role_service.delete_role(id=id)
     return ResponseBase(data=role)

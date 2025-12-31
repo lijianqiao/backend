@@ -14,7 +14,7 @@ from app.core.decorator import transactional
 from app.core.exceptions import BadRequestException, NotFoundException
 from app.crud.crud_role import CRUDRole
 from app.models.rbac import Role
-from app.schemas.role import RoleCreate, RoleUpdate
+from app.schemas.role import RoleCreate, RoleResponse, RoleUpdate
 
 
 class RoleService:
@@ -57,7 +57,7 @@ class RoleService:
         return await self.role_crud.update(self.db, db_obj=role, obj_in=obj_in)
 
     @transactional()
-    async def delete_role(self, id: UUID) -> Role:
+    async def delete_role(self, id: UUID) -> RoleResponse:
         role = await self.role_crud.get(self.db, id=id)
         if not role:
             raise NotFoundException(message="角色不存在")
@@ -66,7 +66,17 @@ class RoleService:
         if not deleted_role:
             raise NotFoundException(message="角色删除失败")
 
-        return deleted_role
+        return RoleResponse(
+            id=deleted_role.id,
+            name=deleted_role.name,
+            code=deleted_role.code,
+            description=deleted_role.description,
+            sort=deleted_role.sort,
+            is_active=deleted_role.is_active,
+            is_deleted=deleted_role.is_deleted,
+            created_at=deleted_role.created_at,
+            updated_at=deleted_role.updated_at,
+        )
 
     @transactional()
     async def batch_delete_roles(self, ids: list[UUID], hard_delete: bool = False) -> tuple[int, list[UUID]]:

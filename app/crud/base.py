@@ -139,10 +139,11 @@ class CRUDBase[ModelType: Base, CreateSchemaType: BaseModel, UpdateSchemaType: B
             if isinstance(obj, SoftDeleteMixin):
                 obj.is_deleted = True
                 db.add(obj)
+                await db.flush()
+                await db.refresh(obj)
             else:
                 await db.delete(obj)
-
-            await db.flush()
+                await db.flush()
         return obj
 
     async def batch_remove(

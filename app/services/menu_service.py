@@ -70,6 +70,8 @@ class MenuService:
             is_hidden=deleted_menu.is_hidden,
             permission=deleted_menu.permission,
             is_deleted=deleted_menu.is_deleted,
+            created_at=deleted_menu.created_at,
+            updated_at=deleted_menu.updated_at,
             children=[],
         )
 

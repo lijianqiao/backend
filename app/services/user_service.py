@@ -30,17 +30,26 @@ class UserService:
 
     @transactional()
     async def create_user(self, obj_in: UserCreate) -> User:
-        user = await self.user_crud.get_by_username(self.db, username=obj_in.username)
+        # 1. 检查用户名
+        user = await self.user_crud.get_by_username_include_deleted(self.db, username=obj_in.username)
         if user:
+            if user.is_deleted:
+                raise BadRequestException(message="该用户名已被注销/删除，请联系管理员恢复")
             raise BadRequestException(message="该用户名的用户已存在")
 
-        user = await self.user_crud.get_by_phone(self.db, phone=obj_in.phone)
+        # 2. 检查手机号
+        user = await self.user_crud.get_by_phone_include_deleted(self.db, phone=obj_in.phone)
         if user:
+            if user.is_deleted:
+                raise BadRequestException(message="该手机号已被注销/删除，请联系管理员恢复")
             raise BadRequestException(message="该手机号的用户已存在")
 
+        # 3. 检查邮箱
         if obj_in.email:
-            user = await self.user_crud.get_by_email(self.db, email=obj_in.email)
+            user = await self.user_crud.get_by_email_include_deleted(self.db, email=obj_in.email)
             if user:
+                if user.is_deleted:
+                    raise BadRequestException(message="该邮箱已被注销/删除，请联系管理员恢复")
                 raise BadRequestException(message="该邮箱的用户已存在")
 
         return await self.user_crud.create(self.db, obj_in=obj_in)
@@ -65,6 +74,12 @@ class UserService:
             (users, total): 用户列表和总数
         """
         return await self.user_crud.get_multi_paginated(self.db, page=page, page_size=page_size)
+
+    async def get_deleted_users(self, page: int = 1, page_size: int = 20) -> tuple[list[User], int]:
+        """
+        获取已删除用户列表 (回收站 - 分页)。
+        """
+        return await self.user_crud.get_multi_deleted_paginated(self.db, page=page, page_size=page_size)
 
     @transactional()
     async def update_user(self, user_id: UUID, obj_in: UserUpdate) -> User:

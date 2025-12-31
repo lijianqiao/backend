@@ -10,6 +10,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.schemas.common import TimestampSchema
+
 
 # 基础字段，仅包含可选或通用定义，避免在 Update 中覆写 Required 字段
 class RoleBase(BaseModel):
@@ -40,7 +42,7 @@ class RoleUpdate(BaseModel):
     menu_ids: list[UUID] | None = Field(None, description="关联菜单ID列表")
 
 
-class RoleResponse(RoleBase):
+class RoleResponse(RoleBase, TimestampSchema):
     """
     角色响应 Schema
     """
