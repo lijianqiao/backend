@@ -264,3 +264,20 @@ async def update_user(
     """
     user = await user_service.update_user(user_id=user_id, obj_in=user_in)
     return ResponseBase(data=user, message="用户信息更新成功")
+
+
+@router.post("/{user_id}/restore", response_model=ResponseBase[UserResponse], summary="恢复已删除用户")
+async def restore_user(
+    *,
+    user_id: UUID,
+    active_superuser: deps.User = Depends(deps.get_current_active_superuser),
+    user_service: deps.UserServiceDep,
+) -> Any:
+    """
+    恢复已删除用户。
+
+    从回收站中恢复指定用户。
+    需要超级管理员权限。
+    """
+    user = await user_service.restore_user(id=user_id)
+    return ResponseBase(data=user, message="用户恢复成功")

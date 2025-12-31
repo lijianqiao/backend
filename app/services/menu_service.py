@@ -87,3 +87,12 @@ class MenuService:
         批量删除菜单。
         """
         return await self.menu_crud.batch_remove(self.db, ids=ids, hard_delete=hard_delete)
+
+    async def restore_menu(self, id: UUID) -> Menu:
+        """
+        恢复已删除菜单。
+        """
+        menu = await self.menu_crud.restore(self.db, id=id)
+        if not menu:
+            raise NotFoundException(message="菜单不存在")
+        return menu

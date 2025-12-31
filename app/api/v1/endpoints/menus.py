@@ -161,3 +161,20 @@ async def delete_menu(
     """
     menu = await menu_service.delete_menu(id=id)
     return ResponseBase(data=menu)
+
+
+@router.post("/{id}/restore", response_model=ResponseBase[MenuResponse], summary="恢复已删除菜单")
+async def restore_menu(
+    *,
+    id: UUID,
+    active_superuser: deps.User = Depends(deps.get_current_active_superuser),
+    menu_service: deps.MenuServiceDep,
+) -> Any:
+    """
+    恢复已删除菜单。
+
+    从回收站中恢复指定菜单。
+    需要超级管理员权限。
+    """
+    menu = await menu_service.restore_menu(id=id)
+    return ResponseBase(data=menu, message="菜单恢复成功")

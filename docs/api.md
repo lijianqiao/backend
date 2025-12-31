@@ -554,6 +554,47 @@ Format: `application/json`
 
 ---
 
+### 恢复已删除菜单
+
+**URL**: `/api/v1/menus/{id}/restore`
+
+**Method**: `POST`
+
+**Description**:
+
+恢复已删除菜单。
+
+从回收站中恢复指定菜单。
+需要超级管理员权限。
+
+#### Requests Parameters (Query/Path)
+
+| 参数名 | 位置   | 类型     | 必填 | 描述 | Default |
+| :----- | :----- | :------- | :--- | :--- | :------ |
+| `id`   | `path` | `string` | 是   | Id   |         |
+
+#### Responses
+
+**Status Code**: `200` - Successful Response
+
+Format: `application/json`
+
+| 参数名    | 类型           | 必填 | 描述    |
+| :-------- | :------------- | :--- | :------ |
+| `code`    | `integer`      | 否   | Code    |
+| `message` | `string`       | 否   | Message |
+| `data`    | `MenuResponse` | 否   |         |
+
+**Status Code**: `422` - Validation Error
+
+Format: `application/json`
+
+| 参数名   | 类型                     | 必填 | 描述   |
+| :------- | :----------------------- | :--- | :----- |
+| `detail` | `Array[ValidationError]` | 否   | Detail |
+
+---
+
 ### 获取菜单回收站列表
 
 **URL**: `/api/v1/menus/recycle-bin`
@@ -823,6 +864,47 @@ role_service (RoleService): 角色服务依赖。
 
 Returns:
 ResponseBase[RoleResponse]: 删除后的角色对象。
+
+#### Requests Parameters (Query/Path)
+
+| 参数名 | 位置   | 类型     | 必填 | 描述 | Default |
+| :----- | :----- | :------- | :--- | :--- | :------ |
+| `id`   | `path` | `string` | 是   | Id   |         |
+
+#### Responses
+
+**Status Code**: `200` - Successful Response
+
+Format: `application/json`
+
+| 参数名    | 类型           | 必填 | 描述    |
+| :-------- | :------------- | :--- | :------ |
+| `code`    | `integer`      | 否   | Code    |
+| `message` | `string`       | 否   | Message |
+| `data`    | `RoleResponse` | 否   |         |
+
+**Status Code**: `422` - Validation Error
+
+Format: `application/json`
+
+| 参数名   | 类型                     | 必填 | 描述   |
+| :------- | :----------------------- | :--- | :----- |
+| `detail` | `Array[ValidationError]` | 否   | Detail |
+
+---
+
+### 恢复已删除角色
+
+**URL**: `/api/v1/roles/{id}/restore`
+
+**Method**: `POST`
+
+**Description**:
+
+恢复已删除角色。
+
+从回收站中恢复指定角色。
+需要超级管理员权限。
 
 #### Requests Parameters (Query/Path)
 
@@ -1241,6 +1323,47 @@ ResponseBase[UserResponse]: 用户信息 (密码重置成功后)。
 | 参数名         | 类型     | 必填 | 描述   |
 | :------------- | :------- | :--- | :----- |
 | `new_password` | `string` | 是   | 新密码 |
+
+#### Responses
+
+**Status Code**: `200` - Successful Response
+
+Format: `application/json`
+
+| 参数名    | 类型           | 必填 | 描述    |
+| :-------- | :------------- | :--- | :------ |
+| `code`    | `integer`      | 否   | Code    |
+| `message` | `string`       | 否   | Message |
+| `data`    | `UserResponse` | 否   |         |
+
+**Status Code**: `422` - Validation Error
+
+Format: `application/json`
+
+| 参数名   | 类型                     | 必填 | 描述   |
+| :------- | :----------------------- | :--- | :----- |
+| `detail` | `Array[ValidationError]` | 否   | Detail |
+
+---
+
+### 恢复已删除用户
+
+**URL**: `/api/v1/users/{user_id}/restore`
+
+**Method**: `POST`
+
+**Description**:
+
+恢复已删除用户。
+
+从回收站中恢复指定用户。
+需要超级管理员权限。
+
+#### Requests Parameters (Query/Path)
+
+| 参数名    | 位置   | 类型     | 必填 | 描述    | Default |
+| :-------- | :----- | :------- | :--- | :------ | :------ |
+| `user_id` | `path` | `string` | 是   | User Id |         |
 
 #### Responses
 

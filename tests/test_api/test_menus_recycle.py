@@ -48,3 +48,13 @@ class TestMenuRecycle:
                 assert "updated_at" in menu
                 break
         assert found
+
+        # 3. Restore the menu
+        res = await client.post(f"{settings.API_V1_STR}/menus/{menu_id}/restore", headers=auth_headers)
+        assert res.status_code == 200
+        assert res.json()["data"]["is_deleted"] is False
+
+        # 4. Verify NOT in recycle bin
+        res = await client.get(f"{settings.API_V1_STR}/menus/recycle-bin", headers=auth_headers)
+        items = res.json()["data"]["items"]
+        assert not any(m["id"] == menu_id for m in items)

@@ -145,3 +145,12 @@ class UserService:
             (success_count, failed_ids): 成功数量和失败的 ID 列表
         """
         return await self.user_crud.batch_remove(self.db, ids=ids, hard_delete=hard_delete)
+
+    async def restore_user(self, id: UUID) -> User:
+        """
+        恢复已删除用户。
+        """
+        user = await self.user_crud.restore(self.db, id=id)
+        if not user:
+            raise NotFoundException(message="用户不存在")
+        return user

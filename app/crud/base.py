@@ -194,3 +194,24 @@ class CRUDBase[ModelType: Base, CreateSchemaType: BaseModel, UpdateSchemaType: B
 
         await db.flush()
         return success_count, failed_ids
+
+    async def restore(self, db: AsyncSession, *, id: Any) -> ModelType | None:
+        """
+        恢复已软删除的记录。
+        """
+        # 1. 查找记录 (包括已删除的)
+        query = select(self.model).where(self.model.id == id)  # pyright: ignore[reportAttributeAccessIssue]
+        result = await db.execute(query)
+        obj = result.scalars().first()
+
+        if not obj:
+            return None
+
+        # 2. 如果是软删除对象且已删除，则恢复
+        if isinstance(obj, SoftDeleteMixin) and obj.is_deleted:
+            obj.is_deleted = False
+            db.add(obj)
+            await db.flush()
+            await db.refresh(obj)
+
+        return obj

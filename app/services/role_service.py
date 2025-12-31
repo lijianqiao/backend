@@ -90,3 +90,12 @@ class RoleService:
         批量删除角色。
         """
         return await self.role_crud.batch_remove(self.db, ids=ids, hard_delete=hard_delete)
+
+    async def restore_role(self, id: UUID) -> Role:
+        """
+        恢复已删除角色。
+        """
+        role = await self.role_crud.restore(self.db, id=id)
+        if not role:
+            raise NotFoundException(message="角色不存在")
+        return role

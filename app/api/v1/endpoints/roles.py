@@ -159,3 +159,20 @@ async def delete_role(
     """
     role = await role_service.delete_role(id=id)
     return ResponseBase(data=role)
+
+
+@router.post("/{id}/restore", response_model=ResponseBase[RoleResponse], summary="恢复已删除角色")
+async def restore_role(
+    *,
+    id: UUID,
+    active_superuser: deps.User = Depends(deps.get_current_active_superuser),
+    role_service: deps.RoleServiceDep,
+) -> Any:
+    """
+    恢复已删除角色。
+
+    从回收站中恢复指定角色。
+    需要超级管理员权限。
+    """
+    role = await role_service.restore_role(id=id)
+    return ResponseBase(data=role, message="角色恢复成功")
