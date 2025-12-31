@@ -6,8 +6,9 @@
 @Docs: 菜单 CRUD 操作 (Menu CRUD).
 """
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.crud.base import CRUDBase
 from app.models.rbac import Menu
@@ -25,6 +26,30 @@ class CRUDMenu(CRUDBase[Menu, MenuCreate, MenuUpdate]):
         result = await db.execute(select(Menu).order_by(Menu.sort))
         menus = result.scalars().all()
         return list(menus)
+
+    async def count_deleted(self, db: AsyncSession) -> int:
+        """
+        统计已删除菜单数。
+        """
+        result = await db.execute(select(func.count(Menu.id)).where(Menu.is_deleted.is_(True)))
+        return result.scalar_one()
+
+    async def get_multi_deleted_paginated(
+        self, db: AsyncSession, *, page: int = 1, page_size: int = 20
+    ) -> tuple[list[Menu], int]:
+        """
+        获取已删除菜单列表 (分页)。
+        """
+        total = await self.count_deleted(db)
+        stmt = (
+            select(Menu)
+            .options(selectinload(Menu.children))
+            .where(Menu.is_deleted.is_(True))
+            .offset((page - 1) * page_size)
+            .limit(page_size)
+        )
+        result = await db.execute(stmt)
+        return list(result.scalars().all()), total
 
 
 menu = CRUDMenu(Menu)

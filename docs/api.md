@@ -554,6 +554,46 @@ Format: `application/json`
 
 ---
 
+### 获取菜单回收站列表
+
+**URL**: `/api/v1/menus/recycle-bin`
+
+**Method**: `GET`
+
+**Description**:
+
+获取已删除的菜单列表 (回收站)。
+仅限超级管理员。
+
+#### Requests Parameters (Query/Path)
+
+| 参数名      | 位置    | 类型      | 必填 | 描述      | Default |
+| :---------- | :------ | :-------- | :--- | :-------- | :------ |
+| `page`      | `query` | `integer` | 否   | Page      | 1       |
+| `page_size` | `query` | `integer` | 否   | Page Size | 20      |
+
+#### Responses
+
+**Status Code**: `200` - Successful Response
+
+Format: `application/json`
+
+| 参数名    | 类型                              | 必填 | 描述    |
+| :-------- | :-------------------------------- | :--- | :------ |
+| `code`    | `integer`                         | 否   | Code    |
+| `message` | `string`                          | 否   | Message |
+| `data`    | `PaginatedResponse_MenuResponse_` | 否   |         |
+
+**Status Code**: `422` - Validation Error
+
+Format: `application/json`
+
+| 参数名   | 类型                     | 必填 | 描述   |
+| :------- | :----------------------- | :--- | :----- |
+| `detail` | `Array[ValidationError]` | 否   | Detail |
+
+---
+
 ## Roles
 
 ### 获取角色列表
@@ -801,6 +841,46 @@ Format: `application/json`
 | `code`    | `integer`      | 否   | Code    |
 | `message` | `string`       | 否   | Message |
 | `data`    | `RoleResponse` | 否   |         |
+
+**Status Code**: `422` - Validation Error
+
+Format: `application/json`
+
+| 参数名   | 类型                     | 必填 | 描述   |
+| :------- | :----------------------- | :--- | :----- |
+| `detail` | `Array[ValidationError]` | 否   | Detail |
+
+---
+
+### 获取角色回收站列表
+
+**URL**: `/api/v1/roles/recycle-bin`
+
+**Method**: `GET`
+
+**Description**:
+
+获取已删除的角色列表 (回收站)。
+仅限超级管理员。
+
+#### Requests Parameters (Query/Path)
+
+| 参数名      | 位置    | 类型      | 必填 | 描述      | Default |
+| :---------- | :------ | :-------- | :--- | :-------- | :------ |
+| `page`      | `query` | `integer` | 否   | Page      | 1       |
+| `page_size` | `query` | `integer` | 否   | Page Size | 20      |
+
+#### Responses
+
+**Status Code**: `200` - Successful Response
+
+Format: `application/json`
+
+| 参数名    | 类型                              | 必填 | 描述    |
+| :-------- | :-------------------------------- | :--- | :------ |
+| `code`    | `integer`                         | 否   | Code    |
+| `message` | `string`                          | 否   | Message |
+| `data`    | `PaginatedResponse_RoleResponse_` | 否   |         |
 
 **Status Code**: `422` - Validation Error
 

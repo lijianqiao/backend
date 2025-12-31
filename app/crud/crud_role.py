@@ -8,7 +8,7 @@
 
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -73,6 +73,30 @@ class CRUDRole(CRUDBase[Role, RoleCreate, RoleUpdate]):
                 db_obj.menus = menus
 
         return await super().update(db, db_obj=db_obj, obj_in=update_data)
+
+    async def count_deleted(self, db: AsyncSession) -> int:
+        """
+        统计已删除角色数。
+        """
+        result = await db.execute(select(func.count(Role.id)).where(Role.is_deleted.is_(True)))
+        return result.scalar_one()
+
+    async def get_multi_deleted_paginated(
+        self, db: AsyncSession, *, page: int = 1, page_size: int = 20
+    ) -> tuple[list[Role], int]:
+        """
+        获取已删除角色列表 (分页)。
+        """
+        total = await self.count_deleted(db)
+        stmt = (
+            select(Role)
+            .options(selectinload(Role.menus))
+            .where(Role.is_deleted.is_(True))
+            .offset((page - 1) * page_size)
+            .limit(page_size)
+        )
+        result = await db.execute(stmt)
+        return list(result.scalars().all()), total
 
 
 role = CRUDRole(Role)

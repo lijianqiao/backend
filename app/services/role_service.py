@@ -35,6 +35,12 @@ class RoleService:
         """
         return await self.role_crud.get_multi_paginated(self.db, page=page, page_size=page_size)
 
+    async def get_deleted_roles(self, page: int = 1, page_size: int = 20) -> tuple[list[Role], int]:
+        """
+        获取已删除角色列表 (回收站 - 分页)。
+        """
+        return await self.role_crud.get_multi_deleted_paginated(self.db, page=page, page_size=page_size)
+
     @transactional()
     async def create_role(self, obj_in: RoleCreate) -> Role:
         existing_role = await self.role_crud.get_by_code(self.db, code=obj_in.code)

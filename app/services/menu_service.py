@@ -35,6 +35,12 @@ class MenuService:
         """
         return await self.menu_crud.get_multi_paginated(self.db, page=page, page_size=page_size)
 
+    async def get_deleted_menus(self, page: int = 1, page_size: int = 20) -> tuple[list[Menu], int]:
+        """
+        获取已删除菜单列表 (回收站 - 分页)。
+        """
+        return await self.menu_crud.get_multi_deleted_paginated(self.db, page=page, page_size=page_size)
+
     @transactional()
     async def create_menu(self, obj_in: MenuCreate) -> Menu:
         return await self.menu_crud.create(self.db, obj_in=obj_in)

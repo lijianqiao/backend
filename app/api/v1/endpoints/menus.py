@@ -9,7 +9,7 @@
 from typing import Any
 from uuid import UUID
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 
 from app.api import deps
 from app.schemas.common import BatchDeleteRequest, BatchOperationResult, PaginatedResponse, ResponseBase
@@ -121,6 +121,22 @@ async def update_menu(
     """
     menu = await menu_service.update_menu(id=id, obj_in=menu_in)
     return ResponseBase(data=menu)
+
+
+@router.get("/recycle-bin", response_model=ResponseBase[PaginatedResponse[MenuResponse]], summary="获取菜单回收站列表")
+async def get_recycle_bin(
+    *,
+    page: int = 1,
+    page_size: int = 20,
+    active_superuser: deps.User = Depends(deps.get_current_active_superuser),
+    menu_service: deps.MenuServiceDep,
+) -> Any:
+    """
+    获取已删除的菜单列表 (回收站)。
+    仅限超级管理员。
+    """
+    menus, total = await menu_service.get_deleted_menus(page=page, page_size=page_size)
+    return ResponseBase(data=PaginatedResponse(total=total, page=page, page_size=page_size, items=menus))
 
 
 @router.delete("/{id}", response_model=ResponseBase[MenuResponse], summary="删除菜单")

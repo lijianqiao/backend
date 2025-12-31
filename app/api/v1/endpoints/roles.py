@@ -123,6 +123,22 @@ async def update_role(
     return ResponseBase(data=role)
 
 
+@router.get("/recycle-bin", response_model=ResponseBase[PaginatedResponse[RoleResponse]], summary="获取角色回收站列表")
+async def get_recycle_bin(
+    *,
+    page: int = 1,
+    page_size: int = 20,
+    active_superuser: deps.User = Depends(deps.get_current_active_superuser),
+    role_service: deps.RoleServiceDep,
+) -> Any:
+    """
+    获取已删除的角色列表 (回收站)。
+    仅限超级管理员。
+    """
+    roles, total = await role_service.get_deleted_roles(page=page, page_size=page_size)
+    return ResponseBase(data=PaginatedResponse(total=total, page=page, page_size=page_size, items=roles))
+
+
 @router.delete("/{id}", response_model=ResponseBase[RoleResponse], summary="删除角色")
 async def delete_role(
     *,
