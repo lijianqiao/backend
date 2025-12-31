@@ -88,6 +88,7 @@ class MenuService:
         """
         return await self.menu_crud.batch_remove(self.db, ids=ids, hard_delete=hard_delete)
 
+    @transactional()
     async def restore_menu(self, id: UUID) -> Menu:
         """
         恢复已删除菜单。

@@ -91,6 +91,7 @@ class RoleService:
         """
         return await self.role_crud.batch_remove(self.db, ids=ids, hard_delete=hard_delete)
 
+    @transactional()
     async def restore_role(self, id: UUID) -> Role:
         """
         恢复已删除角色。

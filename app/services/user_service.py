@@ -146,6 +146,7 @@ class UserService:
         """
         return await self.user_crud.batch_remove(self.db, ids=ids, hard_delete=hard_delete)
 
+    @transactional()
     async def restore_user(self, id: UUID) -> User:
         """
         恢复已删除用户。
