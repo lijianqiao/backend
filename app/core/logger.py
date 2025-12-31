@@ -3,8 +3,8 @@
 @Email: lijianqiao2906@live.com
 @FileName: logger.py
 @DateTime: 2025-12-30 13:30:00
-@Docs: Structured logging configuration using structlog and standard logging.
-       Includes file rotation, compression, and separation of concerns.
+@Docs: 使用 structlog 和标准日志记录的结​​构化日志记录配置。
+       包括文件轮换、压缩和关注点分离。
 """
 
 import gzip
@@ -28,7 +28,7 @@ if not os.path.exists(LOG_DIR):
 
 class CompressedTimedRotatingFileHandler(TimedRotatingFileHandler):
     """
-    Extended TimedRotatingFileHandler that compresses logs on rotation.
+    扩展 TimedRotatingFileHandler，用于在轮换时压缩日志文件。
     """
 
     def __init__(
@@ -47,14 +47,14 @@ class CompressedTimedRotatingFileHandler(TimedRotatingFileHandler):
 
     def doRollover(self) -> None:
         """
-        Do a rollover, as described in __init__().
+        执行轮换，如 __init__() 中所述。
         """
         super().doRollover()
 
 
 def namer(name: str) -> str:
     """
-    Custom namer to append .gz to the rotated file.
+    自定义命名器，用于在轮换文件时添加 .gz 扩展名。
     """
     return name + ".gz"
 
@@ -71,7 +71,7 @@ def rotator(source: str, dest: str) -> None:
 
 def get_file_handler(name: str, level: int, filename: str) -> TimedRotatingFileHandler:
     """
-    Helper to create a configured TimedRotatingFileHandler.
+    创建配置的 TimedRotatingFileHandler 的帮助程序.
     使用默认的轮换格式：filename.YYYY-MM-DD
     """
 
@@ -94,14 +94,14 @@ def get_file_handler(name: str, level: int, filename: str) -> TimedRotatingFileH
 
 def setup_logging() -> None:
     """
-    Configure strict JSON logging with structlog.
+    配置严格 JSON 日志记录，使用 structlog.
     """
     shared_processors: list[structlog.types.Processor] = [
         structlog.contextvars.merge_contextvars,
         structlog.stdlib.add_logger_name,
         structlog.stdlib.add_log_level,
         structlog.stdlib.PositionalArgumentsFormatter(),
-        structlog.processors.TimeStamper(fmt="iso"),
+        structlog.processors.TimeStamper(fmt="iso", utc=False),
         structlog.processors.StackInfoRenderer(),
         structlog.processors.format_exc_info,
         structlog.processors.UnicodeDecoder(),
