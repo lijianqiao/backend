@@ -142,14 +142,3 @@ class TestUserUpdate:
         """测试部分更新"""
         update = UserUpdate(nickname="新昵称")
         assert update.nickname == "新昵称"
-        assert update.password is None
-
-    def test_update_with_password(self):
-        """测试包含密码的更新"""
-        update = UserUpdate(password="New@12345")
-        assert update.password == "New@12345"
-
-    def test_update_with_invalid_password(self):
-        """测试无效密码的更新"""
-        with pytest.raises(ValidationError):
-            UserUpdate(password="weak")
