@@ -37,6 +37,27 @@ class MenuService:
 
         self._post_commit_tasks.append(_task)
 
+    @staticmethod
+    def _to_menu_response(menu: Menu, *, children: list[MenuResponse] | None = None) -> MenuResponse:
+        """将 ORM Menu 转为响应对象，避免访问关系属性触发隐式 IO。"""
+
+        return MenuResponse(
+            id=menu.id,
+            title=menu.title,
+            name=menu.name,
+            parent_id=menu.parent_id,
+            path=menu.path,
+            component=menu.component,
+            icon=menu.icon,
+            sort=menu.sort,
+            is_hidden=menu.is_hidden,
+            permission=menu.permission,
+            is_deleted=menu.is_deleted,
+            created_at=menu.created_at,
+            updated_at=menu.updated_at,
+            children=children,
+        )
+
     async def get_menus(self) -> list[Menu]:
         return await self.menu_crud.get_multi(self.db, limit=1000)
 
@@ -162,26 +183,28 @@ class MenuService:
                 result.append(node)
         return result
 
-    async def get_menus_paginated(self, page: int = 1, page_size: int = 20) -> tuple[list[Menu], int]:
+    async def get_menus_paginated(self, page: int = 1, page_size: int = 20) -> tuple[list[MenuResponse], int]:
         """
         获取分页菜单列表。
         """
-        return await self.menu_crud.get_multi_paginated(self.db, page=page, page_size=page_size)
+        menus, total = await self.menu_crud.get_multi_paginated(self.db, page=page, page_size=page_size)
+        return [self._to_menu_response(m, children=[]) for m in menus], total
 
-    async def get_deleted_menus(self, page: int = 1, page_size: int = 20) -> tuple[list[Menu], int]:
+    async def get_deleted_menus(self, page: int = 1, page_size: int = 20) -> tuple[list[MenuResponse], int]:
         """
         获取已删除菜单列表 (回收站 - 分页)。
         """
-        return await self.menu_crud.get_multi_deleted_paginated(self.db, page=page, page_size=page_size)
+        menus, total = await self.menu_crud.get_multi_deleted_paginated(self.db, page=page, page_size=page_size)
+        return [self._to_menu_response(m, children=[]) for m in menus], total
 
     @transactional()
-    async def create_menu(self, obj_in: MenuCreate) -> Menu:
+    async def create_menu(self, obj_in: MenuCreate) -> MenuResponse:
         menu = await self.menu_crud.create(self.db, obj_in=obj_in)
         self._invalidate_permissions_cache_after_commit([])
-        return menu
+        return self._to_menu_response(menu, children=[])
 
     @transactional()
-    async def update_menu(self, id: UUID, obj_in: MenuUpdate) -> Menu:
+    async def update_menu(self, id: UUID, obj_in: MenuUpdate) -> MenuResponse:
         menu = await self.menu_crud.get(self.db, id=id)
         if not menu:
             raise NotFoundException(message="菜单不存在")
@@ -189,7 +212,7 @@ class MenuService:
         affected_user_ids = await self.menu_crud.get_affected_user_ids(self.db, menu_id=id)
         updated = await self.menu_crud.update(self.db, db_obj=menu, obj_in=obj_in)
         self._invalidate_permissions_cache_after_commit(affected_user_ids)
-        return updated
+        return self._to_menu_response(updated, children=[])
 
     @transactional()
     async def delete_menu(self, id: UUID) -> MenuResponse:
@@ -235,7 +258,7 @@ class MenuService:
         return result
 
     @transactional()
-    async def restore_menu(self, id: UUID) -> Menu:
+    async def restore_menu(self, id: UUID) -> MenuResponse:
         """
         恢复已删除菜单。
         """
@@ -245,4 +268,4 @@ class MenuService:
             raise NotFoundException(message="菜单不存在")
 
         self._invalidate_permissions_cache_after_commit(affected_user_ids)
-        return menu
+        return self._to_menu_response(menu, children=[])
