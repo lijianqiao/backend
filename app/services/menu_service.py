@@ -10,7 +10,7 @@ from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.cache import invalidate_cache
+from app.core.cache import invalidate_user_permissions_cache
 from app.core.decorator import transactional
 from app.core.exceptions import NotFoundException
 from app.crud.crud_menu import CRUDMenu
@@ -30,9 +30,9 @@ class MenuService:
         # transactional() 将在 commit 后执行这些任务（用于缓存失效等）
         self._post_commit_tasks: list = []
 
-    def _invalidate_permissions_cache_after_commit(self) -> None:
+    def _invalidate_permissions_cache_after_commit(self, user_ids: list[UUID]) -> None:
         async def _task() -> None:
-            await invalidate_cache("v1:user:permissions:*")
+            await invalidate_user_permissions_cache(user_ids)
 
         self._post_commit_tasks.append(_task)
 
@@ -54,7 +54,7 @@ class MenuService:
     @transactional()
     async def create_menu(self, obj_in: MenuCreate) -> Menu:
         menu = await self.menu_crud.create(self.db, obj_in=obj_in)
-        self._invalidate_permissions_cache_after_commit()
+        self._invalidate_permissions_cache_after_commit([])
         return menu
 
     @transactional()
@@ -62,8 +62,10 @@ class MenuService:
         menu = await self.menu_crud.get(self.db, id=id)
         if not menu:
             raise NotFoundException(message="菜单不存在")
+
+        affected_user_ids = await self.menu_crud.get_affected_user_ids(self.db, menu_id=id)
         updated = await self.menu_crud.update(self.db, db_obj=menu, obj_in=obj_in)
-        self._invalidate_permissions_cache_after_commit()
+        self._invalidate_permissions_cache_after_commit(affected_user_ids)
         return updated
 
     @transactional()
@@ -72,11 +74,13 @@ class MenuService:
         if not menu:
             raise NotFoundException(message="菜单不存在")
 
+        affected_user_ids = await self.menu_crud.get_affected_user_ids(self.db, menu_id=id)
+
         deleted_menu = await self.menu_crud.remove(self.db, id=id)
         if not deleted_menu:
             raise NotFoundException(message="菜单删除失败")
 
-        self._invalidate_permissions_cache_after_commit()
+        self._invalidate_permissions_cache_after_commit(affected_user_ids)
 
         # 手动构建响应，避免访问 deleted_menu.children 触发 implicit IO (MissingGreenlet)
         # 且删除后的对象 children 应为空
@@ -102,8 +106,9 @@ class MenuService:
         """
         批量删除菜单。
         """
+        affected_user_ids = await self.menu_crud.get_affected_user_ids_by_menu_ids(self.db, menu_ids=ids)
         result = await self.menu_crud.batch_remove(self.db, ids=ids, hard_delete=hard_delete)
-        self._invalidate_permissions_cache_after_commit()
+        self._invalidate_permissions_cache_after_commit(affected_user_ids)
         return result
 
     @transactional()
@@ -111,9 +116,10 @@ class MenuService:
         """
         恢复已删除菜单。
         """
+        affected_user_ids = await self.menu_crud.get_affected_user_ids(self.db, menu_id=id)
         menu = await self.menu_crud.restore(self.db, id=id)
         if not menu:
             raise NotFoundException(message="菜单不存在")
 
-        self._invalidate_permissions_cache_after_commit()
+        self._invalidate_permissions_cache_after_commit(affected_user_ids)
         return menu

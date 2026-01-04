@@ -9,8 +9,9 @@
 import functools
 import hashlib
 import json
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from typing import Any, TypeVar
+from uuid import UUID
 
 import redis.asyncio as redis
 
@@ -133,4 +134,30 @@ async def invalidate_cache(pattern: str) -> int:
             logger.info(f"缓存失效: {pattern}, 已删除 {deleted} 个键")
     except Exception as e:
         logger.warning(f"缓存失效错误: {e}")
+    return deleted
+
+
+def user_permissions_cache_key(user_id: UUID) -> str:
+    return f"v1:user:permissions:{user_id}"
+
+
+async def invalidate_user_permissions_cache(user_ids: Iterable[UUID]) -> int:
+    """精确失效指定用户的权限缓存。"""
+
+    if redis_client is None:
+        return 0
+
+    ids = list(user_ids)
+    if not ids:
+        return 0
+
+    deleted = 0
+    try:
+        for user_id in ids:
+            key = user_permissions_cache_key(user_id)
+            deleted += int(await redis_client.delete(key))  # type: ignore
+        if deleted > 0:
+            logger.info(f"权限缓存失效: users={len(ids)}, deleted={deleted}")
+    except Exception as e:
+        logger.warning(f"权限缓存失效错误: {e}")
     return deleted

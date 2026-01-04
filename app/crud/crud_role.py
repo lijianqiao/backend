@@ -13,11 +13,21 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.crud.base import CRUDBase
-from app.models.rbac import Menu, Role
+from app.models.rbac import Menu, Role, UserRole
 from app.schemas.role import RoleCreate, RoleUpdate
 
 
 class CRUDRole(CRUDBase[Role, RoleCreate, RoleUpdate]):
+    async def get_user_ids_by_role(self, db: AsyncSession, *, role_id: Any) -> list[Any]:
+        result = await db.execute(select(UserRole.user_id).where(UserRole.role_id == role_id))
+        return list(result.scalars().all())
+
+    async def get_user_ids_by_roles(self, db: AsyncSession, *, role_ids: list[Any]) -> list[Any]:
+        if not role_ids:
+            return []
+        result = await db.execute(select(UserRole.user_id).where(UserRole.role_id.in_(role_ids)))
+        return list(set(result.scalars().all()))
+
     async def get(self, db: AsyncSession, id: Any) -> Role | None:
         """
         通过 ID 获取角色 (包含菜单关联，避免 N+1 问题)。

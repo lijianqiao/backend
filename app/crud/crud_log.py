@@ -6,7 +6,7 @@
 @Docs: 日志 CRUD 操作 (Log CRUD).
 """
 
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Any
 from uuid import UUID
 
@@ -30,7 +30,7 @@ class CRUDLoginLog(CRUDBase[LoginLog, LoginLogCreate, LoginLogCreate]):
         Returns:
             int: 今日登录总数。
         """
-        now = datetime.now()
+        now = datetime.now(UTC).replace(tzinfo=None)
         today_start = datetime(now.year, now.month, now.day)
         today_end = today_start + timedelta(days=1)
         return await self.count_by_range(db, today_start, today_end)
@@ -65,7 +65,7 @@ class CRUDLoginLog(CRUDBase[LoginLog, LoginLogCreate, LoginLogCreate]):
 
     async def count_today_by_user(self, db: AsyncSession, *, user_id: UUID) -> int:
         """统计某个用户的今日登录次数。"""
-        now = datetime.now()
+        now = datetime.now(UTC).replace(tzinfo=None)
         today_start = datetime(now.year, now.month, now.day)
         today_end = today_start + timedelta(days=1)
         return await self.count_by_range_and_user(db, today_start, today_end, user_id=user_id)
@@ -85,7 +85,7 @@ class CRUDLoginLog(CRUDBase[LoginLog, LoginLogCreate, LoginLogCreate]):
             [{"date": "2023-10-01", "count": 10}, ...]
         """
         # 计算日期范围 (过去 N-1 天 + 今天)
-        end_date = datetime.now().date()
+        end_date = datetime.now(UTC).date()
         start_date = end_date - timedelta(days=days - 1)
 
         # 构造跨数据库通用的 Group By Date 查询
@@ -108,7 +108,7 @@ class CRUDLoginLog(CRUDBase[LoginLog, LoginLogCreate, LoginLogCreate]):
 
     async def get_trend_by_user(self, db: AsyncSession, *, user_id: UUID, days: int = 7) -> list[dict[str, Any]]:
         """获取某个用户近 N 天的登录趋势统计。"""
-        end_date = datetime.now().date()
+        end_date = datetime.now(UTC).date()
         start_date = end_date - timedelta(days=days - 1)
 
         date_col = cast(LoginLog.created_at, Date)

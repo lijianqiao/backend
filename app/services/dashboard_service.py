@@ -6,7 +6,7 @@
 @Docs: 仪表盘业务逻辑 (Dashboard Service).
 """
 
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -44,7 +44,7 @@ class DashboardService:
         获取仪表盘首页聚合数据。
         """
         # 时间范围
-        now = datetime.now()
+        now = datetime.now(UTC).replace(tzinfo=None)
         today_start = datetime(now.year, now.month, now.day)
         today_end = today_start + timedelta(days=1)
 
@@ -96,6 +96,12 @@ class DashboardService:
             )
 
         return DashboardStats(
+            total_users=None,
+            active_users=None,
+            total_roles=None,
+            total_menus=None,
+            today_login_count=None,
+            today_operation_count=None,
             my_today_login_count=my_today_login_count,
             my_today_operation_count=my_today_operation_count,
             my_login_trend=my_login_trend,

@@ -11,11 +11,31 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.crud.base import CRUDBase
-from app.models.rbac import Menu
+from app.models.rbac import Menu, RoleMenu, UserRole
 from app.schemas.menu import MenuCreate, MenuUpdate
 
 
 class CRUDMenu(CRUDBase[Menu, MenuCreate, MenuUpdate]):
+    async def get_affected_user_ids(self, db: AsyncSession, *, menu_id) -> list:
+        stmt = (
+            select(UserRole.user_id)
+            .join(RoleMenu, RoleMenu.role_id == UserRole.role_id)
+            .where(RoleMenu.menu_id == menu_id)
+        )
+        result = await db.execute(stmt)
+        return list(set(result.scalars().all()))
+
+    async def get_affected_user_ids_by_menu_ids(self, db: AsyncSession, *, menu_ids: list) -> list:
+        if not menu_ids:
+            return []
+        stmt = (
+            select(UserRole.user_id)
+            .join(RoleMenu, RoleMenu.role_id == UserRole.role_id)
+            .where(RoleMenu.menu_id.in_(menu_ids))
+        )
+        result = await db.execute(stmt)
+        return list(set(result.scalars().all()))
+
     async def get_tree(self, db: AsyncSession) -> list[Menu]:
         # 获取所有顶级菜单并加载子菜单
         # 注意：递归加载在异步 SQLAlchemy 中可能需要特殊处理或 explicit join。
