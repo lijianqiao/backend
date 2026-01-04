@@ -1,0 +1,325 @@
+# RBAC 权限字典清单（用于初始化菜单/角色）
+# 图标：前端使用 naive-ui，建议 xicons 图标库；此处 icon 字段存储图标组件名（建议使用 ionicons5 的命名）。
+
+version = 1
+
+[meta]
+icon_library = "xicons"
+icon_set = "ionicons5"
+
+# 菜单数据：既包含“前端展示菜单”（permission 为空），也包含“权限点菜单”（is_hidden=true 且 permission 非空）。
+# 约定：parent_key 指向父菜单的 key；permission 为空表示仅用于展示/分组。
+
+[[menus]]
+key = "system"
+title = "系统管理"
+name = "System"
+path = "/system"
+component = "Layout"
+icon = "SettingsOutline"
+sort = 100
+is_hidden = false
+permission = ""
+parent_key = ""
+
+[[menus]]
+key = "users"
+title = "用户管理"
+name = "UserMgmt"
+path = "/system/users"
+component = ""
+icon = "PeopleOutline"
+sort = 105
+is_hidden = false
+permission = ""
+parent_key = "system"
+
+[[menus]]
+key = "menus"
+title = "菜单管理"
+name = "MenuMgmt"
+path = "/system/menus"
+component = ""
+icon = "MenuOutline"
+sort = 110
+is_hidden = false
+permission = ""
+parent_key = "system"
+
+[[menus]]
+key = "roles"
+title = "角色管理"
+name = "RoleMgmt"
+path = "/system/roles"
+component = ""
+icon = "ShieldOutline"
+sort = 120
+is_hidden = false
+permission = ""
+parent_key = "system"
+
+[[menus]]
+key = "logs"
+title = "日志管理"
+name = "LogMgmt"
+path = "/system/logs"
+component = ""
+icon = "DocumentTextOutline"
+sort = 130
+is_hidden = false
+permission = ""
+parent_key = "system"
+
+[[menus]]
+key = "logs_login"
+title = "登录日志"
+name = "LoginLog"
+path = "/system/logs/login"
+component = ""
+icon = "LogInOutline"
+sort = 131
+is_hidden = false
+permission = ""
+parent_key = "logs"
+
+[[menus]]
+key = "logs_operation"
+title = "审计日志"
+name = "OperationLog"
+path = "/system/logs/operation"
+component = ""
+icon = "HammerOutline"
+sort = 132
+is_hidden = false
+permission = ""
+parent_key = "logs"
+
+# ---- 菜单权限点（menu:*）----
+[[menus]]
+key = "perm_menu_list"
+title = "菜单-列表"
+name = "PermMenuList"
+path = ""
+component = ""
+icon = "KeyOutline"
+sort = 111
+is_hidden = true
+permission = "menu:list"
+parent_key = "menus"
+
+[[menus]]
+key = "perm_menu_create"
+title = "菜单-创建"
+name = "PermMenuCreate"
+path = ""
+component = ""
+icon = "KeyOutline"
+sort = 112
+is_hidden = true
+permission = "menu:create"
+parent_key = "menus"
+
+[[menus]]
+key = "perm_menu_update"
+title = "菜单-更新"
+name = "PermMenuUpdate"
+path = ""
+component = ""
+icon = "KeyOutline"
+sort = 113
+is_hidden = true
+permission = "menu:update"
+parent_key = "menus"
+
+[[menus]]
+key = "perm_menu_delete"
+title = "菜单-删除"
+name = "PermMenuDelete"
+path = ""
+component = ""
+icon = "KeyOutline"
+sort = 114
+is_hidden = true
+permission = "menu:delete"
+parent_key = "menus"
+
+[[menus]]
+key = "perm_menu_recycle"
+title = "菜单-回收站"
+name = "PermMenuRecycle"
+path = ""
+component = ""
+icon = "KeyOutline"
+sort = 115
+is_hidden = true
+permission = "menu:recycle"
+parent_key = "menus"
+
+[[menus]]
+key = "perm_menu_restore"
+title = "菜单-恢复"
+name = "PermMenuRestore"
+path = ""
+component = ""
+icon = "KeyOutline"
+sort = 116
+is_hidden = true
+permission = "menu:restore"
+parent_key = "menus"
+
+[[menus]]
+key = "perm_menu_options_list"
+title = "菜单-可分配选项"
+name = "PermMenuOptionsList"
+path = ""
+component = ""
+icon = "KeyOutline"
+sort = 117
+is_hidden = true
+permission = "menu:options:list"
+parent_key = "menus"
+
+# ---- 角色权限点（role:*）----
+[[menus]]
+key = "perm_role_list"
+title = "角色-列表"
+name = "PermRoleList"
+path = ""
+component = ""
+icon = "KeyOutline"
+sort = 121
+is_hidden = true
+permission = "role:list"
+parent_key = "roles"
+
+[[menus]]
+key = "perm_role_create"
+title = "角色-创建"
+name = "PermRoleCreate"
+path = ""
+component = ""
+icon = "KeyOutline"
+sort = 122
+is_hidden = true
+permission = "role:create"
+parent_key = "roles"
+
+[[menus]]
+key = "perm_role_update"
+title = "角色-更新"
+name = "PermRoleUpdate"
+path = ""
+component = ""
+icon = "KeyOutline"
+sort = 123
+is_hidden = true
+permission = "role:update"
+parent_key = "roles"
+
+[[menus]]
+key = "perm_role_delete"
+title = "角色-删除"
+name = "PermRoleDelete"
+path = ""
+component = ""
+icon = "KeyOutline"
+sort = 124
+is_hidden = true
+permission = "role:delete"
+parent_key = "roles"
+
+[[menus]]
+key = "perm_role_recycle"
+title = "角色-回收站"
+name = "PermRoleRecycle"
+path = ""
+component = ""
+icon = "KeyOutline"
+sort = 125
+is_hidden = true
+permission = "role:recycle"
+parent_key = "roles"
+
+[[menus]]
+key = "perm_role_restore"
+title = "角色-恢复"
+name = "PermRoleRestore"
+path = ""
+component = ""
+icon = "KeyOutline"
+sort = 126
+is_hidden = true
+permission = "role:restore"
+parent_key = "roles"
+
+# ---- 日志权限点（log:*）----
+[[menus]]
+key = "perm_log_login_list"
+title = "登录日志-列表"
+name = "PermLogLoginList"
+path = ""
+component = ""
+icon = "LogInOutline"
+sort = 1311
+is_hidden = true
+permission = "log:login:list"
+parent_key = "logs_login"
+
+[[menus]]
+key = "perm_log_operation_list"
+title = "操作日志-列表"
+name = "PermLogOperationList"
+path = ""
+component = ""
+icon = "HammerOutline"
+sort = 1321
+is_hidden = true
+permission = "log:operation:list"
+parent_key = "logs_operation"
+
+# 角色数据：permissions 会映射到上面菜单的 permission 字段，并绑定到角色 menus。
+
+[[roles]]
+name = "系统管理员"
+code = "system_admin"
+description = "系统管理全权限"
+sort = 1
+permissions = [
+  "menu:list",
+  "menu:create",
+  "menu:update",
+  "menu:delete",
+  "menu:recycle",
+  "menu:restore",
+  "menu:options:list",
+  "role:list",
+  "role:create",
+  "role:update",
+  "role:delete",
+  "role:recycle",
+  "role:restore",
+  "log:login:list",
+  "log:operation:list",
+]
+
+[[roles]]
+name = "审计员"
+code = "auditor"
+description = "仅查看日志"
+sort = 2
+permissions = [
+  "log:login:list",
+  "log:operation:list",
+]
+
+[[roles]]
+name = "只读"
+code = "viewer"
+description = "仅查看菜单与角色以及日志"
+sort = 3
+permissions = [
+  "menu:list",
+  "role:list",
+  "log:login:list",
+  "log:operation:list",
+]

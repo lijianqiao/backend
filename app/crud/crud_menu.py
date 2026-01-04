@@ -16,6 +16,19 @@ from app.schemas.menu import MenuCreate, MenuUpdate
 
 
 class CRUDMenu(CRUDBase[Menu, MenuCreate, MenuUpdate]):
+    @staticmethod
+    def _children_selectinload(depth: int = 5):
+        """递归预加载 children，避免序列化阶段触发懒加载导致 MissingGreenlet。"""
+
+        if depth < 1:
+            depth = 1
+
+        loader = selectinload(Menu.children)
+        current = loader
+        for _ in range(depth - 1):
+            current = current.selectinload(Menu.children)
+        return loader
+
     async def get_affected_user_ids(self, db: AsyncSession, *, menu_id) -> list:
         stmt = (
             select(UserRole.user_id)
@@ -37,15 +50,68 @@ class CRUDMenu(CRUDBase[Menu, MenuCreate, MenuUpdate]):
         return list(set(result.scalars().all()))
 
     async def get_tree(self, db: AsyncSession) -> list[Menu]:
-        # 获取所有顶级菜单并加载子菜单
-        # 注意：递归加载在异步 SQLAlchemy 中可能需要特殊处理或 explicit join。
-        # 这里简化处理，前端组装或单层加载。
-        # 如果使用 lazy="selectin" 在模型中配置了children，则可以自动加载一层。
-        # 为了完整树，建议获取所有 flat 数据，前端组装。
-        # 或者使用 CTE 递归查询。这里演示获取所有数据。
-        result = await db.execute(select(Menu).order_by(Menu.sort))
+        result = await db.execute(
+            select(Menu)
+            .options(self._children_selectinload(depth=5))
+            .where(Menu.is_deleted.is_(False))
+            .order_by(Menu.sort)
+        )
         menus = result.scalars().all()
         return list(menus)
+
+    async def get_options_tree(self, db: AsyncSession) -> list[Menu]:
+        """获取可分配菜单树（从根节点返回，包含隐藏权限点）。"""
+
+        result = await db.execute(
+            select(Menu)
+            .options(self._children_selectinload(depth=5))
+            .where(Menu.is_deleted.is_(False), Menu.parent_id.is_(None))
+            .order_by(Menu.sort)
+        )
+        return list(result.scalars().all())
+
+    async def get_all_not_deleted(self, db: AsyncSession) -> list[Menu]:
+        """获取所有未删除菜单（平铺），用于业务层自行组装树，避免递归序列化触发懒加载。"""
+
+        result = await db.execute(select(Menu).where(Menu.is_deleted.is_(False)).order_by(Menu.sort))
+        return list(result.scalars().all())
+
+    async def count(self, db: AsyncSession) -> int:
+        result = await db.execute(select(func.count(Menu.id)).where(Menu.is_deleted.is_(False)))
+        return result.scalar_one()
+
+    async def get_multi(self, db: AsyncSession, *, skip: int = 0, limit: int = 100) -> list[Menu]:
+        result = await db.execute(
+            select(Menu)
+            .options(self._children_selectinload(depth=5))
+            .where(Menu.is_deleted.is_(False))
+            .order_by(Menu.sort)
+            .offset(skip)
+            .limit(limit)
+        )
+        return list(result.scalars().all())
+
+    async def get_multi_paginated(
+        self, db: AsyncSession, *, page: int = 1, page_size: int = 20
+    ) -> tuple[list[Menu], int]:
+        if page < 1:
+            page = 1
+        if page_size < 1:
+            page_size = 20
+        if page_size > 100:
+            page_size = 100
+
+        total = await self.count(db)
+        stmt = (
+            select(Menu)
+            .options(self._children_selectinload(depth=5))
+            .where(Menu.is_deleted.is_(False))
+            .order_by(Menu.sort)
+            .offset((page - 1) * page_size)
+            .limit(page_size)
+        )
+        result = await db.execute(stmt)
+        return list(result.scalars().all()), total
 
     async def count_deleted(self, db: AsyncSession) -> int:
         """
@@ -63,8 +129,9 @@ class CRUDMenu(CRUDBase[Menu, MenuCreate, MenuUpdate]):
         total = await self.count_deleted(db)
         stmt = (
             select(Menu)
-            .options(selectinload(Menu.children))
+            .options(self._children_selectinload(depth=5))
             .where(Menu.is_deleted.is_(True))
+            .order_by(Menu.sort)
             .offset((page - 1) * page_size)
             .limit(page_size)
         )

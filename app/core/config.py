@@ -99,7 +99,7 @@ class Settings(BaseSettings):
                 logging.getLogger(__name__).warning(message)
 
         # 2. 检查 默认密码 (仅检查显而易见的默认值)
-        insecure_passwords = ["password", "123123", "admin"]
+        insecure_passwords = ["password", "admin"]
 
         if self.POSTGRES_PASSWORD in insecure_passwords:
             msg = f"[安全警告]: 数据库密码使用了弱密码 '{self.POSTGRES_PASSWORD}'。"

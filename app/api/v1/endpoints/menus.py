@@ -18,6 +18,29 @@ from app.schemas.menu import MenuCreate, MenuResponse, MenuUpdate
 router = APIRouter()
 
 
+@router.get("/options", response_model=ResponseBase[list[MenuResponse]], summary="获取可分配菜单选项")
+async def get_menu_options(
+    current_user: deps.CurrentUser,
+    menu_service: deps.MenuServiceDep,
+    _: deps.User = Depends(deps.require_permissions(["menu:options:list"])),
+) -> Any:
+    """获取可分配菜单选项（树结构）。"""
+
+    menus = await menu_service.get_menu_options_tree()
+    return ResponseBase(data=menus)
+
+
+@router.get("/me", response_model=ResponseBase[list[MenuResponse]], summary="获取我的菜单")
+async def get_my_menus(
+    current_user: deps.CurrentUser,
+    menu_service: deps.MenuServiceDep,
+) -> Any:
+    """获取当前登录用户可见的导航菜单树（不包含隐藏权限点）。"""
+
+    menus = await menu_service.get_my_menus_tree(current_user)
+    return ResponseBase(data=menus)
+
+
 @router.get("/", response_model=ResponseBase[PaginatedResponse[MenuResponse]], summary="获取菜单列表")
 async def read_menus(
     current_user: deps.CurrentUser,

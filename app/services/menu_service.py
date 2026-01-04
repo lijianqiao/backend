@@ -15,6 +15,7 @@ from app.core.decorator import transactional
 from app.core.exceptions import NotFoundException
 from app.crud.crud_menu import CRUDMenu
 from app.models.rbac import Menu
+from app.models.user import User
 from app.schemas.menu import MenuCreate, MenuResponse, MenuUpdate
 
 
@@ -38,6 +39,128 @@ class MenuService:
 
     async def get_menus(self) -> list[Menu]:
         return await self.menu_crud.get_multi(self.db, limit=1000)
+
+    async def get_menu_options_tree(self) -> list[MenuResponse]:
+        """获取可分配菜单 options 树（用于角色创建/编辑时选择菜单）。"""
+
+        menus = await self.menu_crud.get_all_not_deleted(self.db)
+        if not menus:
+            return []
+
+        id_to_node: dict[UUID, MenuResponse] = {}
+        for m in menus:
+            id_to_node[m.id] = MenuResponse(
+                id=m.id,
+                title=m.title,
+                name=m.name,
+                parent_id=m.parent_id,
+                path=m.path,
+                component=m.component,
+                icon=m.icon,
+                sort=m.sort,
+                is_hidden=m.is_hidden,
+                permission=m.permission,
+                is_deleted=m.is_deleted,
+                created_at=m.created_at,
+                updated_at=m.updated_at,
+                children=[],
+            )
+
+        roots: list[MenuResponse] = []
+        for m in menus:
+            node = id_to_node[m.id]
+            if m.parent_id and m.parent_id in id_to_node:
+                id_to_node[m.parent_id].children = (id_to_node[m.parent_id].children or []) + [node]
+            else:
+                roots.append(node)
+
+        # 按 sort 对每层 children 排序
+        def _sort_recursive(items: list[MenuResponse]) -> None:
+            items.sort(key=lambda x: x.sort)
+            for it in items:
+                if it.children:
+                    _sort_recursive(it.children)
+
+        _sort_recursive(roots)
+        return roots
+
+    async def get_my_menus_tree(self, current_user: User) -> list[MenuResponse]:
+        """获取当前用户可见的导航菜单树（不返回隐藏权限点）。"""
+
+        menus = await self.menu_crud.get_all_not_deleted(self.db)
+        if not menus:
+            return []
+
+        if current_user.is_superuser:
+            allowed_permissions: set[str] = {"*"}
+        else:
+            allowed_permissions = set()
+            for role in current_user.roles:
+                for menu in role.menus:
+                    if menu.permission:
+                        allowed_permissions.add(menu.permission)
+
+        # id_to_menu: dict[UUID, Menu] = {m.id: m for m in menus}
+        parent_to_children: dict[UUID | None, list[Menu]] = {}
+        for m in menus:
+            parent_to_children.setdefault(m.parent_id, []).append(m)
+        for children in parent_to_children.values():
+            children.sort(key=lambda x: x.sort)
+
+        def _is_allowed_by_permission(menu: Menu) -> bool:
+            if "*" in allowed_permissions:
+                return True
+            if menu.permission:
+                return menu.permission in allowed_permissions
+            return False
+
+        def _build(menu: Menu) -> tuple[bool, MenuResponse | None]:
+            children = parent_to_children.get(menu.id, [])
+
+            any_child_allowed = False
+            visible_children: list[MenuResponse] = []
+            for c in children:
+                child_allowed, child_node = _build(c)
+                any_child_allowed = any_child_allowed or child_allowed
+                if child_node is not None:
+                    visible_children.append(child_node)
+
+            self_allowed = _is_allowed_by_permission(menu)
+            allowed = self_allowed or any_child_allowed
+
+            # 不输出隐藏菜单（权限点），但它们会影响父级 allowed
+            if menu.is_hidden:
+                return allowed, None
+
+            # 对于 permission 为空的“分组/页面菜单”，仅当自己有权限或有可见子菜单时才展示
+            if not allowed:
+                return False, None
+
+            node = MenuResponse(
+                id=menu.id,
+                title=menu.title,
+                name=menu.name,
+                parent_id=menu.parent_id,
+                path=menu.path,
+                component=menu.component,
+                icon=menu.icon,
+                sort=menu.sort,
+                is_hidden=menu.is_hidden,
+                permission=menu.permission,
+                is_deleted=menu.is_deleted,
+                created_at=menu.created_at,
+                updated_at=menu.updated_at,
+                children=visible_children,
+            )
+            return True, node
+
+        roots = parent_to_children.get(None, [])
+        result: list[MenuResponse] = []
+        for r in roots:
+            allowed, node = _build(r)
+            if allowed and node is not None:
+                result.append(node)
+        return result
 
     async def get_menus_paginated(self, page: int = 1, page_size: int = 20) -> tuple[list[Menu], int]:
         """

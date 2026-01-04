@@ -94,7 +94,10 @@ async def get_current_user(request: Request, session: SessionDep, token: TokenDe
 
     # 预加载 roles->menus，便于计算权限集合且避免后续惰性加载
     result = await session.execute(
-        select(User).options(selectinload(User.roles).selectinload(Role.menus)).where(User.id == user_uuid)
+        select(User)
+        .options(selectinload(User.roles).selectinload(Role.menus))
+        .where(User.id == user_uuid)
+        .execution_options(populate_existing=True)
     )
     user = result.scalars().first()
 

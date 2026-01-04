@@ -288,6 +288,54 @@ Format: `application/json`
 
 ## Menus
 
+### 获取可分配菜单选项
+
+**URL**: `/api/v1/menus/options`
+
+**Method**: `GET`
+
+**Description**:
+
+获取可分配菜单选项（树结构）。
+
+#### Responses
+
+**Status Code**: `200` - Successful Response
+
+Format: `application/json`
+
+| 参数名    | 类型      | 必填 | 描述    |
+| :-------- | :-------- | :--- | :------ |
+| `code`    | `integer` | 否   | Code    |
+| `message` | `string`  | 否   | Message |
+| `data`    | `array`   | 否   | Data    |
+
+---
+
+### 获取我的菜单
+
+**URL**: `/api/v1/menus/me`
+
+**Method**: `GET`
+
+**Description**:
+
+获取当前登录用户可见的导航菜单树（不包含隐藏权限点）。
+
+#### Responses
+
+**Status Code**: `200` - Successful Response
+
+Format: `application/json`
+
+| 参数名    | 类型      | 必填 | 描述    |
+| :-------- | :-------- | :--- | :------ |
+| `code`    | `integer` | 否   | Code    |
+| `message` | `string`  | 否   | Message |
+| `data`    | `array`   | 否   | Data    |
+
+---
+
 ### 获取菜单列表
 
 **URL**: `/api/v1/menus/`

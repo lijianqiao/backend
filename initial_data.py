@@ -9,15 +9,28 @@
 import argparse
 import asyncio
 import logging
+import os
 import sys
+import tomllib
+from uuid import UUID
+
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.db import AsyncSessionLocal, engine
+from app.crud.crud_menu import menu as menu_crud
+from app.crud.crud_role import role as role_crud
 from app.crud.crud_user import user as user_crud
 
 # 确保所有模型被导入，以便 create_all 能识别
 from app.models.base import Base
+from app.models.rbac import Menu, Role
+from app.schemas.menu import MenuCreate
+from app.schemas.role import RoleCreate
 from app.schemas.user import UserCreate
+
+RBAC_SEED_PATH = os.path.join(os.path.dirname(__file__), "docs", "rbac_seed.toml")
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -60,6 +73,156 @@ async def init_db() -> None:
             logger.info("超级管理员创建成功。")
         else:
             logger.info("超级管理员已存在，跳过创建。")
+
+        await init_rbac(db)
+
+
+def _to_none_if_empty(value: str | None) -> str | None:
+    if value is None:
+        return None
+    v = str(value).strip()
+    return v if v else None
+
+
+async def _get_menu_by_name(db: AsyncSession, *, name: str) -> Menu | None:
+    result = await db.execute(select(Menu).where(Menu.name == name))
+    return result.scalars().first()
+
+
+async def _get_role_by_code(db: AsyncSession, *, code: str) -> Role | None:
+    result = await db.execute(select(Role).where(Role.code == code))
+    return result.scalars().first()
+
+
+async def init_rbac(db: AsyncSession) -> None:
+    """初始化 RBAC 菜单与角色（幂等）。"""
+
+    if not os.path.exists(RBAC_SEED_PATH):
+        logger.warning(f"未找到 RBAC 种子文件，跳过初始化: {RBAC_SEED_PATH}")
+        return
+
+    logger.info(f"正在初始化 RBAC 菜单/角色: {RBAC_SEED_PATH}")
+
+    with open(RBAC_SEED_PATH, "rb") as f:
+        seed = tomllib.load(f)
+
+    menus_seed: list[dict] = seed.get("menus", [])
+    roles_seed: list[dict] = seed.get("roles", [])
+
+    # 1) 初始化菜单（支持 parent_key）
+    key_to_menu: dict[str, Menu] = {}
+    for m in menus_seed:
+        key = str(m.get("key", "")).strip()
+        if not key:
+            raise ValueError("rbac_seed.toml 中存在空的 menus.key")
+
+        title = str(m.get("title", "")).strip()
+        name = str(m.get("name", "")).strip()
+        if not title or not name:
+            raise ValueError(f"菜单缺少 title/name: key={key}")
+
+        parent_key = _to_none_if_empty(m.get("parent_key"))
+        parent_id: UUID | None = None
+        if parent_key:
+            parent_menu = key_to_menu.get(parent_key)
+            if parent_menu is None:
+                raise ValueError(f"菜单 parent_key 未找到（请确保父菜单在子菜单之前定义）: {key} -> {parent_key}")
+            parent_id = parent_menu.id
+
+        path = _to_none_if_empty(m.get("path"))
+        component = _to_none_if_empty(m.get("component"))
+        icon = _to_none_if_empty(m.get("icon"))
+        permission = _to_none_if_empty(m.get("permission"))
+        sort = int(m.get("sort", 0))
+        is_hidden = bool(m.get("is_hidden", False))
+
+        existing = await _get_menu_by_name(db, name=name)
+        if existing:
+            existing.title = title
+            existing.parent_id = parent_id
+            existing.path = path
+            existing.component = component
+            existing.icon = icon
+            existing.sort = sort
+            existing.is_hidden = is_hidden
+            existing.permission = permission
+            existing.is_deleted = False
+            existing.is_active = True
+            menu_obj = existing
+        else:
+            menu_obj = await menu_crud.create(
+                db,
+                obj_in=MenuCreate(
+                    title=title,
+                    name=name,
+                    parent_id=parent_id,
+                    path=path,
+                    component=component,
+                    icon=icon,
+                    sort=sort,
+                    is_hidden=is_hidden,
+                    permission=permission,
+                ),
+            )
+
+        key_to_menu[key] = menu_obj
+
+    await db.flush()
+    await db.commit()
+
+    # 2) 建立 permission -> Menu 映射
+    permission_to_menu_id: dict[str, UUID] = {}
+    for menu_obj in key_to_menu.values():
+        if menu_obj.permission:
+            permission_to_menu_id[menu_obj.permission] = menu_obj.id
+
+    # 3) 初始化角色（按 code 幂等更新菜单绑定）
+    for r in roles_seed:
+        role_name = str(r.get("name", "")).strip()
+        role_code = str(r.get("code", "")).strip()
+        if not role_name or not role_code:
+            raise ValueError("角色缺少 name/code")
+
+        role_desc = _to_none_if_empty(r.get("description"))
+        role_sort = int(r.get("sort", 0))
+        permissions: list[str] = list(r.get("permissions", []) or [])
+
+        menu_ids: list[UUID] = []
+        missing: list[str] = []
+        for p in permissions:
+            pid = permission_to_menu_id.get(p)
+            if pid is None:
+                missing.append(p)
+            else:
+                menu_ids.append(pid)
+
+        if missing:
+            logger.warning(f"角色 {role_code} 存在未匹配的权限点（将忽略这些权限）: {missing}")
+
+        existing_role = await _get_role_by_code(db, code=role_code)
+        if existing_role:
+            existing_role.name = role_name
+            existing_role.description = role_desc
+            existing_role.sort = role_sort
+            existing_role.is_deleted = False
+            existing_role.is_active = True
+            # 重新绑定 menus
+            result = await db.execute(select(Menu).where(Menu.id.in_(menu_ids)))
+            existing_role.menus = list(result.scalars().all())
+        else:
+            await role_crud.create(
+                db,
+                obj_in=RoleCreate(
+                    name=role_name,
+                    code=role_code,
+                    description=role_desc,
+                    sort=role_sort,
+                    menu_ids=menu_ids,
+                ),
+            )
+
+    await db.commit()
+    logger.info("RBAC 菜单/角色初始化完成。")
 
 
 def main() -> None:
