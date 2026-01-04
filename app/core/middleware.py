@@ -16,6 +16,7 @@ from structlog.contextvars import bind_contextvars, clear_contextvars
 
 from app.core.event_bus import OperationLogEvent, event_bus
 from app.core.logger import access_logger
+from app.core.metrics import record_request_metrics
 
 
 class RequestLogMiddleware(BaseHTTPMiddleware):
@@ -35,12 +36,17 @@ class RequestLogMiddleware(BaseHTTPMiddleware):
 
         start_time = time.perf_counter()
 
-        try:
-            response = await call_next(request)
-        except Exception as e:
-            raise e
+        response = await call_next(request)
 
         process_time = time.perf_counter() - start_time
+
+        # Prometheus 指标
+        try:
+            if request.url.path not in ("/metrics", "/health"):
+                record_request_metrics(request.method, request.url.path, response.status_code, process_time)
+        except Exception:
+            # 指标记录失败不影响主流程
+            pass
 
         # 记录请求完成日志 (File Log)
         if request.url.path != "/health":

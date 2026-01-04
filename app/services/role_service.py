@@ -10,6 +10,7 @@ from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.cache import invalidate_cache
 from app.core.decorator import transactional
 from app.core.exceptions import BadRequestException, NotFoundException
 from app.crud.crud_role import CRUDRole
@@ -25,6 +26,15 @@ class RoleService:
     def __init__(self, db: AsyncSession, role_crud: CRUDRole):
         self.db = db
         self.role_crud = role_crud
+
+        # transactional() 将在 commit 后执行这些任务（用于缓存失效等）
+        self._post_commit_tasks: list = []
+
+    def _invalidate_permissions_cache_after_commit(self) -> None:
+        async def _task() -> None:
+            await invalidate_cache("v1:user:permissions:*")
+
+        self._post_commit_tasks.append(_task)
 
     async def get_roles(self, skip: int = 0, limit: int = 100) -> list[Role]:
         return await self.role_crud.get_multi(self.db, skip=skip, limit=limit)
@@ -47,7 +57,9 @@ class RoleService:
         if existing_role:
             raise BadRequestException(message="角色编码已存在")
 
-        return await self.role_crud.create(self.db, obj_in=obj_in)
+        role = await self.role_crud.create(self.db, obj_in=obj_in)
+        self._invalidate_permissions_cache_after_commit()
+        return role
 
     @transactional()
     async def update_role(self, id: UUID, obj_in: RoleUpdate) -> Role:
@@ -60,7 +72,9 @@ class RoleService:
             if existing_role and existing_role.id != id:
                 raise BadRequestException(message="角色编码被占用")
 
-        return await self.role_crud.update(self.db, db_obj=role, obj_in=obj_in)
+        updated = await self.role_crud.update(self.db, db_obj=role, obj_in=obj_in)
+        self._invalidate_permissions_cache_after_commit()
+        return updated
 
     @transactional()
     async def delete_role(self, id: UUID) -> RoleResponse:
@@ -71,6 +85,8 @@ class RoleService:
         deleted_role = await self.role_crud.remove(self.db, id=id)
         if not deleted_role:
             raise NotFoundException(message="角色删除失败")
+
+        self._invalidate_permissions_cache_after_commit()
 
         return RoleResponse(
             id=deleted_role.id,
@@ -89,7 +105,9 @@ class RoleService:
         """
         批量删除角色。
         """
-        return await self.role_crud.batch_remove(self.db, ids=ids, hard_delete=hard_delete)
+        result = await self.role_crud.batch_remove(self.db, ids=ids, hard_delete=hard_delete)
+        self._invalidate_permissions_cache_after_commit()
+        return result
 
     @transactional()
     async def restore_role(self, id: UUID) -> Role:
@@ -99,4 +117,6 @@ class RoleService:
         role = await self.role_crud.restore(self.db, id=id)
         if not role:
             raise NotFoundException(message="角色不存在")
+
+        self._invalidate_permissions_cache_after_commit()
         return role

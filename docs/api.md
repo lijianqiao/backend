@@ -22,16 +22,16 @@ OAuth2 兼容的 Token 登录接口。
 每个 IP 每分钟最多允许 5 次请求。
 
 Args:
-request (Request): 请求对象，用于获取 IP 地址。
-background_tasks (BackgroundTasks): 后台任务，用于异步记录登录日志。
-form_data (OAuth2PasswordRequestForm): 表单数据，包含 username 和 password。
-auth_service (AuthService): 认证服务依赖。
+    request (Request): 请求对象，用于获取 IP 地址。
+    background_tasks (BackgroundTasks): 后台任务，用于异步记录登录日志。
+    form_data (OAuth2PasswordRequestForm): 表单数据，包含 username 和 password。
+    auth_service (AuthService): 认证服务依赖。
 
 Returns:
-Token: 包含 Access Token 和 Refresh Token 的响应对象。
+    Token: 包含 Access Token 和 Refresh Token 的响应对象。
 
 Raises:
-CustomException: 当用户名或密码错误时抛出 400 错误。
+    CustomException: 当用户名或密码错误时抛出 400 错误。
 
 #### Request Body (application/x-www-form-urlencoded)
 
@@ -79,14 +79,14 @@ Format: `application/json`
 当 Access Token 过期时，可以使用此接口获取新的 Access Token，而无需重新登录。
 
 Args:
-token_in (TokenRefresh): 包含 refresh_token 的请求体。
-auth_service (AuthService): 认证服务依赖。
+    token_in (TokenRefresh): 包含 refresh_token 的请求体。
+    auth_service (AuthService): 认证服务依赖。
 
 Returns:
-Token: 包含新的 Access Token 和 (可选) 新的 Refresh Token。
+    Token: 包含新的 Access Token 和 (可选) 新的 Refresh Token。
 
 Raises:
-UnauthorizedException: 当 Refresh Token 无效或过期时抛出 401 错误。
+    UnauthorizedException: 当 Refresh Token 无效或过期时抛出 401 错误。
 
 #### Request Body (application/json)
 
@@ -129,10 +129,10 @@ Format: `application/json`
 仅用于验证当前请求携带的 Token 是否合法，并返回当前用户信息。
 
 Args:
-current_user (User): 当前登录用户 (由依赖自动注入)。
+    current_user (User): 当前登录用户 (由依赖自动注入)。
 
 Returns:
-ResponseBase[UserResponse]: 包含当前用户信息的统一响应结构。
+    ResponseBase[UserResponse]: 包含当前用户信息的统一响应结构。
 
 #### Responses
 
@@ -164,11 +164,11 @@ Format: `application/json`
 数据用于前端仪表盘首页展示。
 
 Args:
-current_user (User): 当前登录用户。
-service (DashboardService): 仪表盘服务依赖。
+    current_user (User): 当前登录用户。
+    service (DashboardService): 仪表盘服务依赖。
 
 Returns:
-ResponseBase[DashboardStats]: 包含各项统计指标的响应对象。
+    ResponseBase[DashboardStats]: 包含各项统计指标的响应对象。
 
 #### Responses
 
@@ -199,13 +199,13 @@ Format: `application/json`
 查询系统登录日志记录，支持分页。按创建时间倒序排列。
 
 Args:
-current_user (User): 当前登录用户。
-log_service (LogService): 日志服务依赖。
-page (int, optional): 页码. Defaults to 1.
-page_size (int, optional): 每页数量. Defaults to 20.
+    current_user (User): 当前登录用户。
+    log_service (LogService): 日志服务依赖。
+    page (int, optional): 页码. Defaults to 1.
+    page_size (int, optional): 每页数量. Defaults to 20.
 
 Returns:
-ResponseBase[PaginatedResponse[LoginLogResponse]]: 分页后的登录日志列表。
+    ResponseBase[PaginatedResponse[LoginLogResponse]]: 分页后的登录日志列表。
 
 #### Requests Parameters (Query/Path)
 
@@ -249,13 +249,13 @@ Format: `application/json`
 查询系统操作日志（API 调用记录），支持分页。按创建时间倒序排列。
 
 Args:
-current_user (User): 当前登录用户。
-log_service (LogService): 日志服务依赖。
-page (int, optional): 页码. Defaults to 1.
-page_size (int, optional): 每页数量. Defaults to 20.
+    current_user (User): 当前登录用户。
+    log_service (LogService): 日志服务依赖。
+    page (int, optional): 页码. Defaults to 1.
+    page_size (int, optional): 每页数量. Defaults to 20.
 
 Returns:
-ResponseBase[PaginatedResponse[OperationLogResponse]]: 分页后的操作日志列表。
+    ResponseBase[PaginatedResponse[OperationLogResponse]]: 分页后的操作日志列表。
 
 #### Requests Parameters (Query/Path)
 
@@ -301,13 +301,13 @@ Format: `application/json`
 查询系统菜单记录，支持分页。按排序字段排序。
 
 Args:
-current_user (User): 当前登录用户。
-menu_service (MenuService): 菜单服务依赖。
-page (int, optional): 页码. Defaults to 1.
-page_size (int, optional): 每页数量. Defaults to 20.
+    current_user (User): 当前登录用户。
+    menu_service (MenuService): 菜单服务依赖。
+    page (int, optional): 页码. Defaults to 1.
+    page_size (int, optional): 每页数量. Defaults to 20.
 
 Returns:
-ResponseBase[PaginatedResponse[MenuResponse]]: 分页后的菜单列表。
+    ResponseBase[PaginatedResponse[MenuResponse]]: 分页后的菜单列表。
 
 #### Requests Parameters (Query/Path)
 
@@ -351,12 +351,12 @@ Format: `application/json`
 创建新的系统菜单或权限节点。
 
 Args:
-menu_in (MenuCreate): 菜单创建数据 (标题, 路径, 类型等)。
-current_user (User): 当前登录用户。
-menu_service (MenuService): 菜单服务依赖。
+    menu_in (MenuCreate): 菜单创建数据 (标题, 路径, 类型等)。
+    current_user (User): 当前登录用户。
+    menu_service (MenuService): 菜单服务依赖。
 
 Returns:
-ResponseBase[MenuResponse]: 创建成功的菜单对象。
+    ResponseBase[MenuResponse]: 创建成功的菜单对象。
 
 #### Request Body (application/json)
 
@@ -407,12 +407,12 @@ Format: `application/json`
 支持软删除和硬删除。如果存在子菜单，将级联删除或校验（取决于具体实现策略）。
 
 Args:
-request (BatchDeleteRequest): 批量删除请求体 (包含 ID 列表和硬删除标志)。
-current_user (User): 当前登录用户。
-menu_service (MenuService): 菜单服务依赖。
+    request (BatchDeleteRequest): 批量删除请求体 (包含 ID 列表和硬删除标志)。
+    current_user (User): 当前登录用户。
+    menu_service (MenuService): 菜单服务依赖。
 
 Returns:
-ResponseBase[BatchOperationResult]: 批量操作结果（成功数量等）。
+    ResponseBase[BatchOperationResult]: 批量操作结果（成功数量等）。
 
 #### Request Body (application/json)
 
@@ -456,13 +456,13 @@ Format: `application/json`
 更新指定 ID 的菜单信息。
 
 Args:
-id (UUID): 菜单 ID。
-menu_in (MenuUpdate): 菜单更新数据。
-current_user (User): 当前登录用户。
-menu_service (MenuService): 菜单服务依赖。
+    id (UUID): 菜单 ID。
+    menu_in (MenuUpdate): 菜单更新数据。
+    current_user (User): 当前登录用户。
+    menu_service (MenuService): 菜单服务依赖。
 
 Returns:
-ResponseBase[MenuResponse]: 更新后的菜单对象。
+    ResponseBase[MenuResponse]: 更新后的菜单对象。
 
 #### Requests Parameters (Query/Path)
 
@@ -519,53 +519,12 @@ Format: `application/json`
 删除指定 ID 的菜单。
 
 Args:
-id (UUID): 菜单 ID。
-current_user (User): 当前登录用户。
-menu_service (MenuService): 菜单服务依赖。
+    id (UUID): 菜单 ID。
+    current_user (User): 当前登录用户。
+    menu_service (MenuService): 菜单服务依赖。
 
 Returns:
-ResponseBase[MenuResponse]: 已删除的菜单对象信息。
-
-#### Requests Parameters (Query/Path)
-
-| 参数名 | 位置   | 类型     | 必填 | 描述 | Default |
-| :----- | :----- | :------- | :--- | :--- | :------ |
-| `id`   | `path` | `string` | 是   | Id   |         |
-
-#### Responses
-
-**Status Code**: `200` - Successful Response
-
-Format: `application/json`
-
-| 参数名    | 类型           | 必填 | 描述    |
-| :-------- | :------------- | :--- | :------ |
-| `code`    | `integer`      | 否   | Code    |
-| `message` | `string`       | 否   | Message |
-| `data`    | `MenuResponse` | 否   |         |
-
-**Status Code**: `422` - Validation Error
-
-Format: `application/json`
-
-| 参数名   | 类型                     | 必填 | 描述   |
-| :------- | :----------------------- | :--- | :----- |
-| `detail` | `Array[ValidationError]` | 否   | Detail |
-
----
-
-### 恢复已删除菜单
-
-**URL**: `/api/v1/menus/{id}/restore`
-
-**Method**: `POST`
-
-**Description**:
-
-恢复已删除菜单。
-
-从回收站中恢复指定菜单。
-需要超级管理员权限。
+    ResponseBase[MenuResponse]: 已删除的菜单对象信息。
 
 #### Requests Parameters (Query/Path)
 
@@ -635,6 +594,47 @@ Format: `application/json`
 
 ---
 
+### 恢复已删除菜单
+
+**URL**: `/api/v1/menus/{id}/restore`
+
+**Method**: `POST`
+
+**Description**:
+
+恢复已删除菜单。
+
+从回收站中恢复指定菜单。
+需要超级管理员权限。
+
+#### Requests Parameters (Query/Path)
+
+| 参数名 | 位置   | 类型     | 必填 | 描述 | Default |
+| :----- | :----- | :------- | :--- | :--- | :------ |
+| `id`   | `path` | `string` | 是   | Id   |         |
+
+#### Responses
+
+**Status Code**: `200` - Successful Response
+
+Format: `application/json`
+
+| 参数名    | 类型           | 必填 | 描述    |
+| :-------- | :------------- | :--- | :------ |
+| `code`    | `integer`      | 否   | Code    |
+| `message` | `string`       | 否   | Message |
+| `data`    | `MenuResponse` | 否   |         |
+
+**Status Code**: `422` - Validation Error
+
+Format: `application/json`
+
+| 参数名   | 类型                     | 必填 | 描述   |
+| :------- | :----------------------- | :--- | :----- |
+| `detail` | `Array[ValidationError]` | 否   | Detail |
+
+---
+
 ## Roles
 
 ### 获取角色列表
@@ -650,13 +650,13 @@ Format: `application/json`
 查询系统角色记录，支持分页。
 
 Args:
-role_service (RoleService): 角色服务依赖。
-current_user (User): 当前登录用户。
-page (int, optional): 页码. Defaults to 1.
-page_size (int, optional): 每页数量. Defaults to 20.
+    role_service (RoleService): 角色服务依赖。
+    current_user (User): 当前登录用户。
+    page (int, optional): 页码. Defaults to 1.
+    page_size (int, optional): 每页数量. Defaults to 20.
 
 Returns:
-ResponseBase[PaginatedResponse[RoleResponse]]: 分页后的角色列表。
+    ResponseBase[PaginatedResponse[RoleResponse]]: 分页后的角色列表。
 
 #### Requests Parameters (Query/Path)
 
@@ -700,12 +700,12 @@ Format: `application/json`
 创建新的系统角色。
 
 Args:
-role_in (RoleCreate): 角色创建数据 (名称, 标识, 描述等)。
-current_user (User): 当前登录用户。
-role_service (RoleService): 角色服务依赖。
+    role_in (RoleCreate): 角色创建数据 (名称, 标识, 描述等)。
+    current_user (User): 当前登录用户。
+    role_service (RoleService): 角色服务依赖。
 
 Returns:
-ResponseBase[RoleResponse]: 创建成功的角色对象。
+    ResponseBase[RoleResponse]: 创建成功的角色对象。
 
 #### Request Body (application/json)
 
@@ -752,12 +752,12 @@ Format: `application/json`
 支持软删除和硬删除。
 
 Args:
-request (BatchDeleteRequest): 批量删除请求体 (包含 ID 列表和硬删除标志)。
-current_user (User): 当前登录用户。
-role_service (RoleService): 角色服务依赖。
+    request (BatchDeleteRequest): 批量删除请求体 (包含 ID 列表和硬删除标志)。
+    current_user (User): 当前登录用户。
+    role_service (RoleService): 角色服务依赖。
 
 Returns:
-ResponseBase[BatchOperationResult]: 批量操作结果（成功数量等）。
+    ResponseBase[BatchOperationResult]: 批量操作结果（成功数量等）。
 
 #### Request Body (application/json)
 
@@ -801,13 +801,13 @@ Format: `application/json`
 更新指定 ID 的角色信息。
 
 Args:
-id (UUID): 角色 ID。
-role_in (RoleUpdate): 角色更新数据。
-current_user (User): 当前登录用户。
-role_service (RoleService): 角色服务依赖。
+    id (UUID): 角色 ID。
+    role_in (RoleUpdate): 角色更新数据。
+    current_user (User): 当前登录用户。
+    role_service (RoleService): 角色服务依赖。
 
 Returns:
-ResponseBase[RoleResponse]: 更新后的角色对象。
+    ResponseBase[RoleResponse]: 更新后的角色对象。
 
 #### Requests Parameters (Query/Path)
 
@@ -858,53 +858,12 @@ Format: `application/json`
 删除角色 (软删除)。
 
 Args:
-id (UUID): 角色 ID。
-active_superuser (User): 当前登录超级用户。
-role_service (RoleService): 角色服务依赖。
+    id (UUID): 角色 ID。
+    active_superuser (User): 当前登录超级用户。
+    role_service (RoleService): 角色服务依赖。
 
 Returns:
-ResponseBase[RoleResponse]: 删除后的角色对象。
-
-#### Requests Parameters (Query/Path)
-
-| 参数名 | 位置   | 类型     | 必填 | 描述 | Default |
-| :----- | :----- | :------- | :--- | :--- | :------ |
-| `id`   | `path` | `string` | 是   | Id   |         |
-
-#### Responses
-
-**Status Code**: `200` - Successful Response
-
-Format: `application/json`
-
-| 参数名    | 类型           | 必填 | 描述    |
-| :-------- | :------------- | :--- | :------ |
-| `code`    | `integer`      | 否   | Code    |
-| `message` | `string`       | 否   | Message |
-| `data`    | `RoleResponse` | 否   |         |
-
-**Status Code**: `422` - Validation Error
-
-Format: `application/json`
-
-| 参数名   | 类型                     | 必填 | 描述   |
-| :------- | :----------------------- | :--- | :----- |
-| `detail` | `Array[ValidationError]` | 否   | Detail |
-
----
-
-### 恢复已删除角色
-
-**URL**: `/api/v1/roles/{id}/restore`
-
-**Method**: `POST`
-
-**Description**:
-
-恢复已删除角色。
-
-从回收站中恢复指定角色。
-需要超级管理员权限。
+    ResponseBase[RoleResponse]: 删除后的角色对象。
 
 #### Requests Parameters (Query/Path)
 
@@ -974,6 +933,47 @@ Format: `application/json`
 
 ---
 
+### 恢复已删除角色
+
+**URL**: `/api/v1/roles/{id}/restore`
+
+**Method**: `POST`
+
+**Description**:
+
+恢复已删除角色。
+
+从回收站中恢复指定角色。
+需要超级管理员权限。
+
+#### Requests Parameters (Query/Path)
+
+| 参数名 | 位置   | 类型     | 必填 | 描述 | Default |
+| :----- | :----- | :------- | :--- | :--- | :------ |
+| `id`   | `path` | `string` | 是   | Id   |         |
+
+#### Responses
+
+**Status Code**: `200` - Successful Response
+
+Format: `application/json`
+
+| 参数名    | 类型           | 必填 | 描述    |
+| :-------- | :------------- | :--- | :------ |
+| `code`    | `integer`      | 否   | Code    |
+| `message` | `string`       | 否   | Message |
+| `data`    | `RoleResponse` | 否   |         |
+
+**Status Code**: `422` - Validation Error
+
+Format: `application/json`
+
+| 参数名   | 类型                     | 必填 | 描述   |
+| :------- | :----------------------- | :--- | :----- |
+| `detail` | `Array[ValidationError]` | 否   | Detail |
+
+---
+
 ## Uncategorized
 
 ### Health Check
@@ -1011,14 +1011,14 @@ No properties (Empty Object)
 获取所有系统用户，支持分页。需要超级管理员权限。
 
 Args:
-user_service (UserService): 用户服务依赖。
-current_user (User): 当前登录用户。
-active_superuser (User): 超级管理员权限验证。
-page (int, optional): 页码. Defaults to 1.
-page_size (int, optional): 每页数量. Defaults to 20.
+    user_service (UserService): 用户服务依赖。
+    current_user (User): 当前登录用户。
+    active_superuser (User): 超级管理员权限验证。
+    page (int, optional): 页码. Defaults to 1.
+    page_size (int, optional): 每页数量. Defaults to 20.
 
 Returns:
-ResponseBase[PaginatedResponse[UserResponse]]: 分页后的用户列表。
+    ResponseBase[PaginatedResponse[UserResponse]]: 分页后的用户列表。
 
 #### Requests Parameters (Query/Path)
 
@@ -1062,13 +1062,13 @@ Format: `application/json`
 注册新的系统用户。需要超级管理员权限。
 
 Args:
-user_in (UserCreate): 用户创建数据 (用户名, 密码, 邮箱等)。
-current_user (User): 当前登录用户。
-active_superuser (User): 超级管理员权限验证。
-user_service (UserService): 用户服务依赖。
+    user_in (UserCreate): 用户创建数据 (用户名, 密码, 邮箱等)。
+    current_user (User): 当前登录用户。
+    active_superuser (User): 超级管理员权限验证。
+    user_service (UserService): 用户服务依赖。
 
 Returns:
-ResponseBase[UserResponse]: 创建成功的用户对象。
+    ResponseBase[UserResponse]: 创建成功的用户对象。
 
 #### Request Body (application/json)
 
@@ -1118,13 +1118,13 @@ Format: `application/json`
 支持软删除和硬删除。需要超级管理员权限。
 
 Args:
-request (BatchDeleteRequest): 批量删除请求体 (包含 ID 列表和硬删除标志)。
-current_user (User): 当前登录用户。
-active_superuser (User): 超级管理员权限验证。
-user_service (UserService): 用户服务依赖。
+    request (BatchDeleteRequest): 批量删除请求体 (包含 ID 列表和硬删除标志)。
+    current_user (User): 当前登录用户。
+    active_superuser (User): 超级管理员权限验证。
+    user_service (UserService): 用户服务依赖。
 
 Returns:
-ResponseBase[BatchOperationResult]: 批量操作结果（成功数量等）。
+    ResponseBase[BatchOperationResult]: 批量操作结果（成功数量等）。
 
 #### Request Body (application/json)
 
@@ -1168,10 +1168,10 @@ Format: `application/json`
 返回当前登录用户的详细信息。
 
 Args:
-current_user (User): 当前登录用户 (由依赖自动注入)。
+    current_user (User): 当前登录用户 (由依赖自动注入)。
 
 Returns:
-ResponseBase[UserResponse]: 当前用户的详细信息。
+    ResponseBase[UserResponse]: 当前用户的详细信息。
 
 #### Responses
 
@@ -1200,12 +1200,12 @@ Format: `application/json`
 用户自行修改个人资料（如昵称、邮箱、手机号等）。
 
 Args:
-user_service (UserService): 用户服务依赖。
-user_in (UserUpdate): 用户更新数据。
-current_user (User): 当前登录用户。
+    user_service (UserService): 用户服务依赖。
+    user_in (UserUpdate): 用户更新数据。
+    current_user (User): 当前登录用户。
 
 Returns:
-ResponseBase[UserResponse]: 更新后的用户信息。
+    ResponseBase[UserResponse]: 更新后的用户信息。
 
 #### Request Body (application/json)
 
@@ -1254,12 +1254,12 @@ Format: `application/json`
 需要验证旧密码是否正确。
 
 Args:
-user_service (UserService): 用户服务依赖。
-password_data (ChangePasswordRequest): 密码修改请求 (包含旧密码和新密码)。
-current_user (User): 当前登录用户。
+    user_service (UserService): 用户服务依赖。
+    password_data (ChangePasswordRequest): 密码修改请求 (包含旧密码和新密码)。
+    current_user (User): 当前登录用户。
 
 Returns:
-ResponseBase[UserResponse]: 用户信息 (密码修改成功后)。
+    ResponseBase[UserResponse]: 用户信息 (密码修改成功后)。
 
 #### Request Body (application/json)
 
@@ -1303,14 +1303,14 @@ Format: `application/json`
 强制修改指定用户的密码，不需要知道旧密码。需要超级管理员权限。
 
 Args:
-user_id (UUID): 目标用户 ID。
-password_data (ResetPasswordRequest): 密码重置请求 (包含新密码)。
-current_user (User): 当前登录用户。
-active_superuser (User): 超级管理员权限验证。
-user_service (UserService): 用户服务依赖。
+    user_id (UUID): 目标用户 ID。
+    password_data (ResetPasswordRequest): 密码重置请求 (包含新密码)。
+    current_user (User): 当前登录用户。
+    active_superuser (User): 超级管理员权限验证。
+    user_service (UserService): 用户服务依赖。
 
 Returns:
-ResponseBase[UserResponse]: 用户信息 (密码重置成功后)。
+    ResponseBase[UserResponse]: 用户信息 (密码重置成功后)。
 
 #### Requests Parameters (Query/Path)
 
@@ -1323,47 +1323,6 @@ ResponseBase[UserResponse]: 用户信息 (密码重置成功后)。
 | 参数名         | 类型     | 必填 | 描述   |
 | :------------- | :------- | :--- | :----- |
 | `new_password` | `string` | 是   | 新密码 |
-
-#### Responses
-
-**Status Code**: `200` - Successful Response
-
-Format: `application/json`
-
-| 参数名    | 类型           | 必填 | 描述    |
-| :-------- | :------------- | :--- | :------ |
-| `code`    | `integer`      | 否   | Code    |
-| `message` | `string`       | 否   | Message |
-| `data`    | `UserResponse` | 否   |         |
-
-**Status Code**: `422` - Validation Error
-
-Format: `application/json`
-
-| 参数名   | 类型                     | 必填 | 描述   |
-| :------- | :----------------------- | :--- | :----- |
-| `detail` | `Array[ValidationError]` | 否   | Detail |
-
----
-
-### 恢复已删除用户
-
-**URL**: `/api/v1/users/{user_id}/restore`
-
-**Method**: `POST`
-
-**Description**:
-
-恢复已删除用户。
-
-从回收站中恢复指定用户。
-需要超级管理员权限。
-
-#### Requests Parameters (Query/Path)
-
-| 参数名    | 位置   | 类型     | 必填 | 描述    | Default |
-| :-------- | :----- | :------- | :--- | :------ | :------ |
-| `user_id` | `path` | `string` | 是   | User Id |         |
 
 #### Responses
 
@@ -1438,12 +1397,12 @@ Format: `application/json`
 获取特定用户的详细信息 (管理员)。
 
 Args:
-user_id (UUID): 目标用户 ID。
-active_superuser (User): 超级管理员权限验证。
-user_service (UserService): 用户服务依赖。
+    user_id (UUID): 目标用户 ID。
+    active_superuser (User): 超级管理员权限验证。
+    user_service (UserService): 用户服务依赖。
 
 Returns:
-ResponseBase[UserResponse]: 用户详细信息。
+    ResponseBase[UserResponse]: 用户详细信息。
 
 #### Requests Parameters (Query/Path)
 
@@ -1487,13 +1446,13 @@ Format: `application/json`
 不包含密码修改 (请使用重置密码接口)。
 
 Args:
-user_id (UUID): 目标用户 ID。
-user_in (UserUpdate): 更新的用户数据。
-active_superuser (User): 超级管理员权限验证。
-user_service (UserService): 用户服务依赖。
+    user_id (UUID): 目标用户 ID。
+    user_in (UserUpdate): 更新的用户数据。
+    active_superuser (User): 超级管理员权限验证。
+    user_service (UserService): 用户服务依赖。
 
 Returns:
-ResponseBase[UserResponse]: 更新后的用户信息。
+    ResponseBase[UserResponse]: 更新后的用户信息。
 
 #### Requests Parameters (Query/Path)
 
@@ -1534,3 +1493,45 @@ Format: `application/json`
 | `detail` | `Array[ValidationError]` | 否   | Detail |
 
 ---
+
+### 恢复已删除用户
+
+**URL**: `/api/v1/users/{user_id}/restore`
+
+**Method**: `POST`
+
+**Description**:
+
+恢复已删除用户。
+
+从回收站中恢复指定用户。
+需要超级管理员权限。
+
+#### Requests Parameters (Query/Path)
+
+| 参数名    | 位置   | 类型     | 必填 | 描述    | Default |
+| :-------- | :----- | :------- | :--- | :------ | :------ |
+| `user_id` | `path` | `string` | 是   | User Id |         |
+
+#### Responses
+
+**Status Code**: `200` - Successful Response
+
+Format: `application/json`
+
+| 参数名    | 类型           | 必填 | 描述    |
+| :-------- | :------------- | :--- | :------ |
+| `code`    | `integer`      | 否   | Code    |
+| `message` | `string`       | 否   | Message |
+| `data`    | `UserResponse` | 否   |         |
+
+**Status Code**: `422` - Validation Error
+
+Format: `application/json`
+
+| 参数名   | 类型                     | 必填 | 描述   |
+| :------- | :----------------------- | :--- | :----- |
+| `detail` | `Array[ValidationError]` | 否   | Detail |
+
+---
+

@@ -8,7 +8,7 @@
 
 from typing import Any
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 
 from app.api import deps
 from app.schemas.common import PaginatedResponse, ResponseBase
@@ -21,6 +21,7 @@ router = APIRouter()
 async def read_login_logs(
     current_user: deps.CurrentUser,
     log_service: deps.LogServiceDep,
+    _: deps.User = Depends(deps.require_permissions(["log:login:list"])),
     page: int = 1,
     page_size: int = 20,
 ) -> Any:
@@ -46,6 +47,7 @@ async def read_login_logs(
 async def read_operation_logs(
     current_user: deps.CurrentUser,
     log_service: deps.LogServiceDep,
+    _: deps.User = Depends(deps.require_permissions(["log:operation:list"])),
     page: int = 1,
     page_size: int = 20,
 ) -> Any:

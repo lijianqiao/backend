@@ -6,6 +6,7 @@
 @Docs: 系统配置管理 (System Configuration).
 """
 
+import logging
 from typing import Literal
 
 from pydantic import PostgresDsn, RedisDsn, computed_field, model_validator
@@ -95,7 +96,7 @@ class Settings(BaseSettings):
             if self.ENVIRONMENT in ("production", "staging"):
                 raise ValueError(f"[BLOCK] {message} 请并在 .env 中修改 SECRET_KEY。")
             else:
-                print(f"\033[91m{message}\033[0m")  # 红色打印
+                logging.getLogger(__name__).warning(message)
 
         # 2. 检查 默认密码 (仅检查显而易见的默认值)
         insecure_passwords = ["password", "123123", "admin"]
@@ -105,14 +106,18 @@ class Settings(BaseSettings):
             if self.ENVIRONMENT == "production":
                 raise ValueError(f"[BLOCK] {msg} 生产环境严禁使用弱密码！")
             else:
-                print(f"\033[93m{msg}\033[0m")  # 黄色打印
+                logging.getLogger(__name__).warning(msg)
 
         if self.FIRST_SUPERUSER_PASSWORD in insecure_passwords:
             msg = f"[安全警告]: 初始管理员密码使用了弱密码 '{self.FIRST_SUPERUSER_PASSWORD}'。"
             if self.ENVIRONMENT == "production":
                 raise ValueError(f"[BLOCK] {msg} 生产环境严禁使用弱密码！")
             else:
-                print(f"\033[93m{msg}\033[0m")
+                logging.getLogger(__name__).warning(msg)
+
+        # 3. 生产/预发环境强制要求配置明确的 CORS 白名单
+        if self.ENVIRONMENT in ("production", "staging") and any(str(x) == "*" for x in self.BACKEND_CORS_ORIGINS):
+            raise ValueError("[BLOCK] 生产/预发环境禁止将 BACKEND_CORS_ORIGINS 配置为 '*'，请配置具体域名白名单")
 
         return self
 

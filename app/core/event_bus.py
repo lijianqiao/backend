@@ -53,6 +53,7 @@ class EventBus:
 
     def __init__(self) -> None:
         self._handlers: dict[type[Event], list[EventHandler]] = defaultdict(list)
+        self._pending_tasks: set[asyncio.Task] = set()
 
     def subscribe(self, event_type: type[Event], handler: EventHandler) -> None:
         """
@@ -72,10 +73,28 @@ class EventBus:
             logger.debug(f"未找到事件订阅者: {event_type.__name__}")
             return
 
-        # 创建所有 handler 的任务
+        # 创建所有 handler 的任务（不阻塞主流程，但会跟踪任务，便于 shutdown 时 drain）
         tasks = [asyncio.create_task(self._safe_call(handler, event)) for handler in handlers]
+        for task in tasks:
+            self._pending_tasks.add(task)
+            task.add_done_callback(lambda t: self._pending_tasks.discard(t))
 
         logger.debug(f"已发布事件: {event_type.__name__} -> {len(tasks)} 订阅者")
+
+    async def drain(self, timeout: float = 5.0) -> None:
+        """尽量等待已发布但未完成的事件处理任务完成。
+
+        说明：这是“尽力而为”的可靠性增强，不保证强一致。
+        """
+
+        if not self._pending_tasks:
+            return
+
+        tasks = list(self._pending_tasks)
+        try:
+            await asyncio.wait_for(asyncio.gather(*tasks, return_exceptions=True), timeout=timeout)
+        except TimeoutError:
+            logger.warning(f"事件总线 drain 超时，剩余任务数: {len(self._pending_tasks)}")
 
     async def _safe_call(self, handler: EventHandler, event: Event) -> None:
         """

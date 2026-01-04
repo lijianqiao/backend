@@ -35,5 +35,5 @@ async def get_dashboard_summary(
     Returns:
         ResponseBase[DashboardStats]: 包含各项统计指标的响应对象。
     """
-    stats = await service.get_summary_stats()
+    stats = await service.get_summary_stats(current_user=current_user)
     return ResponseBase(data=stats)

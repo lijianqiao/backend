@@ -93,12 +93,25 @@ def transactional() -> Callable:
                 result = await func(*args, **kwargs)
                 # 成功执行，提交事务
                 await db_session.commit()
+
+                # 可选：提交后任务（例如缓存失效）
+                if args:
+                    self_obj = args[0]
+                    post_commit_tasks = getattr(self_obj, "_post_commit_tasks", None)
+                    if isinstance(post_commit_tasks, list) and post_commit_tasks:
+                        for task in post_commit_tasks:
+                            try:
+                                await task()
+                            except Exception as e:
+                                logger.warning(f"post_commit 任务执行失败: {e}")
+                        self_obj._post_commit_tasks = []
+
                 return result
             except Exception as e:
                 # 发生异常，回滚事务
                 logger.error(f"{func.__name__} 中的事务回滚: {e}")
                 await db_session.rollback()
-                raise e
+                raise
 
         return wrapper
 

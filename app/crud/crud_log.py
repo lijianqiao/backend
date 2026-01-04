@@ -8,10 +8,12 @@
 
 from datetime import datetime, timedelta
 from typing import Any
+from uuid import UUID
 
 from sqlalchemy import Date, cast, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.logger import logger
 from app.crud.base import CRUDBase
 from app.models.log import LoginLog, OperationLog
 from app.schemas.log import LoginLogCreate, OperationLogCreate
@@ -50,6 +52,24 @@ class CRUDLoginLog(CRUDBase[LoginLog, LoginLogCreate, LoginLogCreate]):
         )
         return result.scalar_one()
 
+    async def count_by_range_and_user(self, db: AsyncSession, start: Any, end: Any, *, user_id: UUID) -> int:
+        """统计指定时间范围内某个用户的登录次数。"""
+        result = await db.execute(
+            select(func.count(LoginLog.id)).where(
+                LoginLog.created_at >= start,
+                LoginLog.created_at < end,
+                LoginLog.user_id == user_id,
+            )
+        )
+        return result.scalar_one()
+
+    async def count_today_by_user(self, db: AsyncSession, *, user_id: UUID) -> int:
+        """统计某个用户的今日登录次数。"""
+        now = datetime.now()
+        today_start = datetime(now.year, now.month, now.day)
+        today_end = today_start + timedelta(days=1)
+        return await self.count_by_range_and_user(db, today_start, today_end, user_id=user_id)
+
     async def get_trend(self, db: AsyncSession, days: int = 7) -> list[dict[str, Any]]:
         """
         获取近 N 天的登录趋势统计。
@@ -83,8 +103,27 @@ class CRUDLoginLog(CRUDBase[LoginLog, LoginLogCreate, LoginLogCreate]):
             result = await db.execute(stmt)
             return [{"date": str(row.d), "count": row.c} for row in result.all()]
         except Exception as e:
-            # 记录错误但不崩溃，返回空列表
-            print(f"Error getting trend: {e}")
+            logger.error(f"获取登录趋势失败: {e}")
+            return []
+
+    async def get_trend_by_user(self, db: AsyncSession, *, user_id: UUID, days: int = 7) -> list[dict[str, Any]]:
+        """获取某个用户近 N 天的登录趋势统计。"""
+        end_date = datetime.now().date()
+        start_date = end_date - timedelta(days=days - 1)
+
+        date_col = cast(LoginLog.created_at, Date)
+        stmt = (
+            select(date_col.label("d"), func.count().label("c"))
+            .where(date_col >= start_date, LoginLog.user_id == user_id)
+            .group_by(date_col)
+            .order_by(date_col.asc())
+        )
+
+        try:
+            result = await db.execute(stmt)
+            return [{"date": str(row.d), "count": row.c} for row in result.all()]
+        except Exception as e:
+            logger.error(f"获取用户登录趋势失败: {e}")
             return []
 
     async def get_recent(self, db: AsyncSession, limit: int = 10) -> list[LoginLog]:
@@ -99,6 +138,13 @@ class CRUDLoginLog(CRUDBase[LoginLog, LoginLogCreate, LoginLogCreate]):
             list[LoginLog]: 最近的登录日志列表。
         """
         result = await db.execute(select(LoginLog).order_by(LoginLog.created_at.desc()).limit(limit))
+        return list(result.scalars().all())
+
+    async def get_recent_by_user(self, db: AsyncSession, *, user_id: UUID, limit: int = 10) -> list[LoginLog]:
+        """获取某个用户最近的登录日志。"""
+        result = await db.execute(
+            select(LoginLog).where(LoginLog.user_id == user_id).order_by(LoginLog.created_at.desc()).limit(limit)
+        )
         return list(result.scalars().all())
 
 
@@ -117,6 +163,17 @@ class CRUDOperationLog(CRUDBase[OperationLog, OperationLogCreate, OperationLogCr
         """
         result = await db.execute(
             select(func.count(OperationLog.id)).where(OperationLog.created_at >= start, OperationLog.created_at <= end)
+        )
+        return result.scalar_one()
+
+    async def count_by_range_and_user(self, db: AsyncSession, start: Any, end: Any, *, user_id: UUID) -> int:
+        """统计指定时间范围内某个用户的操作日志数量。"""
+        result = await db.execute(
+            select(func.count(OperationLog.id)).where(
+                OperationLog.created_at >= start,
+                OperationLog.created_at <= end,
+                OperationLog.user_id == user_id,
+            )
         )
         return result.scalar_one()
 

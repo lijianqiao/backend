@@ -22,6 +22,7 @@ router = APIRouter()
 async def read_menus(
     current_user: deps.CurrentUser,
     menu_service: deps.MenuServiceDep,
+    _: deps.User = Depends(deps.require_permissions(["menu:list"])),
     page: int = 1,
     page_size: int = 20,
 ) -> Any:
@@ -48,6 +49,7 @@ async def create_menu(
     *,
     menu_in: MenuCreate,
     current_user: deps.CurrentUser,
+    _: deps.User = Depends(deps.require_permissions(["menu:create"])),
     menu_service: deps.MenuServiceDep,
 ) -> Any:
     """
@@ -72,6 +74,7 @@ async def batch_delete_menus(
     *,
     request: BatchDeleteRequest,
     current_user: deps.CurrentUser,
+    _: deps.User = Depends(deps.require_permissions(["menu:delete"])),
     menu_service: deps.MenuServiceDep,
 ) -> Any:
     """
@@ -103,6 +106,7 @@ async def update_menu(
     id: UUID,
     menu_in: MenuUpdate,
     current_user: deps.CurrentUser,
+    _: deps.User = Depends(deps.require_permissions(["menu:update"])),
     menu_service: deps.MenuServiceDep,
 ) -> Any:
     """
@@ -129,6 +133,7 @@ async def get_recycle_bin(
     page: int = 1,
     page_size: int = 20,
     active_superuser: deps.User = Depends(deps.get_current_active_superuser),
+    _: deps.User = Depends(deps.require_permissions(["menu:recycle"])),
     menu_service: deps.MenuServiceDep,
 ) -> Any:
     """
@@ -144,6 +149,7 @@ async def delete_menu(
     *,
     id: UUID,
     current_user: deps.CurrentUser,
+    _: deps.User = Depends(deps.require_permissions(["menu:delete"])),
     menu_service: deps.MenuServiceDep,
 ) -> Any:
     """
@@ -168,6 +174,7 @@ async def restore_menu(
     *,
     id: UUID,
     active_superuser: deps.User = Depends(deps.get_current_active_superuser),
+    _: deps.User = Depends(deps.require_permissions(["menu:restore"])),
     menu_service: deps.MenuServiceDep,
 ) -> Any:
     """

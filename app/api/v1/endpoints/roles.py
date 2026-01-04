@@ -22,6 +22,7 @@ router = APIRouter()
 async def read_roles(
     role_service: deps.RoleServiceDep,
     current_user: deps.CurrentUser,
+    _: deps.User = Depends(deps.require_permissions(["role:list"])),
     page: int = 1,
     page_size: int = 20,
 ) -> Any:
@@ -48,6 +49,7 @@ async def create_role(
     *,
     role_in: RoleCreate,
     current_user: deps.CurrentUser,
+    _: deps.User = Depends(deps.require_permissions(["role:create"])),
     role_service: deps.RoleServiceDep,
 ) -> Any:
     """
@@ -72,6 +74,7 @@ async def batch_delete_roles(
     *,
     request: BatchDeleteRequest,
     current_user: deps.CurrentUser,
+    _: deps.User = Depends(deps.require_permissions(["role:delete"])),
     role_service: deps.RoleServiceDep,
 ) -> Any:
     """
@@ -103,6 +106,7 @@ async def update_role(
     id: UUID,
     role_in: RoleUpdate,
     current_user: deps.CurrentUser,
+    _: deps.User = Depends(deps.require_permissions(["role:update"])),
     role_service: deps.RoleServiceDep,
 ) -> Any:
     """
@@ -129,6 +133,7 @@ async def get_recycle_bin(
     page: int = 1,
     page_size: int = 20,
     active_superuser: deps.User = Depends(deps.get_current_active_superuser),
+    _: deps.User = Depends(deps.require_permissions(["role:recycle"])),
     role_service: deps.RoleServiceDep,
 ) -> Any:
     """
@@ -144,6 +149,7 @@ async def delete_role(
     *,
     id: UUID,
     active_superuser: deps.User = Depends(deps.get_current_active_superuser),
+    _: deps.User = Depends(deps.require_permissions(["role:delete"])),
     role_service: deps.RoleServiceDep,
 ) -> Any:
     """
@@ -166,6 +172,7 @@ async def restore_role(
     *,
     id: UUID,
     active_superuser: deps.User = Depends(deps.get_current_active_superuser),
+    _: deps.User = Depends(deps.require_permissions(["role:restore"])),
     role_service: deps.RoleServiceDep,
 ) -> Any:
     """

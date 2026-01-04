@@ -6,6 +6,7 @@
 @Docs: FastAPI 依赖注入模块 (Database Session & Auth Dependency).
 """
 
+import json
 import uuid
 from collections.abc import AsyncGenerator
 from typing import Annotated
@@ -17,7 +18,9 @@ from jwt.exceptions import InvalidTokenError
 from pydantic import ValidationError
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
+from app.core.cache import redis_client
 from app.core.config import settings
 from app.core.db import AsyncSessionLocal
 from app.core.exceptions import ForbiddenException, NotFoundException, UnauthorizedException
@@ -31,6 +34,7 @@ from app.crud.crud_role import CRUDRole
 from app.crud.crud_role import role as role_crud_global
 from app.crud.crud_user import CRUDUser
 from app.crud.crud_user import user as user_crud_global
+from app.models.rbac import Role
 from app.models.user import User
 from app.schemas.token import TokenPayload
 from app.services.auth_service import AuthService
@@ -76,6 +80,9 @@ async def get_current_user(request: Request, session: SessionDep, token: TokenDe
         logger.error(f"Token 验证失败: {str(e)}", error=str(e))
         raise UnauthorizedException(message="无法验证凭据 (Token 无效)") from e
 
+    if token_data.type != "access":
+        raise UnauthorizedException(message="无法验证凭据 (Token 类型错误)")
+
     if token_data.sub is None:
         logger.error("Token 缺少 sub 字段")
         raise UnauthorizedException(message="无法验证凭据 (Token 缺失 sub)")
@@ -87,7 +94,10 @@ async def get_current_user(request: Request, session: SessionDep, token: TokenDe
         logger.error(f"Token 解析失败: {str(e)}", error=str(e))
         raise UnauthorizedException(message="Token 无效 (用户ID格式错误)") from e
 
-    result = await session.execute(select(User).where(User.id == user_uuid))
+    # 预加载 roles->menus，便于计算权限集合且避免后续惰性加载
+    result = await session.execute(
+        select(User).options(selectinload(User.roles).selectinload(Role.menus)).where(User.id == user_uuid)
+    )
     user = result.scalars().first()
 
     if not user:
@@ -99,7 +109,57 @@ async def get_current_user(request: Request, session: SessionDep, token: TokenDe
     # 将用户信息绑定到 request state，供中间件使用 (存储简单值避免 Session 关闭后的 DetachedInstanceError)
     request.state.user_id = str(user.id)
     request.state.username = user.username
+
+    # 计算并缓存权限集合：v1:user:permissions:{user_id}
+    if user.is_superuser:
+        request.state.permissions = {"*"}
+        return user
+
+    permissions_cache_key = f"v1:user:permissions:{user.id}"
+    permissions: set[str] = set()
+
+    if redis_client is not None:
+        try:
+            cached = await redis_client.get(permissions_cache_key)
+            if cached:
+                permissions = set(json.loads(cached))
+        except Exception as e:
+            logger.warning(f"权限缓存读取失败: {e}")
+
+    if not permissions:
+        for role in user.roles:
+            for menu in role.menus:
+                if menu.permission:
+                    permissions.add(menu.permission)
+
+        if redis_client is not None:
+            try:
+                await redis_client.setex(
+                    permissions_cache_key, 300, json.dumps(sorted(permissions), ensure_ascii=False)
+                )
+            except Exception as e:
+                logger.warning(f"权限缓存写入失败: {e}")
+
+    request.state.permissions = permissions
     return user
+
+
+def require_permissions(required_permissions: list[str]):
+    """权限校验依赖：超级管理员放行；否则要求权限集合包含 required_permissions。"""
+
+    async def _checker(request: Request, current_user: CurrentUser) -> User:
+        if current_user.is_superuser:
+            return current_user
+
+        perms = getattr(request.state, "permissions", set())
+        if not isinstance(perms, set):
+            perms = set(perms)
+
+        if not set(required_permissions).issubset(perms):
+            raise ForbiddenException(message="权限不足")
+        return current_user
+
+    return _checker
 
 
 CurrentUser = Annotated[User, Depends(get_current_user)]

@@ -17,6 +17,7 @@ from slowapi.errors import RateLimitExceeded
 from app.api.v1.api import api_router
 from app.core.cache import close_redis, init_redis
 from app.core.config import settings
+from app.core.event_bus import event_bus
 from app.core.exception_handlers import register_exception_handlers
 from app.core.logger import logger, setup_logging
 from app.core.metrics import metrics_endpoint
@@ -40,6 +41,12 @@ async def lifespan(app: FastAPI):
     register_log_subscribers()
 
     yield
+
+    # 尽量等待审计日志等事件处理完成
+    try:
+        await event_bus.drain(timeout=5.0)
+    except Exception as e:
+        logger.warning(f"事件总线 drain 失败: {e}")
 
     # 关闭 Redis
     await close_redis()
