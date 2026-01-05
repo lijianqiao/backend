@@ -24,6 +24,7 @@ async def read_login_logs(
     _: deps.User = Depends(deps.require_permissions(["log:login:list"])),
     page: int = 1,
     page_size: int = 20,
+    keyword: str | None = None,
 ) -> Any:
     """
     获取登录日志 (分页)。
@@ -39,7 +40,7 @@ async def read_login_logs(
     Returns:
         ResponseBase[PaginatedResponse[LoginLogResponse]]: 分页后的登录日志列表。
     """
-    logs, total = await log_service.get_login_logs_paginated(page=page, page_size=page_size)
+    logs, total = await log_service.get_login_logs_paginated(page=page, page_size=page_size, keyword=keyword)
     return ResponseBase(data=PaginatedResponse(total=total, page=page, page_size=page_size, items=logs))
 
 
@@ -50,6 +51,7 @@ async def read_operation_logs(
     _: deps.User = Depends(deps.require_permissions(["log:operation:list"])),
     page: int = 1,
     page_size: int = 20,
+    keyword: str | None = None,
 ) -> Any:
     """
     获取操作日志 (分页)。
@@ -65,5 +67,5 @@ async def read_operation_logs(
     Returns:
         ResponseBase[PaginatedResponse[OperationLogResponse]]: 分页后的操作日志列表。
     """
-    logs, total = await log_service.get_operation_logs_paginated(page=page, page_size=page_size)
+    logs, total = await log_service.get_operation_logs_paginated(page=page, page_size=page_size, keyword=keyword)
     return ResponseBase(data=PaginatedResponse(total=total, page=page, page_size=page_size, items=logs))

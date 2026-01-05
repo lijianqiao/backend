@@ -25,6 +25,7 @@ async def read_roles(
     _: deps.User = Depends(deps.require_permissions(["role:list"])),
     page: int = 1,
     page_size: int = 20,
+    keyword: str | None = None,
 ) -> Any:
     """
     获取角色列表 (分页)。
@@ -40,7 +41,7 @@ async def read_roles(
     Returns:
         ResponseBase[PaginatedResponse[RoleResponse]]: 分页后的角色列表。
     """
-    roles, total = await role_service.get_roles_paginated(page=page, page_size=page_size)
+    roles, total = await role_service.get_roles_paginated(page=page, page_size=page_size, keyword=keyword)
     return ResponseBase(data=PaginatedResponse(total=total, page=page, page_size=page_size, items=roles))
 
 
@@ -135,12 +136,13 @@ async def get_recycle_bin(
     active_superuser: deps.User = Depends(deps.get_current_active_superuser),
     _: deps.User = Depends(deps.require_permissions(["role:recycle"])),
     role_service: deps.RoleServiceDep,
+    keyword: str | None = None,
 ) -> Any:
     """
     获取已删除的角色列表 (回收站)。
     仅限超级管理员。
     """
-    roles, total = await role_service.get_deleted_roles(page=page, page_size=page_size)
+    roles, total = await role_service.get_deleted_roles(page=page, page_size=page_size, keyword=keyword)
     return ResponseBase(data=PaginatedResponse(total=total, page=page, page_size=page_size, items=roles))
 
 

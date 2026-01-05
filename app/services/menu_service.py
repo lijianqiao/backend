@@ -183,18 +183,26 @@ class MenuService:
                 result.append(node)
         return result
 
-    async def get_menus_paginated(self, page: int = 1, page_size: int = 20) -> tuple[list[MenuResponse], int]:
+    async def get_menus_paginated(
+        self, page: int = 1, page_size: int = 20, *, keyword: str | None = None
+    ) -> tuple[list[MenuResponse], int]:
         """
         获取分页菜单列表。
         """
-        menus, total = await self.menu_crud.get_multi_paginated(self.db, page=page, page_size=page_size)
+        menus, total = await self.menu_crud.get_multi_paginated(
+            self.db, page=page, page_size=page_size, keyword=keyword
+        )
         return [self._to_menu_response(m, children=[]) for m in menus], total
 
-    async def get_deleted_menus(self, page: int = 1, page_size: int = 20) -> tuple[list[MenuResponse], int]:
+    async def get_deleted_menus(
+        self, page: int = 1, page_size: int = 20, *, keyword: str | None = None
+    ) -> tuple[list[MenuResponse], int]:
         """
         获取已删除菜单列表 (回收站 - 分页)。
         """
-        menus, total = await self.menu_crud.get_multi_deleted_paginated(self.db, page=page, page_size=page_size)
+        menus, total = await self.menu_crud.get_multi_deleted_paginated(
+            self.db, page=page, page_size=page_size, keyword=keyword
+        )
         return [self._to_menu_response(m, children=[]) for m in menus], total
 
     @transactional()

@@ -10,7 +10,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import Date, cast, func, select
+from sqlalchemy import Date, cast, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.logger import logger
@@ -20,6 +20,49 @@ from app.schemas.log import LoginLogCreate, OperationLogCreate
 
 
 class CRUDLoginLog(CRUDBase[LoginLog, LoginLogCreate, LoginLogCreate]):
+    @staticmethod
+    def _apply_keyword_filter(stmt, *, keyword: str | None):
+        kw = CRUDBase._normalize_keyword(keyword)
+        if not kw:
+            return stmt
+
+        pattern = f"%{kw}%"
+        return stmt.where(
+            or_(
+                LoginLog.username.ilike(pattern),
+                LoginLog.ip.ilike(pattern),
+                LoginLog.msg.ilike(pattern),
+                LoginLog.browser.ilike(pattern),
+                LoginLog.os.ilike(pattern),
+                LoginLog.device.ilike(pattern),
+            )
+        )
+
+    async def get_multi_paginated(
+        self,
+        db: AsyncSession,
+        *,
+        page: int = 1,
+        page_size: int = 20,
+        keyword: str | None = None,
+    ) -> tuple[list[LoginLog], int]:
+        if page < 1:
+            page = 1
+        if page_size < 1:
+            page_size = 20
+        if page_size > 100:
+            page_size = 100
+
+        count_stmt = select(func.count(LoginLog.id))
+        count_stmt = self._apply_keyword_filter(count_stmt, keyword=keyword)
+        total = (await db.execute(count_stmt)).scalar_one()
+
+        stmt = select(LoginLog)
+        stmt = self._apply_keyword_filter(stmt, keyword=keyword)
+        stmt = stmt.order_by(LoginLog.created_at.desc()).offset((page - 1) * page_size).limit(page_size)
+        result = await db.execute(stmt)
+        return list(result.scalars().all()), total
+
     async def count_today(self, db: AsyncSession) -> int:
         """
         统计今日登录次数。
@@ -149,6 +192,49 @@ class CRUDLoginLog(CRUDBase[LoginLog, LoginLogCreate, LoginLogCreate]):
 
 
 class CRUDOperationLog(CRUDBase[OperationLog, OperationLogCreate, OperationLogCreate]):
+    @staticmethod
+    def _apply_keyword_filter(stmt, *, keyword: str | None):
+        kw = CRUDBase._normalize_keyword(keyword)
+        if not kw:
+            return stmt
+
+        pattern = f"%{kw}%"
+        return stmt.where(
+            or_(
+                OperationLog.username.ilike(pattern),
+                OperationLog.ip.ilike(pattern),
+                OperationLog.module.ilike(pattern),
+                OperationLog.summary.ilike(pattern),
+                OperationLog.method.ilike(pattern),
+                OperationLog.path.ilike(pattern),
+            )
+        )
+
+    async def get_multi_paginated(
+        self,
+        db: AsyncSession,
+        *,
+        page: int = 1,
+        page_size: int = 20,
+        keyword: str | None = None,
+    ) -> tuple[list[OperationLog], int]:
+        if page < 1:
+            page = 1
+        if page_size < 1:
+            page_size = 20
+        if page_size > 100:
+            page_size = 100
+
+        count_stmt = select(func.count(OperationLog.id))
+        count_stmt = self._apply_keyword_filter(count_stmt, keyword=keyword)
+        total = (await db.execute(count_stmt)).scalar_one()
+
+        stmt = select(OperationLog)
+        stmt = self._apply_keyword_filter(stmt, keyword=keyword)
+        stmt = stmt.order_by(OperationLog.created_at.desc()).offset((page - 1) * page_size).limit(page_size)
+        result = await db.execute(stmt)
+        return list(result.scalars().all()), total
+
     async def count_by_range(self, db: AsyncSession, start: Any, end: Any) -> int:
         """
         统计指定时间范围内的操作日志数量。

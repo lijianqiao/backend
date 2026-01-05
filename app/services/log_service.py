@@ -34,11 +34,13 @@ class LogService:
         """
         return await self.login_log_crud.get_multi(self.db, skip=skip, limit=limit)
 
-    async def get_login_logs_paginated(self, page: int = 1, page_size: int = 20) -> tuple[list[LoginLog], int]:
+    async def get_login_logs_paginated(
+        self, page: int = 1, page_size: int = 20, *, keyword: str | None = None
+    ) -> tuple[list[LoginLog], int]:
         """
         获取分页登录日志列表。
         """
-        return await self.login_log_crud.get_multi_paginated(self.db, page=page, page_size=page_size)
+        return await self.login_log_crud.get_multi_paginated(self.db, page=page, page_size=page_size, keyword=keyword)
 
     async def get_operation_logs(self, skip: int = 0, limit: int = 100) -> list[OperationLog]:
         """
@@ -46,11 +48,15 @@ class LogService:
         """
         return await self.operation_log_crud.get_multi(self.db, skip=skip, limit=limit)
 
-    async def get_operation_logs_paginated(self, page: int = 1, page_size: int = 20) -> tuple[list[OperationLog], int]:
+    async def get_operation_logs_paginated(
+        self, page: int = 1, page_size: int = 20, *, keyword: str | None = None
+    ) -> tuple[list[OperationLog], int]:
         """
         获取分页操作日志列表。
         """
-        return await self.operation_log_crud.get_multi_paginated(self.db, page=page, page_size=page_size)
+        return await self.operation_log_crud.get_multi_paginated(
+            self.db, page=page, page_size=page_size, keyword=keyword
+        )
 
     @transactional()
     async def create_login_log(

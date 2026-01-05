@@ -8,7 +8,7 @@
 
 from typing import Any
 
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.security import get_password_hash
@@ -18,6 +18,47 @@ from app.schemas.user import UserCreate, UserUpdate
 
 
 class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
+    @staticmethod
+    def _apply_keyword_filter(stmt, *, keyword: str | None):
+        kw = CRUDBase._normalize_keyword(keyword)
+        if not kw:
+            return stmt
+
+        pattern = f"%{kw}%"
+        return stmt.where(
+            or_(
+                User.username.ilike(pattern),
+                User.nickname.ilike(pattern),
+                User.email.ilike(pattern),
+                User.phone.ilike(pattern),
+            )
+        )
+
+    async def get_multi_paginated(
+        self,
+        db: AsyncSession,
+        *,
+        page: int = 1,
+        page_size: int = 20,
+        keyword: str | None = None,
+    ) -> tuple[list[User], int]:
+        if page < 1:
+            page = 1
+        if page_size < 1:
+            page_size = 20
+        if page_size > 100:
+            page_size = 100
+
+        count_stmt = select(func.count(User.id)).where(User.is_deleted.is_(False))
+        count_stmt = self._apply_keyword_filter(count_stmt, keyword=keyword)
+        total = (await db.execute(count_stmt)).scalar_one()
+
+        stmt = select(User).where(User.is_deleted.is_(False))
+        stmt = self._apply_keyword_filter(stmt, keyword=keyword)
+        stmt = stmt.order_by(User.created_at.desc()).offset((page - 1) * page_size).limit(page_size)
+        result = await db.execute(stmt)
+        return list(result.scalars().all()), total
+
     async def get_by_username(self, db: AsyncSession, *, username: str) -> User | None:
         """
         根据用户名查询用户 (排除已软删除)。
@@ -77,13 +118,30 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
         return result.scalar_one()
 
     async def get_multi_deleted_paginated(
-        self, db: AsyncSession, *, page: int = 1, page_size: int = 20
+        self,
+        db: AsyncSession,
+        *,
+        page: int = 1,
+        page_size: int = 20,
+        keyword: str | None = None,
     ) -> tuple[list[User], int]:
         """
         获取已删除用户列表 (分页)。
         """
-        total = await self.count_deleted(db)
-        stmt = select(User).where(User.is_deleted.is_(True)).offset((page - 1) * page_size).limit(page_size)
+        if page < 1:
+            page = 1
+        if page_size < 1:
+            page_size = 20
+        if page_size > 100:
+            page_size = 100
+
+        count_stmt = select(func.count(User.id)).where(User.is_deleted.is_(True))
+        count_stmt = self._apply_keyword_filter(count_stmt, keyword=keyword)
+        total = (await db.execute(count_stmt)).scalar_one()
+
+        stmt = select(User).where(User.is_deleted.is_(True))
+        stmt = self._apply_keyword_filter(stmt, keyword=keyword)
+        stmt = stmt.order_by(User.created_at.desc()).offset((page - 1) * page_size).limit(page_size)
         result = await db.execute(stmt)
         return list(result.scalars().all()), total
 

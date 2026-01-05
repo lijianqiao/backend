@@ -39,6 +39,15 @@ class CRUDBase[ModelType: Base, CreateSchemaType: BaseModel, UpdateSchemaType: B
         """
         self.model = model
 
+    @staticmethod
+    def _normalize_keyword(keyword: str | None) -> str | None:
+        """标准化 keyword：strip 后为空则视为 None。"""
+
+        if keyword is None:
+            return None
+        kw = keyword.strip()
+        return kw if kw else None
+
     async def get(self, db: AsyncSession, id: Any) -> ModelType | None:
         """
         通过 ID 获取单个记录。

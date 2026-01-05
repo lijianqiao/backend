@@ -66,20 +66,26 @@ class UserService:
         """
         return await self.user_crud.get_multi(self.db, skip=skip, limit=limit)
 
-    async def get_users_paginated(self, page: int = 1, page_size: int = 20) -> tuple[list[User], int]:
+    async def get_users_paginated(
+        self, page: int = 1, page_size: int = 20, *, keyword: str | None = None
+    ) -> tuple[list[User], int]:
         """
         获取分页用户列表。
 
         Returns:
             (users, total): 用户列表和总数
         """
-        return await self.user_crud.get_multi_paginated(self.db, page=page, page_size=page_size)
+        return await self.user_crud.get_multi_paginated(self.db, page=page, page_size=page_size, keyword=keyword)
 
-    async def get_deleted_users(self, page: int = 1, page_size: int = 20) -> tuple[list[User], int]:
+    async def get_deleted_users(
+        self, page: int = 1, page_size: int = 20, *, keyword: str | None = None
+    ) -> tuple[list[User], int]:
         """
         获取已删除用户列表 (回收站 - 分页)。
         """
-        return await self.user_crud.get_multi_deleted_paginated(self.db, page=page, page_size=page_size)
+        return await self.user_crud.get_multi_deleted_paginated(
+            self.db, page=page, page_size=page_size, keyword=keyword
+        )
 
     @transactional()
     async def update_user(self, user_id: UUID, obj_in: UserUpdate) -> User:

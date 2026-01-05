@@ -39,17 +39,23 @@ class RoleService:
     async def get_roles(self, skip: int = 0, limit: int = 100) -> list[Role]:
         return await self.role_crud.get_multi(self.db, skip=skip, limit=limit)
 
-    async def get_roles_paginated(self, page: int = 1, page_size: int = 20) -> tuple[list[Role], int]:
+    async def get_roles_paginated(
+        self, page: int = 1, page_size: int = 20, *, keyword: str | None = None
+    ) -> tuple[list[Role], int]:
         """
         获取分页角色列表。
         """
-        return await self.role_crud.get_multi_paginated(self.db, page=page, page_size=page_size)
+        return await self.role_crud.get_multi_paginated(self.db, page=page, page_size=page_size, keyword=keyword)
 
-    async def get_deleted_roles(self, page: int = 1, page_size: int = 20) -> tuple[list[Role], int]:
+    async def get_deleted_roles(
+        self, page: int = 1, page_size: int = 20, *, keyword: str | None = None
+    ) -> tuple[list[Role], int]:
         """
         获取已删除角色列表 (回收站 - 分页)。
         """
-        return await self.role_crud.get_multi_deleted_paginated(self.db, page=page, page_size=page_size)
+        return await self.role_crud.get_multi_deleted_paginated(
+            self.db, page=page, page_size=page_size, keyword=keyword
+        )
 
     @transactional()
     async def create_role(self, obj_in: RoleCreate) -> Role:

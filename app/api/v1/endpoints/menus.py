@@ -48,6 +48,7 @@ async def read_menus(
     _: deps.User = Depends(deps.require_permissions(["menu:list"])),
     page: int = 1,
     page_size: int = 20,
+    keyword: str | None = None,
 ) -> Any:
     """
     获取菜单列表 (分页)。
@@ -63,7 +64,7 @@ async def read_menus(
     Returns:
         ResponseBase[PaginatedResponse[MenuResponse]]: 分页后的菜单列表。
     """
-    menus, total = await menu_service.get_menus_paginated(page=page, page_size=page_size)
+    menus, total = await menu_service.get_menus_paginated(page=page, page_size=page_size, keyword=keyword)
     return ResponseBase(data=PaginatedResponse(total=total, page=page, page_size=page_size, items=menus))
 
 
@@ -158,12 +159,13 @@ async def get_recycle_bin(
     active_superuser: deps.User = Depends(deps.get_current_active_superuser),
     _: deps.User = Depends(deps.require_permissions(["menu:recycle"])),
     menu_service: deps.MenuServiceDep,
+    keyword: str | None = None,
 ) -> Any:
     """
     获取已删除的菜单列表 (回收站)。
     仅限超级管理员。
     """
-    menus, total = await menu_service.get_deleted_menus(page=page, page_size=page_size)
+    menus, total = await menu_service.get_deleted_menus(page=page, page_size=page_size, keyword=keyword)
     return ResponseBase(data=PaginatedResponse(total=total, page=page, page_size=page_size, items=menus))
 
 

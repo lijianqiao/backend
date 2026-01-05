@@ -25,6 +25,7 @@ async def read_users(
     active_superuser: deps.User = Depends(deps.get_current_active_superuser),
     page: int = 1,
     page_size: int = 20,
+    keyword: str | None = None,
 ) -> Any:
     """
     查询用户列表 (分页)。
@@ -41,7 +42,7 @@ async def read_users(
     Returns:
         ResponseBase[PaginatedResponse[UserResponse]]: 分页后的用户列表。
     """
-    users, total = await user_service.get_users_paginated(page=page, page_size=page_size)
+    users, total = await user_service.get_users_paginated(page=page, page_size=page_size, keyword=keyword)
     return ResponseBase(data=PaginatedResponse(total=total, page=page, page_size=page_size, items=users))
 
 
@@ -208,12 +209,13 @@ async def get_recycle_bin(
     page_size: int = 20,
     active_superuser: deps.User = Depends(deps.get_current_active_superuser),
     user_service: deps.UserServiceDep,
+    keyword: str | None = None,
 ) -> Any:
     """
     获取已删除的用户列表 (回收站)。
     仅限超级管理员。
     """
-    users, total = await user_service.get_deleted_users(page=page, page_size=page_size)
+    users, total = await user_service.get_deleted_users(page=page, page_size=page_size, keyword=keyword)
     return ResponseBase(data=PaginatedResponse(total=total, page=page, page_size=page_size, items=users))
 
 

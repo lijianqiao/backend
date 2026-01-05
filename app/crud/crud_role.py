@@ -8,7 +8,7 @@
 
 from typing import Any
 
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -18,6 +18,40 @@ from app.schemas.role import RoleCreate, RoleUpdate
 
 
 class CRUDRole(CRUDBase[Role, RoleCreate, RoleUpdate]):
+    @staticmethod
+    def _apply_keyword_filter(stmt, *, keyword: str | None):
+        kw = CRUDBase._normalize_keyword(keyword)
+        if not kw:
+            return stmt
+
+        pattern = f"%{kw}%"
+        return stmt.where(or_(Role.name.ilike(pattern), Role.code.ilike(pattern), Role.description.ilike(pattern)))
+
+    async def get_multi_paginated(
+        self,
+        db: AsyncSession,
+        *,
+        page: int = 1,
+        page_size: int = 20,
+        keyword: str | None = None,
+    ) -> tuple[list[Role], int]:
+        if page < 1:
+            page = 1
+        if page_size < 1:
+            page_size = 20
+        if page_size > 100:
+            page_size = 100
+
+        count_stmt = select(func.count(Role.id)).where(Role.is_deleted.is_(False))
+        count_stmt = self._apply_keyword_filter(count_stmt, keyword=keyword)
+        total = (await db.execute(count_stmt)).scalar_one()
+
+        stmt = select(Role).options(selectinload(Role.menus)).where(Role.is_deleted.is_(False))
+        stmt = self._apply_keyword_filter(stmt, keyword=keyword)
+        stmt = stmt.order_by(Role.sort.asc()).offset((page - 1) * page_size).limit(page_size)
+        result = await db.execute(stmt)
+        return list(result.scalars().all()), total
+
     async def get_user_ids_by_role(self, db: AsyncSession, *, role_id: Any) -> list[Any]:
         result = await db.execute(select(UserRole.user_id).where(UserRole.role_id == role_id))
         return list(result.scalars().all())
@@ -92,19 +126,30 @@ class CRUDRole(CRUDBase[Role, RoleCreate, RoleUpdate]):
         return result.scalar_one()
 
     async def get_multi_deleted_paginated(
-        self, db: AsyncSession, *, page: int = 1, page_size: int = 20
+        self,
+        db: AsyncSession,
+        *,
+        page: int = 1,
+        page_size: int = 20,
+        keyword: str | None = None,
     ) -> tuple[list[Role], int]:
         """
         获取已删除角色列表 (分页)。
         """
-        total = await self.count_deleted(db)
-        stmt = (
-            select(Role)
-            .options(selectinload(Role.menus))
-            .where(Role.is_deleted.is_(True))
-            .offset((page - 1) * page_size)
-            .limit(page_size)
-        )
+        if page < 1:
+            page = 1
+        if page_size < 1:
+            page_size = 20
+        if page_size > 100:
+            page_size = 100
+
+        count_stmt = select(func.count(Role.id)).where(Role.is_deleted.is_(True))
+        count_stmt = self._apply_keyword_filter(count_stmt, keyword=keyword)
+        total = (await db.execute(count_stmt)).scalar_one()
+
+        stmt = select(Role).options(selectinload(Role.menus)).where(Role.is_deleted.is_(True))
+        stmt = self._apply_keyword_filter(stmt, keyword=keyword)
+        stmt = stmt.order_by(Role.sort.asc()).offset((page - 1) * page_size).limit(page_size)
         result = await db.execute(stmt)
         return list(result.scalars().all()), total
 

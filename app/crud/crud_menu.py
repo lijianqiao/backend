@@ -6,7 +6,7 @@
 @Docs: 菜单 CRUD 操作 (Menu CRUD).
 """
 
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -80,6 +80,22 @@ class CRUDMenu(CRUDBase[Menu, MenuCreate, MenuUpdate]):
         result = await db.execute(select(func.count(Menu.id)).where(Menu.is_deleted.is_(False)))
         return result.scalar_one()
 
+    @staticmethod
+    def _apply_keyword_filter(stmt, *, keyword: str | None):
+        kw = CRUDBase._normalize_keyword(keyword)
+        if not kw:
+            return stmt
+
+        pattern = f"%{kw}%"
+        return stmt.where(
+            or_(
+                Menu.title.ilike(pattern),
+                Menu.name.ilike(pattern),
+                Menu.path.ilike(pattern),
+                Menu.permission.ilike(pattern),
+            )
+        )
+
     async def get_multi(self, db: AsyncSession, *, skip: int = 0, limit: int = 100) -> list[Menu]:
         result = await db.execute(
             select(Menu)
@@ -92,7 +108,12 @@ class CRUDMenu(CRUDBase[Menu, MenuCreate, MenuUpdate]):
         return list(result.scalars().all())
 
     async def get_multi_paginated(
-        self, db: AsyncSession, *, page: int = 1, page_size: int = 20
+        self,
+        db: AsyncSession,
+        *,
+        page: int = 1,
+        page_size: int = 20,
+        keyword: str | None = None,
     ) -> tuple[list[Menu], int]:
         if page < 1:
             page = 1
@@ -101,7 +122,9 @@ class CRUDMenu(CRUDBase[Menu, MenuCreate, MenuUpdate]):
         if page_size > 100:
             page_size = 100
 
-        total = await self.count(db)
+        count_stmt = select(func.count(Menu.id)).where(Menu.is_deleted.is_(False))
+        count_stmt = self._apply_keyword_filter(count_stmt, keyword=keyword)
+        total = (await db.execute(count_stmt)).scalar_one()
         stmt = (
             select(Menu)
             .options(self._children_selectinload(depth=5))
@@ -110,6 +133,7 @@ class CRUDMenu(CRUDBase[Menu, MenuCreate, MenuUpdate]):
             .offset((page - 1) * page_size)
             .limit(page_size)
         )
+        stmt = self._apply_keyword_filter(stmt, keyword=keyword)
         result = await db.execute(stmt)
         return list(result.scalars().all()), total
 
@@ -121,12 +145,26 @@ class CRUDMenu(CRUDBase[Menu, MenuCreate, MenuUpdate]):
         return result.scalar_one()
 
     async def get_multi_deleted_paginated(
-        self, db: AsyncSession, *, page: int = 1, page_size: int = 20
+        self,
+        db: AsyncSession,
+        *,
+        page: int = 1,
+        page_size: int = 20,
+        keyword: str | None = None,
     ) -> tuple[list[Menu], int]:
         """
         获取已删除菜单列表 (分页)。
         """
-        total = await self.count_deleted(db)
+        if page < 1:
+            page = 1
+        if page_size < 1:
+            page_size = 20
+        if page_size > 100:
+            page_size = 100
+
+        count_stmt = select(func.count(Menu.id)).where(Menu.is_deleted.is_(True))
+        count_stmt = self._apply_keyword_filter(count_stmt, keyword=keyword)
+        total = (await db.execute(count_stmt)).scalar_one()
         stmt = (
             select(Menu)
             .options(self._children_selectinload(depth=5))
@@ -135,6 +173,7 @@ class CRUDMenu(CRUDBase[Menu, MenuCreate, MenuUpdate]):
             .offset((page - 1) * page_size)
             .limit(page_size)
         )
+        stmt = self._apply_keyword_filter(stmt, keyword=keyword)
         result = await db.execute(stmt)
         return list(result.scalars().all()), total
 
