@@ -36,6 +36,7 @@ async def read_login_logs(
         log_service (LogService): 日志服务依赖。
         page (int, optional): 页码. Defaults to 1.
         page_size (int, optional): 每页数量. Defaults to 20.
+        keyword (str | None, optional): 关键词过滤. Defaults to None.
 
     Returns:
         ResponseBase[PaginatedResponse[LoginLogResponse]]: 分页后的登录日志列表。
@@ -63,6 +64,7 @@ async def read_operation_logs(
         log_service (LogService): 日志服务依赖。
         page (int, optional): 页码. Defaults to 1.
         page_size (int, optional): 每页数量. Defaults to 20.
+        keyword (str | None, optional): 关键词过滤. Defaults to None.
 
     Returns:
         ResponseBase[PaginatedResponse[OperationLogResponse]]: 分页后的操作日志列表。

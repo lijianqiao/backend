@@ -38,6 +38,7 @@ async def read_users(
         active_superuser (User): 超级管理员权限验证。
         page (int, optional): 页码. Defaults to 1.
         page_size (int, optional): 每页数量. Defaults to 20.
+        keyword (str | None, optional): 关键词过滤. Defaults to None.
 
     Returns:
         ResponseBase[PaginatedResponse[UserResponse]]: 分页后的用户列表。

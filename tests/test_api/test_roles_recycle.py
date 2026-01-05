@@ -11,8 +11,8 @@ class TestRoleRecycle:
         测试角色回收站功能 (创建 -> 删除 -> 回收站验证)。
         """
         # 0. Setup: Create a unique role
-        unique_code = "recycle_role_001"
-        data = {"name": "Recycle Role", "code": unique_code, "description": "For recycle bin test", "sort": 1}
+        unique_code = "Recycle_Role_AbC"
+        data = {"name": "Recycle Role", "code": unique_code, "description": "For ReCyClE Bin Test", "sort": 1}
         # Create
         res = await client.post(f"{settings.API_V1_STR}/roles/", headers=auth_headers, json=data)
         assert res.status_code == 200
@@ -28,6 +28,27 @@ class TestRoleRecycle:
         data = res.json()["data"]
         assert "items" in data
         assert "total" in data
+
+        # 2.1 keyword='' 等价于不传
+        res_empty_kw = await client.get(
+            f"{settings.API_V1_STR}/roles/recycle-bin",
+            headers=auth_headers,
+            params={"keyword": ""},
+        )
+        assert res_empty_kw.status_code == 200
+        data_empty_kw = res_empty_kw.json()["data"]
+        assert data_empty_kw["total"] == data["total"]
+        assert {r["id"] for r in data_empty_kw["items"]} == {r["id"] for r in data["items"]}
+
+        # 2.2 keyword 大小写不敏感（用 code 命中）
+        res_ci = await client.get(
+            f"{settings.API_V1_STR}/roles/recycle-bin",
+            headers=auth_headers,
+            params={"keyword": "recycle_role_abc"},
+        )
+        assert res_ci.status_code == 200
+        data_ci = res_ci.json()["data"]
+        assert any(r["id"] == role_id for r in data_ci["items"])
 
         # Ensure our deleted role is in the list with correct fields
         found = False

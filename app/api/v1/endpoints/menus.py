@@ -60,6 +60,7 @@ async def read_menus(
         menu_service (MenuService): 菜单服务依赖。
         page (int, optional): 页码. Defaults to 1.
         page_size (int, optional): 每页数量. Defaults to 20.
+        keyword (str | None, optional): 关键词过滤. Defaults to None.
 
     Returns:
         ResponseBase[PaginatedResponse[MenuResponse]]: 分页后的菜单列表。

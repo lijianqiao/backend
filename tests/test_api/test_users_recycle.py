@@ -51,7 +51,7 @@ class TestUserSoftDelete:
             "password": "Password@123",
             "email": "recycle@example.com",
             "phone": "+8613900000002",
-            "nickname": "Recycle Me",
+            "nickname": "ReCyClE NiCk",
         }
         # Create
         res = await client.post(f"{settings.API_V1_STR}/users/", headers=auth_headers, json=data)
@@ -67,6 +67,27 @@ class TestUserSoftDelete:
         data = res.json()["data"]
         assert "items" in data
         assert "total" in data
+
+        # 1.1 keyword='' 等价于不传
+        res_empty_kw = await client.get(
+            f"{settings.API_V1_STR}/users/recycle-bin",
+            headers=auth_headers,
+            params={"keyword": ""},
+        )
+        assert res_empty_kw.status_code == 200
+        data_empty_kw = res_empty_kw.json()["data"]
+        assert data_empty_kw["total"] == data["total"]
+        assert {u["id"] for u in data_empty_kw["items"]} == {u["id"] for u in data["items"]}
+
+        # 1.2 keyword 大小写不敏感（用 nickname 命中）
+        res_ci = await client.get(
+            f"{settings.API_V1_STR}/users/recycle-bin",
+            headers=auth_headers,
+            params={"keyword": "recycle nick"},
+        )
+        assert res_ci.status_code == 200
+        data_ci = res_ci.json()["data"]
+        assert any(u["username"] == unique_username for u in data_ci["items"])
 
         # Ensure our deleted user is in the list
         found = False

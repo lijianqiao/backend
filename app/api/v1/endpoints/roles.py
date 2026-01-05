@@ -37,6 +37,7 @@ async def read_roles(
         current_user (User): 当前登录用户。
         page (int, optional): 页码. Defaults to 1.
         page_size (int, optional): 每页数量. Defaults to 20.
+        keyword (str | None, optional): 关键词过滤. Defaults to None.
 
     Returns:
         ResponseBase[PaginatedResponse[RoleResponse]]: 分页后的角色列表。

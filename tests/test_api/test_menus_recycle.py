@@ -13,7 +13,7 @@ class TestMenuRecycle:
         # 0. Setup: Create a unique menu
         unique_name = "recycle_menu_001"
         data = {
-            "title": "Recycle Menu",
+            "title": "Recycle Menu AbC",
             "name": unique_name,
             "path": "/recycle-menu",
             "component": "Layout",
@@ -36,6 +36,27 @@ class TestMenuRecycle:
         data = res.json()["data"]
         assert "items" in data
         assert "total" in data
+
+        # 2.1 keyword='' 等价于不传
+        res_empty_kw = await client.get(
+            f"{settings.API_V1_STR}/menus/recycle-bin",
+            headers=auth_headers,
+            params={"keyword": ""},
+        )
+        assert res_empty_kw.status_code == 200
+        data_empty_kw = res_empty_kw.json()["data"]
+        assert data_empty_kw["total"] == data["total"]
+        assert {m["id"] for m in data_empty_kw["items"]} == {m["id"] for m in data["items"]}
+
+        # 2.2 keyword 大小写不敏感（用 title 命中）
+        res_ci = await client.get(
+            f"{settings.API_V1_STR}/menus/recycle-bin",
+            headers=auth_headers,
+            params={"keyword": "recycle menu abc"},
+        )
+        assert res_ci.status_code == 200
+        data_ci = res_ci.json()["data"]
+        assert any(m["id"] == menu_id for m in data_ci["items"])
 
         # Ensure our deleted menu is in the list
         found = False
