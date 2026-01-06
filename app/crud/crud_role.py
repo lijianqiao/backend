@@ -107,15 +107,16 @@ class CRUDRole(CRUDBase[Role, RoleCreate, RoleUpdate]):
         )
         return result.scalars().first()
 
-    async def create(self, db: AsyncSession, *, obj_in: RoleCreate) -> Role:
-        # 处理菜单关联
-        menus = []
-        if obj_in.menu_ids:
-            # 查询所有存在的菜单
-            result = await db.execute(select(Menu).where(Menu.id.in_(obj_in.menu_ids)))
-            menus = list(result.scalars().all())
+    async def get_multi_by_ids(self, db: AsyncSession, *, ids: list[Any]) -> list[Role]:
+        if not ids:
+            return []
+        result = await db.execute(
+            select(Role).where(Role.id.in_(ids), Role.is_deleted.is_(False)).order_by(Role.sort.asc())
+        )
+        return list(result.scalars().all())
 
-        db_obj = Role(name=obj_in.name, code=obj_in.code, description=obj_in.description, sort=obj_in.sort, menus=menus)
+    async def create(self, db: AsyncSession, *, obj_in: RoleCreate) -> Role:
+        db_obj = Role(name=obj_in.name, code=obj_in.code, description=obj_in.description, sort=obj_in.sort)
         db.add(db_obj)
         await db.flush()
         await db.refresh(db_obj)
@@ -130,7 +131,7 @@ class CRUDRole(CRUDBase[Role, RoleCreate, RoleUpdate]):
         if "menu_ids" in update_data:
             menu_ids = update_data.pop("menu_ids")
             if menu_ids is not None:
-                result = await db.execute(select(Menu).where(Menu.id.in_(menu_ids)))
+                result = await db.execute(select(Menu).where(Menu.id.in_(menu_ids), Menu.is_deleted.is_(False)))
                 menus = list(result.scalars().all())
                 db_obj.menus = menus
 

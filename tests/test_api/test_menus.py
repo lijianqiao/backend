@@ -358,10 +358,9 @@ class TestMenusOptions:
         # 2) 创建角色并绑定该权限菜单
         role = await role_crud.create(
             db_session,
-            obj_in=RoleCreate(
-                name="OptionsRole", code="options_role", description=None, sort=0, menu_ids=[perm_menu.id]
-            ),
+            obj_in=RoleCreate(name="OptionsRole", code="options_role", description=None, sort=0),
         )
+        await role_crud.update(db_session, db_obj=role, obj_in={"menu_ids": [perm_menu.id]})
 
         # 3) 绑定用户-角色
         db_session.add(UserRole(user_id=test_user.id, role_id=role.id))

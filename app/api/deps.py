@@ -206,8 +206,12 @@ def get_operation_log_crud() -> CRUDOperationLog:
 # 使用 Depends 注入 Service 和 Repositories
 
 
-def get_user_service(db: SessionDep, user_crud: Annotated[CRUDUser, Depends(get_user_crud)]) -> UserService:
-    return UserService(db, user_crud)
+def get_user_service(
+    db: SessionDep,
+    user_crud: Annotated[CRUDUser, Depends(get_user_crud)],
+    role_crud: Annotated[CRUDRole, Depends(get_role_crud)],
+) -> UserService:
+    return UserService(db, user_crud, role_crud)
 
 
 def get_log_service(
@@ -218,8 +222,12 @@ def get_log_service(
     return LogService(db, login_log_crud, operation_log_crud)
 
 
-def get_role_service(db: SessionDep, role_crud: Annotated[CRUDRole, Depends(get_role_crud)]) -> RoleService:
-    return RoleService(db, role_crud)
+def get_role_service(
+    db: SessionDep,
+    role_crud: Annotated[CRUDRole, Depends(get_role_crud)],
+    menu_crud: Annotated[CRUDMenu, Depends(get_menu_crud)],
+) -> RoleService:
+    return RoleService(db, role_crud, menu_crud)
 
 
 def get_menu_service(db: SessionDep, menu_crud: Annotated[CRUDMenu, Depends(get_menu_crud)]) -> MenuService:

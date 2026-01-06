@@ -127,3 +127,9 @@ class ResetPasswordRequest(BaseModel):
     @classmethod
     def validate_new_password(cls, v: str) -> str:
         return validate_password_strength(v)
+
+
+class UserRolesUpdateRequest(BaseModel):
+    """用户角色绑定请求（全量覆盖，幂等）。"""
+
+    role_ids: list[UUID] = Field(default_factory=list, description="角色ID列表")

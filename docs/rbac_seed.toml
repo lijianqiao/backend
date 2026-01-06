@@ -194,6 +194,32 @@ is_hidden = true
 permission = "user:password:reset"
 parent_key = "users"
 
+[[menus]]
+key = "perm_user_roles_list"
+title = "用户-角色-列表"
+name = "PermUserRolesList"
+path = ""
+component = ""
+icon = "KeyOutline"
+sort = 1058
+type = "PERMISSION"
+is_hidden = true
+permission = "user:roles:list"
+parent_key = "users"
+
+[[menus]]
+key = "perm_user_roles_update"
+title = "用户-角色-设置"
+name = "PermUserRolesUpdate"
+path = ""
+component = ""
+icon = "KeyOutline"
+sort = 1059
+type = "PERMISSION"
+is_hidden = true
+permission = "user:roles:update"
+parent_key = "users"
+
 # ---- 菜单权限点（menu:*）----
 [[menus]]
 key = "perm_menu_list"
@@ -365,6 +391,32 @@ is_hidden = true
 permission = "role:restore"
 parent_key = "roles"
 
+[[menus]]
+key = "perm_role_menus_list"
+title = "角色-菜单-列表"
+name = "PermRoleMenusList"
+path = ""
+component = ""
+icon = "KeyOutline"
+sort = 127
+type = "PERMISSION"
+is_hidden = true
+permission = "role:menus:list"
+parent_key = "roles"
+
+[[menus]]
+key = "perm_role_menus_update"
+title = "角色-菜单-设置"
+name = "PermRoleMenusUpdate"
+path = ""
+component = ""
+icon = "KeyOutline"
+sort = 128
+type = "PERMISSION"
+is_hidden = true
+permission = "role:menus:update"
+parent_key = "roles"
+
 # ---- 日志权限点（log:*）----
 [[menus]]
 key = "perm_log_login_list"
@@ -407,6 +459,8 @@ permissions = [
   "user:recycle",
   "user:restore",
   "user:password:reset",
+  "user:roles:list",
+  "user:roles:update",
   "menu:list",
   "menu:create",
   "menu:update",
@@ -420,6 +474,8 @@ permissions = [
   "role:delete",
   "role:recycle",
   "role:restore",
+  "role:menus:list",
+  "role:menus:update",
   "log:login:list",
   "log:operation:list",
 ]

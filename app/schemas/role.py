@@ -26,7 +26,6 @@ class RoleCreate(RoleBase):
 
     name: str = Field(..., description="角色名称")
     code: str = Field(..., description="角色编码")
-    menu_ids: list[UUID] | None = Field(None, description="关联菜单ID列表")
 
 
 class RoleUpdate(BaseModel):
@@ -40,7 +39,12 @@ class RoleUpdate(BaseModel):
     description: str | None = Field(None, description="描述")
     sort: int | None = Field(None, description="排序")
     is_active: bool | None = Field(None, description="是否激活")
-    menu_ids: list[UUID] | None = Field(None, description="关联菜单ID列表")
+
+
+class RoleMenusUpdateRequest(BaseModel):
+    """角色菜单/权限点绑定请求（全量覆盖，幂等）。"""
+
+    menu_ids: list[UUID] = Field(default_factory=list, description="关联菜单ID列表")
 
 
 class RoleResponse(RoleBase, TimestampSchema):

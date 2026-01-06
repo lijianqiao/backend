@@ -29,17 +29,19 @@ class TestCRUDRoleCreate:
 
     async def test_create_role(self, db_session: AsyncSession):
         """测试创建基本角色"""
-        role_in = RoleCreate(name="Test Role", code="test_role", description="Test Description", sort=0, menu_ids=None)
+        role_in = RoleCreate(name="Test Role", code="test_role", description="Test Description", sort=0)
         role = await role_crud.create(db_session, obj_in=role_in)
 
         assert role.name == "Test Role"
         assert role.code == "test_role"
         assert role.id is not None
 
-    async def test_create_role_with_menus(self, db_session: AsyncSession, test_menu: Menu):
-        """测试创建带菜单的角色"""
-        role_in = RoleCreate(name="Menu Role", code="menu_role", menu_ids=[test_menu.id], description=None, sort=0)
+    async def test_create_role_then_bind_menus(self, db_session: AsyncSession, test_menu: Menu):
+        """测试创建角色后绑定菜单"""
+        role_in = RoleCreate(name="Menu Role", code="menu_role", description=None, sort=0)
         role = await role_crud.create(db_session, obj_in=role_in)
+
+        await role_crud.update(db_session, db_obj=role, obj_in={"menu_ids": [test_menu.id]})
 
         assert role.code == "menu_role"
         # 验证关联
@@ -59,7 +61,7 @@ class TestCRUDRoleGet:
 
     async def test_get_role(self, db_session: AsyncSession):
         """测试获取角色"""
-        role_in = RoleCreate(name="Get Role", code="get_role", description=None, sort=0, menu_ids=None)
+        role_in = RoleCreate(name="Get Role", code="get_role", description=None, sort=0)
         created_role = await role_crud.create(db_session, obj_in=role_in)
 
         stored_role = await role_crud.get(db_session, id=created_role.id)
@@ -69,7 +71,7 @@ class TestCRUDRoleGet:
 
     async def test_get_by_code(self, db_session: AsyncSession):
         """测试通过编码获取角色"""
-        role_in = RoleCreate(name="Code Role", code="code_role", description=None, sort=0, menu_ids=None)
+        role_in = RoleCreate(name="Code Role", code="code_role", description=None, sort=0)
         await role_crud.create(db_session, obj_in=role_in)
 
         role = await role_crud.get_by_code(db_session, code="code_role")
@@ -84,7 +86,7 @@ class TestCRUDRoleGet:
         for i in range(3):
             await role_crud.create(
                 db_session,
-                obj_in=RoleCreate(name=f"Role {i}", code=f"role_{i}", description=None, sort=0, menu_ids=None),
+                obj_in=RoleCreate(name=f"Role {i}", code=f"role_{i}", description=None, sort=0),
             )
         roles = await role_crud.get_multi(db_session, skip=0, limit=10)
         # 注意：可能包含其他测试用例创建的数据，如果 fixture 隔离不够。
@@ -98,7 +100,7 @@ class TestCRUDRoleUpdate:
 
     async def test_update_role(self, db_session: AsyncSession):
         """测试更新角色字段"""
-        role_in = RoleCreate(name="Update Role", code="update_role", description=None, sort=0, menu_ids=None)
+        role_in = RoleCreate(name="Update Role", code="update_role", description=None, sort=0)
         role = await role_crud.create(db_session, obj_in=role_in)
 
         update_data = RoleUpdate(name="New Name", description="Updated Desc")  # pyright: ignore
@@ -110,7 +112,7 @@ class TestCRUDRoleUpdate:
 
     async def test_update_role_menus(self, db_session: AsyncSession, test_menu: Menu):
         """测试更新角色菜单关联"""
-        role_in = RoleCreate(name="Update Menu Role", code="update_menu_role", description=None, sort=0, menu_ids=None)
+        role_in = RoleCreate(name="Update Menu Role", code="update_menu_role", description=None, sort=0)
         role = await role_crud.create(db_session, obj_in=role_in)
 
         # 初始无菜单
@@ -119,8 +121,7 @@ class TestCRUDRoleUpdate:
         assert len(stored_role.menus) == 0
 
         # 更新关联
-        update_data = RoleUpdate(menu_ids=[test_menu.id])  # pyright: ignore
-        await role_crud.update(db_session, db_obj=role, obj_in=update_data)
+        await role_crud.update(db_session, db_obj=role, obj_in={"menu_ids": [test_menu.id]})
 
         # 验证
         stored_role = await role_crud.get(db_session, id=role.id)
@@ -129,8 +130,7 @@ class TestCRUDRoleUpdate:
         assert stored_role.menus[0].id == test_menu.id
 
         # 清除关联
-        update_data = RoleUpdate(menu_ids=[])  # pyright: ignore
-        await role_crud.update(db_session, db_obj=role, obj_in=update_data)
+        await role_crud.update(db_session, db_obj=role, obj_in={"menu_ids": []})
 
         stored_role = await role_crud.get(db_session, id=role.id)
         assert stored_role is not None
@@ -142,7 +142,7 @@ class TestCRUDRoleDelete:
 
     async def test_soft_delete_role(self, db_session: AsyncSession):
         """测试软删除"""
-        role_in = RoleCreate(name="Delete Role", code="delete_role", description=None, sort=0, menu_ids=None)
+        role_in = RoleCreate(name="Delete Role", code="delete_role", description=None, sort=0)
         role = await role_crud.create(db_session, obj_in=role_in)
 
         deleted_role = await role_crud.remove(db_session, id=role.id)

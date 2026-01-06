@@ -14,7 +14,15 @@ from fastapi import APIRouter, Depends
 from app.api import deps
 from app.core.permissions import PermissionCode
 from app.schemas.common import BatchDeleteRequest, BatchOperationResult, PaginatedResponse, ResponseBase
-from app.schemas.user import ChangePasswordRequest, ResetPasswordRequest, UserCreate, UserResponse, UserUpdate
+from app.schemas.role import RoleResponse
+from app.schemas.user import (
+    ChangePasswordRequest,
+    ResetPasswordRequest,
+    UserCreate,
+    UserResponse,
+    UserRolesUpdateRequest,
+    UserUpdate,
+)
 
 router = APIRouter()
 
@@ -328,3 +336,32 @@ async def restore_user(
     """
     user = await user_service.restore_user(id=user_id)
     return ResponseBase(data=user, message="用户恢复成功")
+
+
+@router.get("/{user_id}/roles", response_model=ResponseBase[list[RoleResponse]], summary="获取用户角色")
+async def get_user_roles(
+    *,
+    user_id: UUID,
+    current_user: deps.CurrentUser,
+    _: deps.User = Depends(deps.require_permissions([PermissionCode.USER_ROLES_LIST.value])),
+    user_service: deps.UserServiceDep,
+) -> Any:
+    """获取用户已绑定的角色列表。"""
+
+    roles = await user_service.get_user_roles(user_id=user_id)
+    return ResponseBase(data=roles)
+
+
+@router.put("/{user_id}/roles", response_model=ResponseBase[list[RoleResponse]], summary="设置用户角色")
+async def set_user_roles(
+    *,
+    user_id: UUID,
+    req: UserRolesUpdateRequest,
+    current_user: deps.CurrentUser,
+    _: deps.User = Depends(deps.require_permissions([PermissionCode.USER_ROLES_UPDATE.value])),
+    user_service: deps.UserServiceDep,
+) -> Any:
+    """设置用户角色（全量覆盖，幂等）。"""
+
+    roles = await user_service.set_user_roles(user_id=user_id, role_ids=req.role_ids)
+    return ResponseBase(data=roles, message="用户角色设置成功")

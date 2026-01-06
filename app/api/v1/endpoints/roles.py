@@ -14,7 +14,7 @@ from fastapi import APIRouter, Depends
 from app.api import deps
 from app.core.permissions import PermissionCode
 from app.schemas.common import BatchDeleteRequest, BatchOperationResult, PaginatedResponse, ResponseBase
-from app.schemas.role import RoleCreate, RoleResponse, RoleUpdate
+from app.schemas.role import RoleCreate, RoleMenusUpdateRequest, RoleResponse, RoleUpdate
 
 router = APIRouter()
 
@@ -224,3 +224,32 @@ async def restore_role(
     """
     role = await role_service.restore_role(id=id)
     return ResponseBase(data=role, message="角色恢复成功")
+
+
+@router.get("/{id}/menus", response_model=ResponseBase[list[UUID]], summary="获取角色菜单")
+async def get_role_menus(
+    *,
+    id: UUID,
+    current_user: deps.CurrentUser,
+    _: deps.User = Depends(deps.require_permissions([PermissionCode.ROLE_MENUS_LIST.value])),
+    role_service: deps.RoleServiceDep,
+) -> Any:
+    """获取角色已分配的菜单ID列表（用于编辑回显）。"""
+
+    menu_ids = await role_service.get_role_menu_ids(role_id=id)
+    return ResponseBase(data=menu_ids)
+
+
+@router.put("/{id}/menus", response_model=ResponseBase[list[UUID]], summary="设置角色菜单")
+async def set_role_menus(
+    *,
+    id: UUID,
+    req: RoleMenusUpdateRequest,
+    current_user: deps.CurrentUser,
+    _: deps.User = Depends(deps.require_permissions([PermissionCode.ROLE_MENUS_UPDATE.value])),
+    role_service: deps.RoleServiceDep,
+) -> Any:
+    """设置角色菜单（全量覆盖，幂等）。"""
+
+    menu_ids = await role_service.set_role_menus(role_id=id, menu_ids=req.menu_ids)
+    return ResponseBase(data=menu_ids, message="角色菜单设置成功")

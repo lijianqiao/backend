@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.cache import invalidate_user_permissions_cache
 from app.core.decorator import transactional
 from app.core.exceptions import BadRequestException, NotFoundException
+from app.crud.crud_menu import CRUDMenu
 from app.crud.crud_role import CRUDRole
 from app.models.rbac import Role
 from app.schemas.role import RoleCreate, RoleResponse, RoleUpdate
@@ -23,9 +24,10 @@ class RoleService:
     角色服务类。
     """
 
-    def __init__(self, db: AsyncSession, role_crud: CRUDRole):
+    def __init__(self, db: AsyncSession, role_crud: CRUDRole, menu_crud: CRUDMenu):
         self.db = db
         self.role_crud = role_crud
+        self.menu_crud = menu_crud
 
         # transactional() 将在 commit 后执行这些任务（用于缓存失效等）
         self._post_commit_tasks: list = []
@@ -38,6 +40,14 @@ class RoleService:
 
     async def get_roles(self, skip: int = 0, limit: int = 100) -> list[Role]:
         return await self.role_crud.get_multi(self.db, skip=skip, limit=limit)
+
+    async def get_role_menu_ids(self, role_id: UUID) -> list[UUID]:
+        """获取角色已分配的菜单ID列表（仅未删除菜单）。"""
+
+        role = await self.role_crud.get(self.db, id=role_id)
+        if not role:
+            raise NotFoundException(message="角色不存在")
+        return [m.id for m in role.menus if not m.is_deleted]
 
     async def get_roles_paginated(
         self,
@@ -86,6 +96,27 @@ class RoleService:
         role = await self.role_crud.create(self.db, obj_in=obj_in)
         self._invalidate_permissions_cache_after_commit([])
         return role
+
+    @transactional()
+    async def set_role_menus(self, role_id: UUID, menu_ids: list[UUID]) -> list[UUID]:
+        """设置角色菜单（全量覆盖，幂等）。"""
+
+        role = await self.role_crud.get(self.db, id=role_id)
+        if not role:
+            raise NotFoundException(message="角色不存在")
+
+        affected_user_ids = await self.role_crud.get_user_ids_by_role(self.db, role_id=role_id)
+
+        unique_menu_ids = list(dict.fromkeys(menu_ids))
+        menus = await self.menu_crud.get_multi_by_ids(self.db, ids=unique_menu_ids)
+        if len(menus) != len(unique_menu_ids):
+            found = {m.id for m in menus}
+            missing = [mid for mid in unique_menu_ids if mid not in found]
+            raise BadRequestException(message=f"存在无效的菜单ID: {missing}")
+
+        await self.role_crud.update(self.db, db_obj=role, obj_in={"menu_ids": unique_menu_ids})
+        self._invalidate_permissions_cache_after_commit(affected_user_ids)
+        return unique_menu_ids
 
     @transactional()
     async def update_role(self, id: UUID, obj_in: RoleUpdate) -> Role:

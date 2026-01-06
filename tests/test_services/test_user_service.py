@@ -10,6 +10,7 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import BadRequestException, NotFoundException
+from app.crud.crud_role import role as role_crud
 from app.crud.crud_user import CRUDUser
 from app.models.user import User
 from app.schemas.user import UserCreate, UserUpdate
@@ -20,7 +21,7 @@ from app.services.user_service import UserService
 def user_service(db_session: AsyncSession) -> UserService:
     """创建 UserService 实例"""
     user_crud = CRUDUser(User)
-    return UserService(db=db_session, user_crud=user_crud)
+    return UserService(db=db_session, user_crud=user_crud, role_crud=role_crud)
 
 
 class TestUserServiceCreate:

@@ -23,6 +23,9 @@ class PermissionCode(str, Enum):
     USER_RESTORE = "user:restore"
     USER_PASSWORD_RESET = "user:password:reset"
 
+    USER_ROLES_LIST = "user:roles:list"
+    USER_ROLES_UPDATE = "user:roles:update"
+
     MENU_OPTIONS_LIST = "menu:options:list"
     MENU_LIST = "menu:list"
     MENU_CREATE = "menu:create"
@@ -37,6 +40,9 @@ class PermissionCode(str, Enum):
     ROLE_DELETE = "role:delete"
     ROLE_RECYCLE = "role:recycle"
     ROLE_RESTORE = "role:restore"
+
+    ROLE_MENUS_LIST = "role:menus:list"
+    ROLE_MENUS_UPDATE = "role:menus:update"
 
     LOG_LOGIN_LIST = "log:login:list"
     LOG_OPERATION_LIST = "log:operation:list"
@@ -57,6 +63,8 @@ PERMISSION_DEFS: tuple[PermissionDef, ...] = (
     PermissionDef(PermissionCode.USER_RECYCLE, "用户-回收站"),
     PermissionDef(PermissionCode.USER_RESTORE, "用户-恢复"),
     PermissionDef(PermissionCode.USER_PASSWORD_RESET, "用户-重置密码"),
+    PermissionDef(PermissionCode.USER_ROLES_LIST, "用户-角色-列表"),
+    PermissionDef(PermissionCode.USER_ROLES_UPDATE, "用户-角色-设置"),
     PermissionDef(PermissionCode.MENU_OPTIONS_LIST, "菜单-可分配选项", "用于获取可分配菜单选项树"),
     PermissionDef(PermissionCode.MENU_LIST, "菜单-列表"),
     PermissionDef(PermissionCode.MENU_CREATE, "菜单-创建"),
@@ -70,6 +78,8 @@ PERMISSION_DEFS: tuple[PermissionDef, ...] = (
     PermissionDef(PermissionCode.ROLE_DELETE, "角色-删除"),
     PermissionDef(PermissionCode.ROLE_RECYCLE, "角色-回收站"),
     PermissionDef(PermissionCode.ROLE_RESTORE, "角色-恢复"),
+    PermissionDef(PermissionCode.ROLE_MENUS_LIST, "角色-菜单-列表"),
+    PermissionDef(PermissionCode.ROLE_MENUS_UPDATE, "角色-菜单-设置"),
     PermissionDef(PermissionCode.LOG_LOGIN_LIST, "登录日志-列表"),
     PermissionDef(PermissionCode.LOG_OPERATION_LIST, "操作日志-列表"),
 )

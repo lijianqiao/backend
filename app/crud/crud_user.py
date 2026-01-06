@@ -10,6 +10,7 @@ from typing import Any
 
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.core.security import get_password_hash
 from app.crud.base import CRUDBase
@@ -131,6 +132,14 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
         根据手机号查询用户 (包含已软删除)。
         """
         result = await db.execute(select(User).where(User.phone == phone))
+        return result.scalars().first()
+
+    async def get_with_roles(self, db: AsyncSession, *, id) -> User | None:
+        """获取用户并预加载 roles，避免后续访问触发惰性加载。"""
+
+        result = await db.execute(
+            select(User).options(selectinload(User.roles)).where(User.id == id, User.is_deleted.is_(False))
+        )
         return result.scalars().first()
 
     async def count_active(self, db: AsyncSession) -> int:

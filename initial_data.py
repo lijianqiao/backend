@@ -229,16 +229,17 @@ async def init_rbac(db: AsyncSession) -> None:
             result = await db.execute(select(Menu).where(Menu.id.in_(menu_ids)))
             existing_role.menus = list(result.scalars().all())
         else:
-            await role_crud.create(
+            new_role = await role_crud.create(
                 db,
                 obj_in=RoleCreate(
                     name=role_name,
                     code=role_code,
                     description=role_desc,
                     sort=role_sort,
-                    menu_ids=menu_ids,
                 ),
             )
+            result = await db.execute(select(Menu).where(Menu.id.in_(menu_ids)))
+            new_role.menus = list(result.scalars().all())
 
     await db.commit()
     logger.info("RBAC 菜单/角色初始化完成。")

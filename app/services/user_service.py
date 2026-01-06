@@ -11,9 +11,12 @@ from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core import security
+from app.core.cache import invalidate_user_permissions_cache
 from app.core.decorator import transactional
 from app.core.exceptions import BadRequestException, NotFoundException
+from app.crud.crud_role import CRUDRole
 from app.crud.crud_user import CRUDUser
+from app.models.rbac import Role
 from app.models.user import User
 from app.schemas.user import UserCreate, UserUpdate
 
@@ -24,9 +27,19 @@ class UserService:
     通过构造函数注入 CRUDUser 实例，实现解耦。
     """
 
-    def __init__(self, db: AsyncSession, user_crud: CRUDUser):
+    def __init__(self, db: AsyncSession, user_crud: CRUDUser, role_crud: CRUDRole):
         self.db = db
         self.user_crud = user_crud
+        self.role_crud = role_crud
+
+        # transactional() 将在 commit 后执行这些任务（用于缓存失效等）
+        self._post_commit_tasks: list = []
+
+    def _invalidate_permissions_cache_after_commit(self, user_ids: list[UUID]) -> None:
+        async def _task() -> None:
+            await invalidate_user_permissions_cache(user_ids)
+
+        self._post_commit_tasks.append(_task)
 
     @transactional()
     async def create_user(self, obj_in: UserCreate) -> User:
@@ -59,6 +72,14 @@ class UserService:
         根据 ID 获取用户。
         """
         return await self.user_crud.get(self.db, id=user_id)
+
+    async def get_user_roles(self, user_id: UUID) -> list[Role]:
+        """获取用户的角色列表。"""
+
+        user = await self.user_crud.get_with_roles(self.db, id=user_id)
+        if not user:
+            raise NotFoundException(message="用户不存在")
+        return list(user.roles)
 
     async def get_users(self, skip: int = 0, limit: int = 100) -> list[User]:
         """
@@ -110,6 +131,26 @@ class UserService:
             is_superuser=is_superuser,
             is_active=is_active,
         )
+
+    @transactional()
+    async def set_user_roles(self, user_id: UUID, role_ids: list[UUID]) -> list[Role]:
+        """设置用户角色（全量覆盖，幂等）。"""
+
+        user = await self.user_crud.get_with_roles(self.db, id=user_id)
+        if not user:
+            raise NotFoundException(message="用户不存在")
+
+        unique_role_ids = list(dict.fromkeys(role_ids))
+        roles = await self.role_crud.get_multi_by_ids(self.db, ids=unique_role_ids)
+
+        if len(roles) != len(unique_role_ids):
+            found = {r.id for r in roles}
+            missing = [rid for rid in unique_role_ids if rid not in found]
+            raise BadRequestException(message=f"存在无效的角色ID: {missing}")
+
+        user.roles = roles
+        self._invalidate_permissions_cache_after_commit([user.id])
+        return roles
 
     @transactional()
     async def update_user(self, user_id: UUID, obj_in: UserUpdate) -> User:
