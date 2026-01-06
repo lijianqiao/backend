@@ -12,8 +12,7 @@ import time
 from typing import Any
 
 import uuid6
-from fastapi import Request
-from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.datastructures import Headers, QueryParams
 from structlog.contextvars import bind_contextvars, clear_contextvars
 
 from app.core.event_bus import OperationLogEvent, event_bus
@@ -21,82 +20,142 @@ from app.core.logger import access_logger
 from app.core.metrics import record_request_metrics
 
 
-class RequestLogMiddleware(BaseHTTPMiddleware):
-    """
-    全局请求日志中间件。
+class RequestLogMiddleware:
+    """全局请求日志中间件（ASGI 级别）。"""
 
-    1. 生成/传递 X-Request-ID。
-    2. 绑定 Request ID 到 Structlog 上下文。
-    3. 记录请求处理时间和状态码。
-    4. [Audit] 如果已认证用户，发布操作日志事件。
-    """
+    def __init__(self, app) -> None:
+        self.app = app
 
-    async def dispatch(self, request: Request, call_next):
+    async def __call__(self, scope, receive, send) -> None:
+        if scope.get("type") != "http":
+            await self.app(scope, receive, send)
+            return
+
         clear_contextvars()
-        request_id = request.headers.get("X-Request-ID", str(uuid6.uuid7()))
+
+        headers = Headers(scope=scope)
+        request_id = headers.get("X-Request-ID") or str(uuid6.uuid7())
         bind_contextvars(request_id=request_id)
 
-        request_body: bytes = b""
-        if request.method != "GET":
-            try:
-                request_body = await request.body()
+        method = (scope.get("method") or "").upper()
+        path = scope.get("path") or ""
+        query_string_raw: bytes = scope.get("query_string") or b""
+        query_string = query_string_raw.decode("latin-1")
 
-                async def receive() -> dict[str, Any]:
-                    nonlocal request_body
-                    body = request_body
-                    request_body = b""
-                    return {"type": "http.request", "body": body, "more_body": False}
+        client = scope.get("client")
+        client_ip = client[0] if isinstance(client, (list, tuple)) and client else "unknown"
 
-                request._receive = receive  # type: ignore[attr-defined]
-            except Exception:
-                request_body = b""
+        request_body_buf = bytearray()
+        request_body_truncated = False
+        request_headers = headers
+        request_content_type = (request_headers.get("content-type") or "").lower()
+        user_agent = request_headers.get("user-agent")
+
+        response_status_code: int | None = None
+        response_headers: Headers | None = None
+        response_body_buf = bytearray()
+        response_body_truncated = False
+
+        async def receive_wrapper() -> dict[str, Any]:
+            nonlocal request_body_truncated
+            message = await receive()
+            if message.get("type") == "http.request" and method != "GET":
+                body = message.get("body", b"")
+                if body:
+                    if len(request_body_buf) < _MAX_CAPTURE_BYTES:
+                        remaining = _MAX_CAPTURE_BYTES - len(request_body_buf)
+                        request_body_buf.extend(body[:remaining])
+                        if len(body) > remaining:
+                            request_body_truncated = True
+                    else:
+                        request_body_truncated = True
+            return message
+
+        async def send_wrapper(message: dict[str, Any]) -> None:
+            nonlocal response_status_code, response_headers, response_body_truncated
+
+            if message.get("type") == "http.response.start":
+                response_status_code = int(message.get("status") or 500)
+                raw_headers = message.get("headers") or []
+                response_headers = Headers(raw=raw_headers)
+
+                # 注入 X-Request-ID
+                new_headers = list(raw_headers)
+                new_headers.append((b"x-request-id", request_id.encode("latin-1")))
+                message["headers"] = new_headers
+
+            elif message.get("type") == "http.response.body":
+                if response_headers is not None:
+                    content_type = (response_headers.get("content-type") or "").lower()
+                    if "application/json" in content_type:
+                        body = message.get("body", b"")
+                        if body:
+                            if len(response_body_buf) < _MAX_CAPTURE_BYTES:
+                                remaining = _MAX_CAPTURE_BYTES - len(response_body_buf)
+                                response_body_buf.extend(body[:remaining])
+                                if len(body) > remaining:
+                                    response_body_truncated = True
+                            else:
+                                response_body_truncated = True
+
+            await send(message)
 
         start_time = time.perf_counter()
-
-        response = await call_next(request)
-
+        await self.app(scope, receive_wrapper, send_wrapper)
         process_time = time.perf_counter() - start_time
+
+        status_code = int(response_status_code or 500)
 
         # Prometheus 指标
         try:
-            if request.url.path not in ("/metrics", "/health"):
-                record_request_metrics(request.method, request.url.path, response.status_code, process_time)
+            if path not in ("/metrics", "/health"):
+                record_request_metrics(method, path, status_code, process_time)
         except Exception:
-            # 指标记录失败不影响主流程
             pass
 
         # 记录请求完成日志 (File Log)
-        if request.url.path != "/health":
+        if path != "/health":
             access_logger.info(
                 "API 访问",
-                http_method=request.method,
-                url=str(request.url),
-                path=request.url.path,
-                query=request.url.query,
-                status_code=response.status_code,
-                client_ip=request.client.host if request.client else "unknown",
+                http_method=method,
+                url=_build_full_url(scope, query_string),
+                path=path,
+                query=query_string,
+                status_code=status_code,
+                client_ip=client_ip,
                 latency=f"{process_time:.4f}s",
             )
 
             # [Audit] 发布操作日志事件
             # 排除 GET 请求 和 登录接口 (Login 由 AuthService 记录)
-            if (
-                request.method != "GET"
-                and "/auth/login" not in request.url.path
-                and hasattr(request, "state")
-                and hasattr(request.state, "user_id")
-            ):
-                params = _build_request_params(request, request_body)
-                response_result = _build_response_result(response)
-                user_agent = request.headers.get("user-agent")
+            state = scope.get("state")
+            user_id_value = _get_state_value(state, "user_id")
+            username_value = _get_state_value(state, "username")
+            if method != "GET" and "/auth/login" not in path and user_id_value:
+                params = _build_request_params_asgi(
+                    path=path,
+                    query_string_raw=query_string_raw,
+                    path_params=scope.get("path_params") or {},
+                    method=method,
+                    request_content_type=request_content_type,
+                    request_body=bytes(request_body_buf),
+                    request_body_truncated=request_body_truncated,
+                )
+                response_result = _build_response_result_asgi(
+                    path=path,
+                    response_headers=response_headers,
+                    response_body=bytes(response_body_buf),
+                    response_body_truncated=response_body_truncated,
+                )
+
                 await event_bus.publish(
                     OperationLogEvent(
-                        user_id=str(request.state.user_id),
-                        username=request.state.username,
-                        ip=request.client.host if request.client else None,
-                        method=request.method,
-                        path=request.url.path,
-                        status_code=response.status_code,
+                        user_id=str(user_id_value),
+                        username=str(username_value or ""),
+                        ip=client_ip if client_ip != "unknown" else None,
+                        method=method,
+                        path=path,
+                        status_code=status_code,
                         process_time=process_time,
                         params=params,
                         response_result=response_result,
@@ -104,11 +163,16 @@ class RequestLogMiddleware(BaseHTTPMiddleware):
                     )
                 )
 
-        response.headers["X-Request-ID"] = request_id
-        return response
-
 
 _MAX_CAPTURE_BYTES = 20_000
+
+
+def _get_state_value(state: Any, key: str) -> Any | None:
+    if state is None:
+        return None
+    if isinstance(state, dict):
+        return state.get(key)
+    return getattr(state, key, None)
 
 
 def _is_sensitive_path(path: str) -> bool:
@@ -128,52 +192,90 @@ def _safe_json_loads(raw: bytes) -> Any | None:
         return None
 
 
-def _build_request_params(request: Request, request_body: bytes) -> dict[str, Any] | None:
+def _build_request_params_asgi(
+    *,
+    path: str,
+    query_string_raw: bytes,
+    path_params: dict[str, Any],
+    method: str,
+    request_content_type: str,
+    request_body: bytes,
+    request_body_truncated: bool,
+) -> dict[str, Any] | None:
     data: dict[str, Any] = {}
 
     try:
-        if request.query_params:
-            data["query"] = dict(request.query_params)
+        if query_string_raw:
+            data["query"] = dict(QueryParams(query_string_raw))
     except Exception:
         pass
 
     try:
-        if request.path_params:
-            data["path"] = dict(request.path_params)
+        if path_params:
+            data["path"] = dict(path_params)
     except Exception:
         pass
 
-    if request.method != "GET":
-        if _is_sensitive_path(request.url.path):
+    if method != "GET":
+        if _is_sensitive_path(path):
             data["body"] = {"_filtered": True}
         else:
-            content_type = (request.headers.get("content-type") or "").lower()
-            if request_body:
-                if len(request_body) > _MAX_CAPTURE_BYTES:
-                    data["body"] = {"_truncated": True}
-                elif "application/json" in content_type:
+            if request_body_truncated:
+                data["body"] = {"_truncated": True}
+            elif request_body:
+                if "application/json" in request_content_type:
                     parsed = _safe_json_loads(request_body)
                     data["body"] = parsed if parsed is not None else {"_unparsed": True}
                 else:
-                    # 非 JSON 时不强行落全文，避免误记录敏感信息
                     data["body"] = {"_non_json": True}
 
     return data or None
 
 
-def _build_response_result(response) -> Any | None:
-    try:
-        content_type = (response.headers.get("content-type") or "").lower()
-        if "application/json" not in content_type:
-            return None
+def _build_response_result_asgi(
+    *,
+    path: str,
+    response_headers: Headers | None,
+    response_body: bytes,
+    response_body_truncated: bool,
+) -> Any | None:
+    if _is_sensitive_path(path):
+        return {"_filtered": True}
 
-        body = getattr(response, "body", None)
-        if not body:
-            return None
-        if len(body) > _MAX_CAPTURE_BYTES:
-            return {"_truncated": True}
-
-        parsed = _safe_json_loads(body)
-        return parsed if parsed is not None else {"_unparsed": True}
-    except Exception:
+    if response_headers is None:
         return None
+
+    content_type = (response_headers.get("content-type") or "").lower()
+    if "application/json" not in content_type:
+        # 走摘要：非 JSON 仅记录类型，避免 response_result 为 null 又无意义
+        return {"_non_json": True, "content_type": content_type or None}
+
+    if response_body_truncated:
+        return {"_truncated": True}
+
+    if not response_body:
+        return None
+
+    parsed = _safe_json_loads(response_body)
+    return parsed if parsed is not None else {"_unparsed": True}
+
+
+def _build_full_url(scope: dict[str, Any], query_string: str) -> str:
+    try:
+        scheme = scope.get("scheme") or "http"
+        server = scope.get("server")
+        host = "localhost"
+        port_part = ""
+        if isinstance(server, (list, tuple)) and len(server) >= 2:
+            host = str(server[0])
+            port = int(server[1])
+            if (scheme == "http" and port != 80) or (scheme == "https" and port != 443):
+                port_part = f":{port}"
+
+        path = scope.get("path") or ""
+        if query_string:
+            return f"{scheme}://{host}{port_part}{path}?{query_string}"
+        return f"{scheme}://{host}{port_part}{path}"
+    except Exception:
+        path = scope.get("path") or ""
+        return path
