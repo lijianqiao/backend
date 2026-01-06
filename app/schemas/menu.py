@@ -57,6 +57,7 @@ class MenuResponse(MenuBase, TimestampSchema):
     title: str
     name: str
     is_deleted: bool = False
+    is_active: bool = True
     children: list["MenuResponse"] | None = None
 
     model_config = ConfigDict(from_attributes=True)
