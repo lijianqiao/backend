@@ -39,6 +39,7 @@ class RoleUpdate(BaseModel):
     code: str | None = Field(None, description="角色编码")
     description: str | None = Field(None, description="描述")
     sort: int | None = Field(None, description="排序")
+    is_active: bool | None = Field(None, description="是否激活")
     menu_ids: list[UUID] | None = Field(None, description="关联菜单ID列表")
 
 

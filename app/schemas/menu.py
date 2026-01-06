@@ -45,6 +45,7 @@ class MenuUpdate(BaseModel):
     icon: str | None = None
     sort: int | None = None
     is_hidden: bool | None = None
+    is_active: bool | None = None
     permission: str | None = None
 
 
