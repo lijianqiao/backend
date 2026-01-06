@@ -19,6 +19,7 @@ from app.schemas.user import (
     ChangePasswordRequest,
     ResetPasswordRequest,
     UserCreate,
+    UserMeUpdate,
     UserResponse,
     UserRolesUpdateRequest,
     UserUpdate,
@@ -146,7 +147,7 @@ async def read_user_me(
 async def update_user_me(
     *,
     user_service: deps.UserServiceDep,
-    user_in: UserUpdate,
+    user_in: UserMeUpdate,
     current_user: deps.CurrentUser,
 ) -> Any:
     """
@@ -162,7 +163,7 @@ async def update_user_me(
     Returns:
         ResponseBase[UserResponse]: 更新后的用户信息。
     """
-    user = await user_service.update_user(user_id=current_user.id, obj_in=user_in)
+    user = await user_service.update_user_me(user_id=current_user.id, obj_in=user_in)
     return ResponseBase(data=user)
 
 
@@ -346,7 +347,22 @@ async def get_user_roles(
     _: deps.User = Depends(deps.require_permissions([PermissionCode.USER_ROLES_LIST.value])),
     user_service: deps.UserServiceDep,
 ) -> Any:
-    """获取用户已绑定的角色列表。"""
+    """
+    获取用户已绑定的角色列表。
+
+    Args:
+        user_id (UUID): 目标用户 ID。
+        current_user (User): 当前登录用户。
+        _ (User): 权限依赖（需要 user:roles:list）。
+        user_service (UserService): 用户服务依赖。
+
+    Returns:
+        ResponseBase[list[RoleResponse]]: 用户已绑定的角色列表。
+
+    Raises:
+        UnauthorizedException: 未登录或令牌无效时。
+
+    """
 
     roles = await user_service.get_user_roles(user_id=user_id)
     return ResponseBase(data=roles)
@@ -361,7 +377,23 @@ async def set_user_roles(
     _: deps.User = Depends(deps.require_permissions([PermissionCode.USER_ROLES_UPDATE.value])),
     user_service: deps.UserServiceDep,
 ) -> Any:
-    """设置用户角色（全量覆盖，幂等）。"""
+    """
+    设置用户角色（全量覆盖，幂等）。
+
+    Args:
+        user_id (UUID): 目标用户 ID。
+        req (UserRolesUpdateRequest): 用户角色更新请求体 (包含角色 ID 列表)。
+        current_user (User): 当前登录用户。
+        _ (User): 权限依赖（需要 user:roles:update）。
+        user_service (UserService): 用户服务依赖。
+
+    Returns:
+        ResponseBase[list[RoleResponse]]: 用户已绑定的角色列表。
+
+    Raises:
+        UnauthorizedException: 未登录或令牌无效时。
+
+    """
 
     roles = await user_service.set_user_roles(user_id=user_id, role_ids=req.role_ids)
     return ResponseBase(data=roles, message="用户角色设置成功")

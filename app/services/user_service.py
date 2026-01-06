@@ -18,7 +18,7 @@ from app.crud.crud_role import CRUDRole
 from app.crud.crud_user import CRUDUser
 from app.models.rbac import Role
 from app.models.user import User
-from app.schemas.user import UserCreate, UserUpdate
+from app.schemas.user import UserCreate, UserMeUpdate, UserUpdate
 
 
 class UserService:
@@ -151,6 +151,26 @@ class UserService:
         user.roles = roles
         self._invalidate_permissions_cache_after_commit([user.id])
         return roles
+
+    @transactional()
+    async def update_user_me(self, user_id: UUID, obj_in: UserMeUpdate) -> User:
+        """更新当前用户信息（不允许修改 username）。"""
+
+        user = await self.user_crud.get(self.db, id=user_id)
+        if not user:
+            raise NotFoundException(message="用户不存在")
+
+        update_data = obj_in.model_dump(exclude_unset=True)
+
+        if "phone" in update_data and update_data["phone"] != user.phone:
+            if await self.user_crud.get_by_phone(self.db, phone=update_data["phone"]):
+                raise BadRequestException(message="手机号已存在")
+
+        if "email" in update_data and update_data["email"] != user.email:
+            if await self.user_crud.get_by_email(self.db, email=update_data["email"]):
+                raise BadRequestException(message="邮箱已存在")
+
+        return await self.user_crud.update(self.db, db_obj=user, obj_in=update_data)
 
     @transactional()
     async def update_user(self, user_id: UUID, obj_in: UserUpdate) -> User:

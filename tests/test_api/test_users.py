@@ -295,6 +295,20 @@ class TestUsersMe:
 
         assert response.status_code == 200
 
+    async def test_update_user_me_forbid_username(self, client: AsyncClient, auth_headers: dict):
+        """测试禁止修改 username"""
+        response = await client.put(
+            f"{settings.API_V1_STR}/users/me",
+            headers=auth_headers,
+            json={"username": "hacked"},
+        )
+
+        assert response.status_code == 422
+        body = response.json()
+        assert body["error_code"] == 422
+        # message 由全局 validation handler 统一返回
+        assert any("用户名不允许修改" in d.get("message", "") for d in body.get("details", []))
+
 
 class TestUsersPassword:
     """密码接口测试"""

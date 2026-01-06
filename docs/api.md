@@ -1497,15 +1497,12 @@ Returns:
 
 #### Request Body (application/json)
 
-| 参数名         | 类型      | 必填 | 描述         |
-| :------------- | :-------- | :--- | :----------- |
-| `username`     | `string`  | 否   | Username     |
-| `email`        | `string`  | 否   | Email        |
-| `phone`        | `string`  | 否   | Phone        |
-| `nickname`     | `string`  | 否   | Nickname     |
-| `gender`       | `string`  | 否   | Gender       |
-| `is_active`    | `boolean` | 否   | Is Active    |
-| `is_superuser` | `boolean` | 否   | Is Superuser |
+| 参数名     | 类型     | 必填 | 描述     |
+| :--------- | :------- | :--- | :------- |
+| `email`    | `string` | 否   | Email    |
+| `phone`    | `string` | 否   | Phone    |
+| `nickname` | `string` | 否   | Nickname |
+| `gender`   | `string` | 否   | Gender   |
 
 #### Responses
 
@@ -1861,6 +1858,18 @@ Format: `application/json`
 
 获取用户已绑定的角色列表。
 
+Args:
+    user_id (UUID): 目标用户 ID。
+    current_user (User): 当前登录用户。
+    _ (User): 权限依赖（需要 user:roles:list）。
+    user_service (UserService): 用户服务依赖。
+
+Returns:
+    ResponseBase[list[RoleResponse]]: 用户已绑定的角色列表。
+
+Raises:
+    UnauthorizedException: 未登录或令牌无效时。
+
 #### Requests Parameters (Query/Path)
 
 | 参数名    | 位置   | 类型     | 必填 | 描述    | Default |
@@ -1898,6 +1907,19 @@ Format: `application/json`
 **Description**:
 
 设置用户角色（全量覆盖，幂等）。
+
+Args:
+    user_id (UUID): 目标用户 ID。
+    req (UserRolesUpdateRequest): 用户角色更新请求体 (包含角色 ID 列表)。
+    current_user (User): 当前登录用户。
+    _ (User): 权限依赖（需要 user:roles:update）。
+    user_service (UserService): 用户服务依赖。
+
+Returns:
+    ResponseBase[list[RoleResponse]]: 用户已绑定的角色列表。
+
+Raises:
+    UnauthorizedException: 未登录或令牌无效时。
 
 #### Requests Parameters (Query/Path)
 

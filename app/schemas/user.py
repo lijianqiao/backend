@@ -10,7 +10,7 @@ import re
 from uuid import UUID
 
 import phonenumbers
-from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator, model_validator
 
 from app.core.config import settings
 from app.schemas.common import TimestampSchema
@@ -80,6 +80,37 @@ class UserUpdate(BaseModel):
     gender: str | None = None
     is_active: bool | None = None
     is_superuser: bool | None = None
+
+    @field_validator("phone")
+    @classmethod
+    def validate_phone(cls, v: str | None) -> str | None:
+        if v is None:
+            return None
+        try:
+            parsed_number = phonenumbers.parse(v, "CN")
+            if not phonenumbers.is_valid_number(parsed_number):
+                raise ValueError("无效的手机号码")
+            return phonenumbers.format_number(parsed_number, phonenumbers.PhoneNumberFormat.E164)
+        except phonenumbers.NumberParseException as e:
+            raise ValueError("手机号码格式错误") from e
+
+
+class UserMeUpdate(BaseModel):
+    """更新当前用户信息请求（不允许修改 username）。"""
+
+    email: EmailStr | None = None
+    phone: str | None = None
+    nickname: str | None = None
+    gender: str | None = None
+
+    model_config = ConfigDict(extra="ignore")
+
+    @model_validator(mode="before")
+    @classmethod
+    def forbid_username_update(cls, data):
+        if isinstance(data, dict) and data.get("username") is not None:
+            raise ValueError("用户名不允许修改")
+        return data
 
     @field_validator("phone")
     @classmethod
