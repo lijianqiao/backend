@@ -40,21 +40,41 @@ class RoleService:
         return await self.role_crud.get_multi(self.db, skip=skip, limit=limit)
 
     async def get_roles_paginated(
-        self, page: int = 1, page_size: int = 20, *, keyword: str | None = None
+        self,
+        page: int = 1,
+        page_size: int = 20,
+        *,
+        keyword: str | None = None,
+        is_active: bool | None = None,
     ) -> tuple[list[Role], int]:
         """
         获取分页角色列表。
         """
-        return await self.role_crud.get_multi_paginated(self.db, page=page, page_size=page_size, keyword=keyword)
+        return await self.role_crud.get_multi_paginated(
+            self.db,
+            page=page,
+            page_size=page_size,
+            keyword=keyword,
+            is_active=is_active,
+        )
 
     async def get_deleted_roles(
-        self, page: int = 1, page_size: int = 20, *, keyword: str | None = None
+        self,
+        page: int = 1,
+        page_size: int = 20,
+        *,
+        keyword: str | None = None,
+        is_active: bool | None = None,
     ) -> tuple[list[Role], int]:
         """
         获取已删除角色列表 (回收站 - 分页)。
         """
         return await self.role_crud.get_multi_deleted_paginated(
-            self.db, page=page, page_size=page_size, keyword=keyword
+            self.db,
+            page=page,
+            page_size=page_size,
+            keyword=keyword,
+            is_active=is_active,
         )
 
     @transactional()

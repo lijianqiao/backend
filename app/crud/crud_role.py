@@ -24,8 +24,21 @@ class CRUDRole(CRUDBase[Role, RoleCreate, RoleUpdate]):
         if not kw:
             return stmt
 
+        clauses = []
+
+        # 文本字段：角色名称、角色标识
         pattern = f"%{kw}%"
-        return stmt.where(or_(Role.name.ilike(pattern), Role.code.ilike(pattern), Role.description.ilike(pattern)))
+        clauses.append(or_(Role.name.ilike(pattern), Role.code.ilike(pattern)))
+
+        # 状态（启用/禁用）
+        active_true = {"启用", "正常", "有效", "active", "enabled", "true", "是", "1"}
+        active_false = {"禁用", "停用", "无效", "inactive", "disabled", "false", "否", "0"}
+        if kw.lower() in active_true or kw in active_true:
+            clauses.append(Role.is_active.is_(True))
+        elif kw.lower() in active_false or kw in active_false:
+            clauses.append(Role.is_active.is_(False))
+
+        return stmt.where(or_(*clauses))
 
     async def get_multi_paginated(
         self,
@@ -34,6 +47,7 @@ class CRUDRole(CRUDBase[Role, RoleCreate, RoleUpdate]):
         page: int = 1,
         page_size: int = 20,
         keyword: str | None = None,
+        is_active: bool | None = None,
     ) -> tuple[list[Role], int]:
         if page < 1:
             page = 1
@@ -43,10 +57,14 @@ class CRUDRole(CRUDBase[Role, RoleCreate, RoleUpdate]):
             page_size = 100
 
         count_stmt = select(func.count(Role.id)).where(Role.is_deleted.is_(False))
+        if is_active is not None:
+            count_stmt = count_stmt.where(Role.is_active.is_(is_active))
         count_stmt = self._apply_keyword_filter(count_stmt, keyword=keyword)
         total = (await db.execute(count_stmt)).scalar_one()
 
         stmt = select(Role).options(selectinload(Role.menus)).where(Role.is_deleted.is_(False))
+        if is_active is not None:
+            stmt = stmt.where(Role.is_active.is_(is_active))
         stmt = self._apply_keyword_filter(stmt, keyword=keyword)
         stmt = stmt.order_by(Role.sort.asc()).offset((page - 1) * page_size).limit(page_size)
         result = await db.execute(stmt)
@@ -132,6 +150,7 @@ class CRUDRole(CRUDBase[Role, RoleCreate, RoleUpdate]):
         page: int = 1,
         page_size: int = 20,
         keyword: str | None = None,
+        is_active: bool | None = None,
     ) -> tuple[list[Role], int]:
         """
         获取已删除角色列表 (分页)。
@@ -144,10 +163,14 @@ class CRUDRole(CRUDBase[Role, RoleCreate, RoleUpdate]):
             page_size = 100
 
         count_stmt = select(func.count(Role.id)).where(Role.is_deleted.is_(True))
+        if is_active is not None:
+            count_stmt = count_stmt.where(Role.is_active.is_(is_active))
         count_stmt = self._apply_keyword_filter(count_stmt, keyword=keyword)
         total = (await db.execute(count_stmt)).scalar_one()
 
         stmt = select(Role).options(selectinload(Role.menus)).where(Role.is_deleted.is_(True))
+        if is_active is not None:
+            stmt = stmt.where(Role.is_active.is_(is_active))
         stmt = self._apply_keyword_filter(stmt, keyword=keyword)
         stmt = stmt.order_by(Role.sort.asc()).offset((page - 1) * page_size).limit(page_size)
         result = await db.execute(stmt)

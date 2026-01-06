@@ -25,7 +25,7 @@ class User(AuditableModel):
     nickname: Mapped[str | None] = mapped_column(String(50), nullable=True)
     email: Mapped[str | None] = mapped_column(String(100), unique=True, index=True, nullable=True)
     phone: Mapped[str] = mapped_column(String(20), unique=True, index=True, nullable=False)
-    gender: Mapped[str | None] = mapped_column(String(10), nullable=True)  # 'male', 'female', 'other'
+    gender: Mapped[str | None] = mapped_column(String(10), nullable=True)
     avatar: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
     is_superuser: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)

@@ -203,6 +203,7 @@ Args:
     log_service (LogService): 日志服务依赖。
     page (int, optional): 页码. Defaults to 1.
     page_size (int, optional): 每页数量. Defaults to 20.
+    keyword (str | None, optional): 关键词过滤. Defaults to None.
 
 Returns:
     ResponseBase[PaginatedResponse[LoginLogResponse]]: 分页后的登录日志列表。
@@ -254,6 +255,7 @@ Args:
     log_service (LogService): 日志服务依赖。
     page (int, optional): 页码. Defaults to 1.
     page_size (int, optional): 每页数量. Defaults to 20.
+    keyword (str | None, optional): 关键词过滤. Defaults to None.
 
 Returns:
     ResponseBase[PaginatedResponse[OperationLogResponse]]: 分页后的操作日志列表。
@@ -300,6 +302,20 @@ Format: `application/json`
 
 获取可分配菜单选项（树结构）。
 
+用于角色创建/编辑时选择可分配菜单（包含隐藏权限点）。
+
+Args:
+    current_user (User): 当前登录用户。
+    menu_service (MenuService): 菜单服务依赖。
+    _ (User): 权限依赖（需要 menu:options:list）。
+
+Returns:
+    ResponseBase[list[MenuResponse]]: 菜单选项树。
+
+Raises:
+    UnauthorizedException: 未登录或令牌无效时。
+    ForbiddenException: 权限不足时。
+
 #### Responses
 
 **Status Code**: `200` - Successful Response
@@ -322,7 +338,19 @@ Format: `application/json`
 
 **Description**:
 
-获取当前登录用户可见的导航菜单树（不包含隐藏权限点）。
+获取当前登录用户可见的导航菜单树。
+
+不包含隐藏权限点（is_hidden=true 的菜单节点不会返回），但隐藏权限点会影响父级菜单的可见性判定。
+
+Args:
+    current_user (User): 当前登录用户。
+    menu_service (MenuService): 菜单服务依赖。
+
+Returns:
+    ResponseBase[list[MenuResponse]]: 当前用户可见的导航菜单树。
+
+Raises:
+    UnauthorizedException: 未登录或令牌无效时。
 
 #### Responses
 
@@ -355,6 +383,9 @@ Args:
     menu_service (MenuService): 菜单服务依赖。
     page (int, optional): 页码. Defaults to 1.
     page_size (int, optional): 每页数量. Defaults to 20.
+    keyword (str | None, optional): 关键词过滤. Defaults to None.
+    is_active (bool | None, optional): 是否启用过滤. Defaults to None.
+    is_hidden (bool | None, optional): 是否隐藏过滤. Defaults to None.
 
 Returns:
     ResponseBase[PaginatedResponse[MenuResponse]]: 分页后的菜单列表。
@@ -366,6 +397,8 @@ Returns:
 | `page`      | `query` | `integer` | 否   | Page      | 1       |
 | `page_size` | `query` | `integer` | 否   | Page Size | 20      |
 | `keyword`   | `query` | `string`  | 否   | Keyword   |         |
+| `is_active` | `query` | `string`  | 否   | Is Active |         |
+| `is_hidden` | `query` | `string`  | 否   | Is Hidden |         |
 
 #### Responses
 
@@ -616,6 +649,23 @@ Format: `application/json`
 获取已删除的菜单列表 (回收站)。
 仅限超级管理员。
 
+Args:
+    page (int, optional): 页码. Defaults to 1.
+    page_size (int, optional): 每页数量. Defaults to 20.
+    active_superuser (User): 超级管理员权限验证。
+    _ (User): 权限依赖（需要 menu:recycle）。
+    menu_service (MenuService): 菜单服务依赖。
+    keyword (str | None, optional): 关键词过滤. Defaults to None.
+    is_active (bool | None, optional): 是否启用过滤. Defaults to None.
+    is_hidden (bool | None, optional): 是否隐藏过滤. Defaults to None.
+
+Returns:
+    ResponseBase[PaginatedResponse[MenuResponse]]: 分页后的回收站菜单列表。
+
+Raises:
+    UnauthorizedException: 未登录或令牌无效时。
+    ForbiddenException: 权限不足或非超级管理员时。
+
 #### Requests Parameters (Query/Path)
 
 | 参数名      | 位置    | 类型      | 必填 | 描述      | Default |
@@ -623,6 +673,8 @@ Format: `application/json`
 | `page`      | `query` | `integer` | 否   | Page      | 1       |
 | `page_size` | `query` | `integer` | 否   | Page Size | 20      |
 | `keyword`   | `query` | `string`  | 否   | Keyword   |         |
+| `is_active` | `query` | `string`  | 否   | Is Active |         |
+| `is_hidden` | `query` | `string`  | 否   | Is Hidden |         |
 
 #### Responses
 
@@ -658,6 +710,20 @@ Format: `application/json`
 
 从回收站中恢复指定菜单。
 需要超级管理员权限。
+
+Args:
+    id (UUID): 菜单 ID。
+    active_superuser (User): 超级管理员权限验证。
+    _ (User): 权限依赖（需要 menu:restore）。
+    menu_service (MenuService): 菜单服务依赖。
+
+Returns:
+    ResponseBase[MenuResponse]: 恢复后的菜单对象。
+
+Raises:
+    UnauthorizedException: 未登录或令牌无效时。
+    ForbiddenException: 权限不足或非超级管理员时。
+    NotFoundException: 菜单不存在时。
 
 #### Requests Parameters (Query/Path)
 
@@ -706,6 +772,8 @@ Args:
     current_user (User): 当前登录用户。
     page (int, optional): 页码. Defaults to 1.
     page_size (int, optional): 每页数量. Defaults to 20.
+    keyword (str | None, optional): 关键词过滤. Defaults to None.
+    is_active (bool | None, optional): 是否启用过滤. Defaults to None.
 
 Returns:
     ResponseBase[PaginatedResponse[RoleResponse]]: 分页后的角色列表。
@@ -717,6 +785,7 @@ Returns:
 | `page`      | `query` | `integer` | 否   | Page      | 1       |
 | `page_size` | `query` | `integer` | 否   | Page Size | 20      |
 | `keyword`   | `query` | `string`  | 否   | Keyword   |         |
+| `is_active` | `query` | `string`  | 否   | Is Active |         |
 
 #### Responses
 
@@ -957,6 +1026,22 @@ Format: `application/json`
 获取已删除的角色列表 (回收站)。
 仅限超级管理员。
 
+Args:
+    page (int, optional): 页码. Defaults to 1.
+    page_size (int, optional): 每页数量. Defaults to 20.
+    active_superuser (User): 超级管理员权限验证。
+    _ (User): 权限依赖（需要 role:recycle）。
+    role_service (RoleService): 角色服务依赖。
+    keyword (str | None, optional): 关键词过滤. Defaults to None.
+    is_active (bool | None, optional): 是否启用过滤. Defaults to None.
+
+Returns:
+    ResponseBase[PaginatedResponse[RoleResponse]]: 分页后的回收站角色列表。
+
+Raises:
+    UnauthorizedException: 未登录或令牌无效时。
+    ForbiddenException: 权限不足或非超级管理员时。
+
 #### Requests Parameters (Query/Path)
 
 | 参数名      | 位置    | 类型      | 必填 | 描述      | Default |
@@ -964,6 +1049,7 @@ Format: `application/json`
 | `page`      | `query` | `integer` | 否   | Page      | 1       |
 | `page_size` | `query` | `integer` | 否   | Page Size | 20      |
 | `keyword`   | `query` | `string`  | 否   | Keyword   |         |
+| `is_active` | `query` | `string`  | 否   | Is Active |         |
 
 #### Responses
 
@@ -999,6 +1085,20 @@ Format: `application/json`
 
 从回收站中恢复指定角色。
 需要超级管理员权限。
+
+Args:
+    id (UUID): 角色 ID。
+    active_superuser (User): 超级管理员权限验证。
+    _ (User): 权限依赖（需要 role:restore）。
+    role_service (RoleService): 角色服务依赖。
+
+Returns:
+    ResponseBase[RoleResponse]: 恢复后的角色对象。
+
+Raises:
+    UnauthorizedException: 未登录或令牌无效时。
+    ForbiddenException: 权限不足或非超级管理员时。
+    NotFoundException: 角色不存在时。
 
 #### Requests Parameters (Query/Path)
 
@@ -1070,17 +1170,22 @@ Args:
     active_superuser (User): 超级管理员权限验证。
     page (int, optional): 页码. Defaults to 1.
     page_size (int, optional): 每页数量. Defaults to 20.
+    keyword (str | None, optional): 关键词过滤. Defaults to None.
+    is_superuser (bool | None, optional): 是否超级管理员过滤. Defaults to None.
+    is_active (bool | None, optional): 是否启用过滤. Defaults to None.
 
 Returns:
     ResponseBase[PaginatedResponse[UserResponse]]: 分页后的用户列表。
 
 #### Requests Parameters (Query/Path)
 
-| 参数名      | 位置    | 类型      | 必填 | 描述      | Default |
-| :---------- | :------ | :-------- | :--- | :-------- | :------ |
-| `page`      | `query` | `integer` | 否   | Page      | 1       |
-| `page_size` | `query` | `integer` | 否   | Page Size | 20      |
-| `keyword`   | `query` | `string`  | 否   | Keyword   |         |
+| 参数名         | 位置    | 类型      | 必填 | 描述         | Default |
+| :------------- | :------ | :-------- | :--- | :----------- | :------ |
+| `page`         | `query` | `integer` | 否   | Page         | 1       |
+| `page_size`    | `query` | `integer` | 否   | Page Size    | 20      |
+| `keyword`      | `query` | `string`  | 否   | Keyword      |         |
+| `is_superuser` | `query` | `string`  | 否   | Is Superuser |         |
+| `is_active`    | `query` | `string`  | 否   | Is Active    |         |
 
 #### Responses
 
@@ -1412,13 +1517,27 @@ Format: `application/json`
 获取已删除的用户列表 (回收站)。
 仅限超级管理员。
 
+Args:
+    page (int, optional): 页码. Defaults to 1.
+    page_size (int, optional): 每页数量. Defaults to 20.
+    active_superuser (User): 超级管理员权限验证。
+    user_service (UserService): 用户服务依赖。
+    keyword (str | None, optional): 关键词过滤. Defaults to None.
+    is_superuser (bool | None, optional): 是否超级管理员过滤. Defaults to None.
+    is_active (bool | None, optional): 是否启用过滤. Defaults to None.
+
+Returns:
+    ResponseBase[PaginatedResponse[UserResponse]]: 分页后的用户列表。
+
 #### Requests Parameters (Query/Path)
 
-| 参数名      | 位置    | 类型      | 必填 | 描述      | Default |
-| :---------- | :------ | :-------- | :--- | :-------- | :------ |
-| `page`      | `query` | `integer` | 否   | Page      | 1       |
-| `page_size` | `query` | `integer` | 否   | Page Size | 20      |
-| `keyword`   | `query` | `string`  | 否   | Keyword   |         |
+| 参数名         | 位置    | 类型      | 必填 | 描述         | Default |
+| :------------- | :------ | :-------- | :--- | :----------- | :------ |
+| `page`         | `query` | `integer` | 否   | Page         | 1       |
+| `page_size`    | `query` | `integer` | 否   | Page Size    | 20      |
+| `keyword`      | `query` | `string`  | 否   | Keyword      |         |
+| `is_superuser` | `query` | `string`  | 否   | Is Superuser |         |
+| `is_active`    | `query` | `string`  | 否   | Is Active    |         |
 
 #### Responses
 
@@ -1562,6 +1681,19 @@ Format: `application/json`
 
 从回收站中恢复指定用户。
 需要超级管理员权限。
+
+Args:
+    user_id (UUID): 目标用户 ID。
+    active_superuser (User): 超级管理员权限验证。
+    user_service (UserService): 用户服务依赖。
+
+Returns:
+    ResponseBase[UserResponse]: 恢复后的用户信息。
+
+Raises:
+    UnauthorizedException: 未登录或令牌无效时。
+    ForbiddenException: 非超级管理员时。
+    NotFoundException: 用户不存在时。
 
 #### Requests Parameters (Query/Path)
 

@@ -26,6 +26,7 @@ async def read_roles(
     page: int = 1,
     page_size: int = 20,
     keyword: str | None = None,
+    is_active: bool | None = None,
 ) -> Any:
     """
     获取角色列表 (分页)。
@@ -38,11 +39,14 @@ async def read_roles(
         page (int, optional): 页码. Defaults to 1.
         page_size (int, optional): 每页数量. Defaults to 20.
         keyword (str | None, optional): 关键词过滤. Defaults to None.
+        is_active (bool | None, optional): 是否启用过滤. Defaults to None.
 
     Returns:
         ResponseBase[PaginatedResponse[RoleResponse]]: 分页后的角色列表。
     """
-    roles, total = await role_service.get_roles_paginated(page=page, page_size=page_size, keyword=keyword)
+    roles, total = await role_service.get_roles_paginated(
+        page=page, page_size=page_size, keyword=keyword, is_active=is_active
+    )
     return ResponseBase(data=PaginatedResponse(total=total, page=page, page_size=page_size, items=roles))
 
 
@@ -138,12 +142,31 @@ async def get_recycle_bin(
     _: deps.User = Depends(deps.require_permissions(["role:recycle"])),
     role_service: deps.RoleServiceDep,
     keyword: str | None = None,
+    is_active: bool | None = None,
 ) -> Any:
     """
     获取已删除的角色列表 (回收站)。
     仅限超级管理员。
+
+    Args:
+        page (int, optional): 页码. Defaults to 1.
+        page_size (int, optional): 每页数量. Defaults to 20.
+        active_superuser (User): 超级管理员权限验证。
+        _ (User): 权限依赖（需要 role:recycle）。
+        role_service (RoleService): 角色服务依赖。
+        keyword (str | None, optional): 关键词过滤. Defaults to None.
+        is_active (bool | None, optional): 是否启用过滤. Defaults to None.
+
+    Returns:
+        ResponseBase[PaginatedResponse[RoleResponse]]: 分页后的回收站角色列表。
+
+    Raises:
+        UnauthorizedException: 未登录或令牌无效时。
+        ForbiddenException: 权限不足或非超级管理员时。
     """
-    roles, total = await role_service.get_deleted_roles(page=page, page_size=page_size, keyword=keyword)
+    roles, total = await role_service.get_deleted_roles(
+        page=page, page_size=page_size, keyword=keyword, is_active=is_active
+    )
     return ResponseBase(data=PaginatedResponse(total=total, page=page, page_size=page_size, items=roles))
 
 
@@ -183,6 +206,20 @@ async def restore_role(
 
     从回收站中恢复指定角色。
     需要超级管理员权限。
+
+    Args:
+        id (UUID): 角色 ID。
+        active_superuser (User): 超级管理员权限验证。
+        _ (User): 权限依赖（需要 role:restore）。
+        role_service (RoleService): 角色服务依赖。
+
+    Returns:
+        ResponseBase[RoleResponse]: 恢复后的角色对象。
+
+    Raises:
+        UnauthorizedException: 未登录或令牌无效时。
+        ForbiddenException: 权限不足或非超级管理员时。
+        NotFoundException: 角色不存在时。
     """
     role = await role_service.restore_role(id=id)
     return ResponseBase(data=role, message="角色恢复成功")

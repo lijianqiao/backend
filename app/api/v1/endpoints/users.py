@@ -26,6 +26,8 @@ async def read_users(
     page: int = 1,
     page_size: int = 20,
     keyword: str | None = None,
+    is_superuser: bool | None = None,
+    is_active: bool | None = None,
 ) -> Any:
     """
     查询用户列表 (分页)。
@@ -39,11 +41,19 @@ async def read_users(
         page (int, optional): 页码. Defaults to 1.
         page_size (int, optional): 每页数量. Defaults to 20.
         keyword (str | None, optional): 关键词过滤. Defaults to None.
+        is_superuser (bool | None, optional): 是否超级管理员过滤. Defaults to None.
+        is_active (bool | None, optional): 是否启用过滤. Defaults to None.
 
     Returns:
         ResponseBase[PaginatedResponse[UserResponse]]: 分页后的用户列表。
     """
-    users, total = await user_service.get_users_paginated(page=page, page_size=page_size, keyword=keyword)
+    users, total = await user_service.get_users_paginated(
+        page=page,
+        page_size=page_size,
+        keyword=keyword,
+        is_superuser=is_superuser,
+        is_active=is_active,
+    )
     return ResponseBase(data=PaginatedResponse(total=total, page=page, page_size=page_size, items=users))
 
 
@@ -211,12 +221,32 @@ async def get_recycle_bin(
     active_superuser: deps.User = Depends(deps.get_current_active_superuser),
     user_service: deps.UserServiceDep,
     keyword: str | None = None,
+    is_superuser: bool | None = None,
+    is_active: bool | None = None,
 ) -> Any:
     """
     获取已删除的用户列表 (回收站)。
     仅限超级管理员。
+
+    Args:
+        page (int, optional): 页码. Defaults to 1.
+        page_size (int, optional): 每页数量. Defaults to 20.
+        active_superuser (User): 超级管理员权限验证。
+        user_service (UserService): 用户服务依赖。
+        keyword (str | None, optional): 关键词过滤. Defaults to None.
+        is_superuser (bool | None, optional): 是否超级管理员过滤. Defaults to None.
+        is_active (bool | None, optional): 是否启用过滤. Defaults to None.
+
+    Returns:
+        ResponseBase[PaginatedResponse[UserResponse]]: 分页后的用户列表。
     """
-    users, total = await user_service.get_deleted_users(page=page, page_size=page_size, keyword=keyword)
+    users, total = await user_service.get_deleted_users(
+        page=page,
+        page_size=page_size,
+        keyword=keyword,
+        is_superuser=is_superuser,
+        is_active=is_active,
+    )
     return ResponseBase(data=PaginatedResponse(total=total, page=page, page_size=page_size, items=users))
 
 
@@ -281,6 +311,19 @@ async def restore_user(
 
     从回收站中恢复指定用户。
     需要超级管理员权限。
+
+    Args:
+        user_id (UUID): 目标用户 ID。
+        active_superuser (User): 超级管理员权限验证。
+        user_service (UserService): 用户服务依赖。
+
+    Returns:
+        ResponseBase[UserResponse]: 恢复后的用户信息。
+
+    Raises:
+        UnauthorizedException: 未登录或令牌无效时。
+        ForbiddenException: 非超级管理员时。
+        NotFoundException: 用户不存在时。
     """
     user = await user_service.restore_user(id=user_id)
     return ResponseBase(data=user, message="用户恢复成功")

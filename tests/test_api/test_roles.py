@@ -6,9 +6,14 @@
 @Docs: Role API 接口测试.
 """
 
+from uuid import UUID
+
 from httpx import AsyncClient
+from sqlalchemy import update
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
+from app.models.rbac import Role
 
 
 class TestRolesRead:
@@ -24,6 +29,100 @@ class TestRolesRead:
         # 至少默认有初始化的角色（如果 initial_data 未运行则可能为空，但测试环境通常是空的）
         # 我们可以先创建一个
         # 但我们应该尽量让测试独立。这里只检查结构。
+
+    async def test_read_roles_keyword_mapping_status(
+        self, client: AsyncClient, auth_headers: dict, db_session: AsyncSession
+    ):
+        """测试 keyword 对角色状态的映射过滤（方案 A）。"""
+
+        # 通过 API 创建 2 个角色（默认 is_active=True）
+        resp_a = await client.post(
+            f"{settings.API_V1_STR}/roles/",
+            headers=auth_headers,
+            json={"name": "KW Role Active", "code": "kw_role_active", "sort": 1},
+        )
+        assert resp_a.status_code == 200
+        role_active_id = UUID(resp_a.json()["data"]["id"])
+
+        resp_b = await client.post(
+            f"{settings.API_V1_STR}/roles/",
+            headers=auth_headers,
+            json={"name": "KW Role Inactive", "code": "kw_role_inactive", "sort": 2},
+        )
+        assert resp_b.status_code == 200
+        role_inactive_id = UUID(resp_b.json()["data"]["id"])
+
+        # 直接在 DB 中把其中一个改为禁用（当前 API 未暴露 is_active 更新字段）
+        await db_session.execute(update(Role).where(Role.id == role_inactive_id).values(is_active=False))
+        await db_session.commit()
+
+        # keyword=启用 -> is_active=True
+        resp_active = await client.get(
+            f"{settings.API_V1_STR}/roles/",
+            headers=auth_headers,
+            params={"page": 1, "page_size": 50, "keyword": "启用"},
+        )
+        assert resp_active.status_code == 200
+        items_active = resp_active.json()["data"]["items"]
+        assert items_active
+        assert all(item["is_active"] is True for item in items_active)
+        assert any(item["id"] == str(role_active_id) for item in items_active)
+
+        # keyword=禁用 -> is_active=False
+        resp_inactive = await client.get(
+            f"{settings.API_V1_STR}/roles/",
+            headers=auth_headers,
+            params={"page": 1, "page_size": 50, "keyword": "禁用"},
+        )
+        assert resp_inactive.status_code == 200
+        items_inactive = resp_inactive.json()["data"]["items"]
+        assert items_inactive
+        assert all(item["is_active"] is False for item in items_inactive)
+        assert any(item["id"] == str(role_inactive_id) for item in items_inactive)
+
+    async def test_read_roles_filter_is_active(self, client: AsyncClient, auth_headers: dict, db_session: AsyncSession):
+        """测试 is_active 参数过滤生效。"""
+
+        resp_a = await client.post(
+            f"{settings.API_V1_STR}/roles/",
+            headers=auth_headers,
+            json={"name": "Active Filter Role", "code": "active_filter_role", "sort": 1},
+        )
+        assert resp_a.status_code == 200
+        role_active_id = UUID(resp_a.json()["data"]["id"])
+
+        resp_b = await client.post(
+            f"{settings.API_V1_STR}/roles/",
+            headers=auth_headers,
+            json={"name": "Inactive Filter Role", "code": "inactive_filter_role", "sort": 2},
+        )
+        assert resp_b.status_code == 200
+        role_inactive_id = UUID(resp_b.json()["data"]["id"])
+
+        await db_session.execute(update(Role).where(Role.id == role_inactive_id).values(is_active=False))
+        await db_session.commit()
+
+        resp_list_active = await client.get(
+            f"{settings.API_V1_STR}/roles/",
+            headers=auth_headers,
+            params={"page": 1, "page_size": 50, "is_active": True},
+        )
+        assert resp_list_active.status_code == 200
+        items_active = resp_list_active.json()["data"]["items"]
+        assert items_active
+        assert all(item["is_active"] is True for item in items_active)
+        assert any(item["id"] == str(role_active_id) for item in items_active)
+
+        resp_list_inactive = await client.get(
+            f"{settings.API_V1_STR}/roles/",
+            headers=auth_headers,
+            params={"page": 1, "page_size": 50, "is_active": False},
+        )
+        assert resp_list_inactive.status_code == 200
+        items_inactive = resp_list_inactive.json()["data"]["items"]
+        assert items_inactive
+        assert all(item["is_active"] is False for item in items_inactive)
+        assert any(item["id"] == str(role_inactive_id) for item in items_inactive)
 
 
 class TestRolesCreate:

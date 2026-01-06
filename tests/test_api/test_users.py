@@ -41,6 +41,193 @@ class TestUsersRead:
         assert data["data"]["page"] == 1
         assert data["data"]["page_size"] == 5
 
+    async def test_read_users_filter_is_superuser(self, client: AsyncClient, auth_headers: dict):
+        """测试 is_superuser 参数过滤生效（FastAPI 需要显式声明参数，否则会被忽略）。"""
+
+        # 创建一个普通用户
+        resp_normal = await client.post(
+            f"{settings.API_V1_STR}/users/",
+            headers=auth_headers,
+            json={
+                "username": "normal_user_1",
+                "phone": "13500135010",
+                "password": "Test@12345",
+                "email": "normal1@example.com",
+                "is_superuser": False,
+            },
+        )
+        assert resp_normal.status_code == 200
+
+        # 创建一个超级管理员用户
+        resp_su = await client.post(
+            f"{settings.API_V1_STR}/users/",
+            headers=auth_headers,
+            json={
+                "username": "super_user_1",
+                "phone": "13500135011",
+                "password": "Test@12345",
+                "email": "super1@example.com",
+                "is_superuser": True,
+            },
+        )
+        assert resp_su.status_code == 200
+
+        # 过滤普通用户
+        resp_list_normal = await client.get(
+            f"{settings.API_V1_STR}/users/",
+            headers=auth_headers,
+            params={"page": 1, "page_size": 50, "is_superuser": False},
+        )
+        assert resp_list_normal.status_code == 200
+        items_normal = resp_list_normal.json()["data"]["items"]
+        assert items_normal
+        assert all(item["is_superuser"] is False for item in items_normal)
+
+        # 过滤超级管理员
+        resp_list_su = await client.get(
+            f"{settings.API_V1_STR}/users/",
+            headers=auth_headers,
+            params={"page": 1, "page_size": 50, "is_superuser": True},
+        )
+        assert resp_list_su.status_code == 200
+        items_su = resp_list_su.json()["data"]["items"]
+        assert items_su
+        assert all(item["is_superuser"] is True for item in items_su)
+
+    async def test_read_users_filter_is_active(self, client: AsyncClient, auth_headers: dict):
+        """测试 is_active 参数过滤生效。"""
+
+        # 创建一个启用用户
+        resp_active = await client.post(
+            f"{settings.API_V1_STR}/users/",
+            headers=auth_headers,
+            json={
+                "username": "active_user_1",
+                "phone": "13500135031",
+                "password": "Test@12345",
+                "email": "active1@example.com",
+                "is_active": True,
+                "is_superuser": False,
+            },
+        )
+        assert resp_active.status_code == 200
+
+        # 创建一个禁用用户
+        resp_inactive = await client.post(
+            f"{settings.API_V1_STR}/users/",
+            headers=auth_headers,
+            json={
+                "username": "inactive_user_1",
+                "phone": "13500135032",
+                "password": "Test@12345",
+                "email": "inactive1@example.com",
+                "is_active": False,
+                "is_superuser": False,
+            },
+        )
+        assert resp_inactive.status_code == 200
+
+        # 过滤启用
+        resp_list_active = await client.get(
+            f"{settings.API_V1_STR}/users/",
+            headers=auth_headers,
+            params={"page": 1, "page_size": 50, "is_active": True},
+        )
+        assert resp_list_active.status_code == 200
+        items_active = resp_list_active.json()["data"]["items"]
+        assert items_active
+        assert all(item["is_active"] is True for item in items_active)
+
+        # 过滤禁用
+        resp_list_inactive = await client.get(
+            f"{settings.API_V1_STR}/users/",
+            headers=auth_headers,
+            params={"page": 1, "page_size": 50, "is_active": False},
+        )
+        assert resp_list_inactive.status_code == 200
+        items_inactive = resp_list_inactive.json()["data"]["items"]
+        assert items_inactive
+        assert all(item["is_active"] is False for item in items_inactive)
+
+    async def test_read_users_keyword_mapping_status_and_superuser(self, client: AsyncClient, auth_headers: dict):
+        """测试 keyword 对状态/超管的映射过滤（方案 A）。"""
+
+        # 创建一个启用超管
+        resp_su_active = await client.post(
+            f"{settings.API_V1_STR}/users/",
+            headers=auth_headers,
+            json={
+                "username": "kw_su_active",
+                "phone": "13500135021",
+                "password": "Test@12345",
+                "email": "kw_su_active@example.com",
+                "gender": "男",
+                "is_superuser": True,
+                "is_active": True,
+            },
+        )
+        assert resp_su_active.status_code == 200
+
+        # 创建一个禁用普通用户
+        resp_normal_inactive = await client.post(
+            f"{settings.API_V1_STR}/users/",
+            headers=auth_headers,
+            json={
+                "username": "kw_normal_inactive",
+                "phone": "13500135022",
+                "password": "Test@12345",
+                "email": "kw_normal_inactive@example.com",
+                "gender": "女",
+                "is_superuser": False,
+                "is_active": False,
+            },
+        )
+        assert resp_normal_inactive.status_code == 200
+
+        # keyword=启用 -> is_active=True
+        resp_active = await client.get(
+            f"{settings.API_V1_STR}/users/",
+            headers=auth_headers,
+            params={"page": 1, "page_size": 50, "keyword": "启用"},
+        )
+        assert resp_active.status_code == 200
+        items_active = resp_active.json()["data"]["items"]
+        assert items_active
+        assert all(item["is_active"] is True for item in items_active)
+
+        # keyword=禁用 -> is_active=False
+        resp_inactive = await client.get(
+            f"{settings.API_V1_STR}/users/",
+            headers=auth_headers,
+            params={"page": 1, "page_size": 50, "keyword": "禁用"},
+        )
+        assert resp_inactive.status_code == 200
+        items_inactive = resp_inactive.json()["data"]["items"]
+        assert items_inactive
+        assert all(item["is_active"] is False for item in items_inactive)
+
+        # keyword=超管 -> is_superuser=True
+        resp_su = await client.get(
+            f"{settings.API_V1_STR}/users/",
+            headers=auth_headers,
+            params={"page": 1, "page_size": 50, "keyword": "超管"},
+        )
+        assert resp_su.status_code == 200
+        items_su = resp_su.json()["data"]["items"]
+        assert items_su
+        assert all(item["is_superuser"] is True for item in items_su)
+
+        # keyword=普通用户 -> is_superuser=False
+        resp_normal = await client.get(
+            f"{settings.API_V1_STR}/users/",
+            headers=auth_headers,
+            params={"page": 1, "page_size": 50, "keyword": "普通用户"},
+        )
+        assert resp_normal.status_code == 200
+        items_normal = resp_normal.json()["data"]["items"]
+        assert items_normal
+        assert all(item["is_superuser"] is False for item in items_normal)
+
     async def test_read_users_no_auth(self, client: AsyncClient):
         """测试无认证访问"""
         response = await client.get(f"{settings.API_V1_STR}/users/")

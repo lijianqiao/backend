@@ -6,13 +6,16 @@
 @Docs: Menu API 接口测试.
 """
 
+from uuid import UUID
+
 from httpx import AsyncClient
+from sqlalchemy import update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.crud.crud_menu import menu as menu_crud
 from app.crud.crud_role import role as role_crud
-from app.models.rbac import UserRole
+from app.models.rbac import Menu, UserRole
 from app.schemas.menu import MenuCreate
 from app.schemas.role import RoleCreate
 
@@ -24,6 +27,166 @@ class TestMenusRead:
         data = response.json()
         assert data["code"] == 200
         assert "items" in data["data"]
+
+    async def test_read_menus_keyword_mapping_hidden(self, client: AsyncClient, auth_headers: dict):
+        """测试 keyword 对菜单隐藏状态的映射过滤（方案 A）。"""
+
+        # 创建一个隐藏菜单
+        resp_hidden = await client.post(
+            f"{settings.API_V1_STR}/menus/",
+            headers=auth_headers,
+            json={
+                "title": "KW Hidden Menu",
+                "name": "KwHiddenMenu",
+                "path": "/kw-hidden",
+                "sort": 10,
+                "is_hidden": True,
+                "permission": "menu:kw:hidden",
+            },
+        )
+        assert resp_hidden.status_code == 200
+
+        # 创建一个显示菜单
+        resp_visible = await client.post(
+            f"{settings.API_V1_STR}/menus/",
+            headers=auth_headers,
+            json={
+                "title": "KW Visible Menu",
+                "name": "KwVisibleMenu",
+                "path": "/kw-visible",
+                "sort": 11,
+                "is_hidden": False,
+                "permission": "menu:kw:visible",
+            },
+        )
+        assert resp_visible.status_code == 200
+
+        # keyword=隐藏 -> is_hidden=True
+        resp_list_hidden = await client.get(
+            f"{settings.API_V1_STR}/menus/",
+            headers=auth_headers,
+            params={"page": 1, "page_size": 50, "keyword": "隐藏"},
+        )
+        assert resp_list_hidden.status_code == 200
+        items_hidden = resp_list_hidden.json()["data"]["items"]
+        assert items_hidden
+        assert all(item["is_hidden"] is True for item in items_hidden)
+
+        # keyword=显示 -> is_hidden=False
+        resp_list_visible = await client.get(
+            f"{settings.API_V1_STR}/menus/",
+            headers=auth_headers,
+            params={"page": 1, "page_size": 50, "keyword": "显示"},
+        )
+        assert resp_list_visible.status_code == 200
+        items_visible = resp_list_visible.json()["data"]["items"]
+        assert items_visible
+        assert all(item["is_hidden"] is False for item in items_visible)
+
+    async def test_read_menus_filter_is_active(self, client: AsyncClient, auth_headers: dict, db_session: AsyncSession):
+        """测试 is_active 参数过滤生效。"""
+
+        resp_a = await client.post(
+            f"{settings.API_V1_STR}/menus/",
+            headers=auth_headers,
+            json={"title": "Active Menu", "name": "ActiveMenu", "path": "/active-menu", "sort": 20},
+        )
+        assert resp_a.status_code == 200
+        menu_active_id = UUID(resp_a.json()["data"]["id"])
+
+        resp_b = await client.post(
+            f"{settings.API_V1_STR}/menus/",
+            headers=auth_headers,
+            json={"title": "Inactive Menu", "name": "InactiveMenu", "path": "/inactive-menu", "sort": 21},
+        )
+        assert resp_b.status_code == 200
+        menu_inactive_id = UUID(resp_b.json()["data"]["id"])
+
+        await db_session.execute(update(Menu).where(Menu.id == menu_inactive_id).values(is_active=False))
+        await db_session.commit()
+
+        resp_list_active = await client.get(
+            f"{settings.API_V1_STR}/menus/",
+            headers=auth_headers,
+            params={"page": 1, "page_size": 50, "is_active": True},
+        )
+        assert resp_list_active.status_code == 200
+        items_active = resp_list_active.json()["data"]["items"]
+        assert items_active
+        active_ids = {item["id"] for item in items_active}
+        assert str(menu_active_id) in active_ids
+        assert str(menu_inactive_id) not in active_ids
+
+        resp_list_inactive = await client.get(
+            f"{settings.API_V1_STR}/menus/",
+            headers=auth_headers,
+            params={"page": 1, "page_size": 50, "is_active": False},
+        )
+        assert resp_list_inactive.status_code == 200
+        items_inactive = resp_list_inactive.json()["data"]["items"]
+        assert items_inactive
+        inactive_ids = {item["id"] for item in items_inactive}
+        assert str(menu_inactive_id) in inactive_ids
+        assert str(menu_active_id) not in inactive_ids
+
+    async def test_read_menus_filter_is_hidden(self, client: AsyncClient, auth_headers: dict):
+        """测试 is_hidden 参数过滤生效。"""
+
+        resp_hidden = await client.post(
+            f"{settings.API_V1_STR}/menus/",
+            headers=auth_headers,
+            json={
+                "title": "Hidden Menu",
+                "name": "HiddenMenu",
+                "path": "/hidden-menu",
+                "sort": 30,
+                "is_hidden": True,
+                "permission": "menu:hidden:test",
+            },
+        )
+        assert resp_hidden.status_code == 200
+        hidden_id = resp_hidden.json()["data"]["id"]
+
+        resp_visible = await client.post(
+            f"{settings.API_V1_STR}/menus/",
+            headers=auth_headers,
+            json={
+                "title": "Visible Menu",
+                "name": "VisibleMenu",
+                "path": "/visible-menu",
+                "sort": 31,
+                "is_hidden": False,
+                "permission": "menu:visible:test",
+            },
+        )
+        assert resp_visible.status_code == 200
+        visible_id = resp_visible.json()["data"]["id"]
+
+        resp_list_hidden = await client.get(
+            f"{settings.API_V1_STR}/menus/",
+            headers=auth_headers,
+            params={"page": 1, "page_size": 50, "is_hidden": True},
+        )
+        assert resp_list_hidden.status_code == 200
+        items_hidden = resp_list_hidden.json()["data"]["items"]
+        assert items_hidden
+        assert all(item["is_hidden"] is True for item in items_hidden)
+        hidden_ids = {item["id"] for item in items_hidden}
+        assert hidden_id in hidden_ids
+        assert visible_id not in hidden_ids
+
+        resp_list_visible = await client.get(
+            f"{settings.API_V1_STR}/menus/",
+            headers=auth_headers,
+            params={"page": 1, "page_size": 50, "is_hidden": False},
+        )
+        assert resp_list_visible.status_code == 200
+        items_visible = resp_list_visible.json()["data"]["items"]
+        assert items_visible
+        assert all(item["is_hidden"] is False for item in items_visible)
+        visible_ids = {item["id"] for item in items_visible}
+        assert visible_id in visible_ids
+        assert hidden_id not in visible_ids
 
 
 class TestMenusMe:

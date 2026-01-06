@@ -86,8 +86,11 @@ class CRUDMenu(CRUDBase[Menu, MenuCreate, MenuUpdate]):
         if not kw:
             return stmt
 
+        clauses = []
+
+        # 文本字段：标题、名称、路径、权限
         pattern = f"%{kw}%"
-        return stmt.where(
+        clauses.append(
             or_(
                 Menu.title.ilike(pattern),
                 Menu.name.ilike(pattern),
@@ -95,6 +98,16 @@ class CRUDMenu(CRUDBase[Menu, MenuCreate, MenuUpdate]):
                 Menu.permission.ilike(pattern),
             )
         )
+
+        # 隐藏（隐藏/显示）
+        hidden_true = {"隐藏", "hidden", "true", "是", "1"}
+        hidden_false = {"显示", "visible", "false", "否", "0"}
+        if kw.lower() in hidden_true or kw in hidden_true:
+            clauses.append(Menu.is_hidden.is_(True))
+        elif kw.lower() in hidden_false or kw in hidden_false:
+            clauses.append(Menu.is_hidden.is_(False))
+
+        return stmt.where(or_(*clauses))
 
     async def get_multi(self, db: AsyncSession, *, skip: int = 0, limit: int = 100) -> list[Menu]:
         result = await db.execute(
@@ -114,6 +127,8 @@ class CRUDMenu(CRUDBase[Menu, MenuCreate, MenuUpdate]):
         page: int = 1,
         page_size: int = 20,
         keyword: str | None = None,
+        is_active: bool | None = None,
+        is_hidden: bool | None = None,
     ) -> tuple[list[Menu], int]:
         if page < 1:
             page = 1
@@ -123,6 +138,10 @@ class CRUDMenu(CRUDBase[Menu, MenuCreate, MenuUpdate]):
             page_size = 100
 
         count_stmt = select(func.count(Menu.id)).where(Menu.is_deleted.is_(False))
+        if is_active is not None:
+            count_stmt = count_stmt.where(Menu.is_active.is_(is_active))
+        if is_hidden is not None:
+            count_stmt = count_stmt.where(Menu.is_hidden.is_(is_hidden))
         count_stmt = self._apply_keyword_filter(count_stmt, keyword=keyword)
         total = (await db.execute(count_stmt)).scalar_one()
         stmt = (
@@ -133,6 +152,10 @@ class CRUDMenu(CRUDBase[Menu, MenuCreate, MenuUpdate]):
             .offset((page - 1) * page_size)
             .limit(page_size)
         )
+        if is_active is not None:
+            stmt = stmt.where(Menu.is_active.is_(is_active))
+        if is_hidden is not None:
+            stmt = stmt.where(Menu.is_hidden.is_(is_hidden))
         stmt = self._apply_keyword_filter(stmt, keyword=keyword)
         result = await db.execute(stmt)
         return list(result.scalars().all()), total
@@ -151,6 +174,8 @@ class CRUDMenu(CRUDBase[Menu, MenuCreate, MenuUpdate]):
         page: int = 1,
         page_size: int = 20,
         keyword: str | None = None,
+        is_active: bool | None = None,
+        is_hidden: bool | None = None,
     ) -> tuple[list[Menu], int]:
         """
         获取已删除菜单列表 (分页)。
@@ -163,6 +188,10 @@ class CRUDMenu(CRUDBase[Menu, MenuCreate, MenuUpdate]):
             page_size = 100
 
         count_stmt = select(func.count(Menu.id)).where(Menu.is_deleted.is_(True))
+        if is_active is not None:
+            count_stmt = count_stmt.where(Menu.is_active.is_(is_active))
+        if is_hidden is not None:
+            count_stmt = count_stmt.where(Menu.is_hidden.is_(is_hidden))
         count_stmt = self._apply_keyword_filter(count_stmt, keyword=keyword)
         total = (await db.execute(count_stmt)).scalar_one()
         stmt = (
@@ -173,6 +202,10 @@ class CRUDMenu(CRUDBase[Menu, MenuCreate, MenuUpdate]):
             .offset((page - 1) * page_size)
             .limit(page_size)
         )
+        if is_active is not None:
+            stmt = stmt.where(Menu.is_active.is_(is_active))
+        if is_hidden is not None:
+            stmt = stmt.where(Menu.is_hidden.is_(is_hidden))
         stmt = self._apply_keyword_filter(stmt, keyword=keyword)
         result = await db.execute(stmt)
         return list(result.scalars().all()), total

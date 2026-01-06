@@ -26,17 +26,28 @@ class CRUDLoginLog(CRUDBase[LoginLog, LoginLogCreate, LoginLogCreate]):
         if not kw:
             return stmt
 
+        clauses = []
+
+        # 文本字段：用户名、IP、提示信息、操作系统
         pattern = f"%{kw}%"
-        return stmt.where(
+        clauses.append(
             or_(
                 LoginLog.username.ilike(pattern),
                 LoginLog.ip.ilike(pattern),
                 LoginLog.msg.ilike(pattern),
-                LoginLog.browser.ilike(pattern),
                 LoginLog.os.ilike(pattern),
-                LoginLog.device.ilike(pattern),
             )
         )
+
+        # 状态（成功/失败）
+        status_true = {"成功", "success", "true", "是", "1"}
+        status_false = {"失败", "fail", "false", "否", "0"}
+        if kw.lower() in status_true or kw in status_true:
+            clauses.append(LoginLog.status.is_(True))
+        elif kw.lower() in status_false or kw in status_false:
+            clauses.append(LoginLog.status.is_(False))
+
+        return stmt.where(or_(*clauses))
 
     async def get_multi_paginated(
         self,
@@ -198,17 +209,24 @@ class CRUDOperationLog(CRUDBase[OperationLog, OperationLogCreate, OperationLogCr
         if not kw:
             return stmt
 
+        clauses = []
+
+        # 文本字段：操作人、模块、IP、请求方法
         pattern = f"%{kw}%"
-        return stmt.where(
+        clauses.append(
             or_(
                 OperationLog.username.ilike(pattern),
-                OperationLog.ip.ilike(pattern),
                 OperationLog.module.ilike(pattern),
-                OperationLog.summary.ilike(pattern),
+                OperationLog.ip.ilike(pattern),
                 OperationLog.method.ilike(pattern),
-                OperationLog.path.ilike(pattern),
             )
         )
+
+        # 状态码：keyword 是纯数字时，按 response_code 精确匹配
+        if kw.isdigit():
+            clauses.append(OperationLog.response_code == int(kw))
+
+        return stmt.where(or_(*clauses))
 
     async def get_multi_paginated(
         self,

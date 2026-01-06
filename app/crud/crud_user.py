@@ -24,15 +24,37 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
         if not kw:
             return stmt
 
+        clauses = []
+
+        # 文本字段：用户名、昵称、邮箱、手机号、性别
         pattern = f"%{kw}%"
-        return stmt.where(
+        clauses.append(
             or_(
                 User.username.ilike(pattern),
                 User.nickname.ilike(pattern),
                 User.email.ilike(pattern),
                 User.phone.ilike(pattern),
+                User.gender.ilike(pattern),
             )
         )
+
+        # 状态（启用/禁用）
+        active_true = {"启用", "正常", "有效", "active", "enabled", "true", "是", "1"}
+        active_false = {"禁用", "停用", "无效", "inactive", "disabled", "false", "否", "0"}
+        if kw.lower() in active_true or kw in active_true:
+            clauses.append(User.is_active.is_(True))
+        elif kw.lower() in active_false or kw in active_false:
+            clauses.append(User.is_active.is_(False))
+
+        # 超级管理员
+        su_true = {"超级管理员", "超管", "superuser"}
+        su_false = {"普通用户", "非超管"}
+        if kw.lower() in su_true or kw in su_true:
+            clauses.append(User.is_superuser.is_(True))
+        elif kw.lower() in su_false or kw in su_false:
+            clauses.append(User.is_superuser.is_(False))
+
+        return stmt.where(or_(*clauses))
 
     async def get_multi_paginated(
         self,
@@ -41,6 +63,8 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
         page: int = 1,
         page_size: int = 20,
         keyword: str | None = None,
+        is_superuser: bool | None = None,
+        is_active: bool | None = None,
     ) -> tuple[list[User], int]:
         if page < 1:
             page = 1
@@ -50,10 +74,18 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
             page_size = 100
 
         count_stmt = select(func.count(User.id)).where(User.is_deleted.is_(False))
+        if is_superuser is not None:
+            count_stmt = count_stmt.where(User.is_superuser.is_(is_superuser))
+        if is_active is not None:
+            count_stmt = count_stmt.where(User.is_active.is_(is_active))
         count_stmt = self._apply_keyword_filter(count_stmt, keyword=keyword)
         total = (await db.execute(count_stmt)).scalar_one()
 
         stmt = select(User).where(User.is_deleted.is_(False))
+        if is_superuser is not None:
+            stmt = stmt.where(User.is_superuser.is_(is_superuser))
+        if is_active is not None:
+            stmt = stmt.where(User.is_active.is_(is_active))
         stmt = self._apply_keyword_filter(stmt, keyword=keyword)
         stmt = stmt.order_by(User.created_at.desc()).offset((page - 1) * page_size).limit(page_size)
         result = await db.execute(stmt)
@@ -124,6 +156,8 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
         page: int = 1,
         page_size: int = 20,
         keyword: str | None = None,
+        is_superuser: bool | None = None,
+        is_active: bool | None = None,
     ) -> tuple[list[User], int]:
         """
         获取已删除用户列表 (分页)。
@@ -136,10 +170,18 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
             page_size = 100
 
         count_stmt = select(func.count(User.id)).where(User.is_deleted.is_(True))
+        if is_superuser is not None:
+            count_stmt = count_stmt.where(User.is_superuser.is_(is_superuser))
+        if is_active is not None:
+            count_stmt = count_stmt.where(User.is_active.is_(is_active))
         count_stmt = self._apply_keyword_filter(count_stmt, keyword=keyword)
         total = (await db.execute(count_stmt)).scalar_one()
 
         stmt = select(User).where(User.is_deleted.is_(True))
+        if is_superuser is not None:
+            stmt = stmt.where(User.is_superuser.is_(is_superuser))
+        if is_active is not None:
+            stmt = stmt.where(User.is_active.is_(is_active))
         stmt = self._apply_keyword_filter(stmt, keyword=keyword)
         stmt = stmt.order_by(User.created_at.desc()).offset((page - 1) * page_size).limit(page_size)
         result = await db.execute(stmt)
