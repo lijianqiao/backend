@@ -37,6 +37,9 @@ class OperationLogEvent(Event):
     path: str
     status_code: int
     process_time: float
+    params: Any | None = None
+    response_result: Any | None = None
+    user_agent: str | None = None
 
 
 EventHandler = Callable[[Event], Coroutine[Any, Any, None]]

@@ -87,6 +87,9 @@ async def test_handle_operation_log_event_saves_log_and_parses_module(monkeypatc
         path="/api/v1/users/",
         status_code=200,
         process_time=0.1,
+        params={"query": {"a": "1"}},
+        response_result={"code": 200, "msg": "ok"},
+        user_agent="UA",
     )
 
     await subscriber.handle_operation_log_event(event)
@@ -98,6 +101,9 @@ async def test_handle_operation_log_event_saves_log_and_parses_module(monkeypatc
     assert isinstance(saved, FakeOperationLog)
     assert saved.kwargs["module"] == "users"
     assert saved.kwargs["summary"] == "GET /api/v1/users/"
+    assert saved.kwargs["params"] == {"query": {"a": "1"}}
+    assert saved.kwargs["response_result"] == {"code": 200, "msg": "ok"}
+    assert saved.kwargs["user_agent"] == "UA"
 
 
 @pytest.mark.asyncio
@@ -117,6 +123,9 @@ async def test_handle_operation_log_event_commit_error_is_logged(monkeypatch: py
         path="/health",
         status_code=500,
         process_time=1.2,
+        params=None,
+        response_result=None,
+        user_agent=None,
     )
 
     await subscriber.handle_operation_log_event(event)

@@ -31,16 +31,25 @@ async def handle_operation_log_event(event: Event) -> None:
 
             summary = f"{event.method} {event.path}"
 
+            user_id: uuid.UUID | None
+            try:
+                user_id = uuid.UUID(event.user_id)
+            except Exception:
+                user_id = None
+
             log = OperationLog(
-                user_id=uuid.UUID(event.user_id),
+                user_id=user_id,
                 username=event.username,
                 ip=event.ip,
                 module=module,
                 summary=summary,
                 method=event.method,
                 path=event.path,
+                params=event.params,
                 response_code=event.status_code,
+                response_result=event.response_result,
                 duration=event.process_time,
+                user_agent=event.user_agent,
             )
             session.add(log)
             await session.commit()

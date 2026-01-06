@@ -7,7 +7,9 @@
        使用事件总线发布操作日志事件。
 """
 
+import json
 import time
+from typing import Any
 
 import uuid6
 from fastapi import Request
@@ -33,6 +35,21 @@ class RequestLogMiddleware(BaseHTTPMiddleware):
         clear_contextvars()
         request_id = request.headers.get("X-Request-ID", str(uuid6.uuid7()))
         bind_contextvars(request_id=request_id)
+
+        request_body: bytes = b""
+        if request.method != "GET":
+            try:
+                request_body = await request.body()
+
+                async def receive() -> dict[str, Any]:
+                    nonlocal request_body
+                    body = request_body
+                    request_body = b""
+                    return {"type": "http.request", "body": body, "more_body": False}
+
+                request._receive = receive  # type: ignore[attr-defined]
+            except Exception:
+                request_body = b""
 
         start_time = time.perf_counter()
 
@@ -69,6 +86,9 @@ class RequestLogMiddleware(BaseHTTPMiddleware):
                 and hasattr(request, "state")
                 and hasattr(request.state, "user_id")
             ):
+                params = _build_request_params(request, request_body)
+                response_result = _build_response_result(response)
+                user_agent = request.headers.get("user-agent")
                 await event_bus.publish(
                     OperationLogEvent(
                         user_id=str(request.state.user_id),
@@ -78,8 +98,82 @@ class RequestLogMiddleware(BaseHTTPMiddleware):
                         path=request.url.path,
                         status_code=response.status_code,
                         process_time=process_time,
+                        params=params,
+                        response_result=response_result,
+                        user_agent=user_agent,
                     )
                 )
 
         response.headers["X-Request-ID"] = request_id
         return response
+
+
+_MAX_CAPTURE_BYTES = 20_000
+
+
+def _is_sensitive_path(path: str) -> bool:
+    lowered = path.lower()
+    if "/auth/" in lowered:
+        return True
+    if "password" in lowered:
+        return True
+    return False
+
+
+def _safe_json_loads(raw: bytes) -> Any | None:
+    try:
+        text = raw.decode("utf-8", errors="replace")
+        return json.loads(text)
+    except Exception:
+        return None
+
+
+def _build_request_params(request: Request, request_body: bytes) -> dict[str, Any] | None:
+    data: dict[str, Any] = {}
+
+    try:
+        if request.query_params:
+            data["query"] = dict(request.query_params)
+    except Exception:
+        pass
+
+    try:
+        if request.path_params:
+            data["path"] = dict(request.path_params)
+    except Exception:
+        pass
+
+    if request.method != "GET":
+        if _is_sensitive_path(request.url.path):
+            data["body"] = {"_filtered": True}
+        else:
+            content_type = (request.headers.get("content-type") or "").lower()
+            if request_body:
+                if len(request_body) > _MAX_CAPTURE_BYTES:
+                    data["body"] = {"_truncated": True}
+                elif "application/json" in content_type:
+                    parsed = _safe_json_loads(request_body)
+                    data["body"] = parsed if parsed is not None else {"_unparsed": True}
+                else:
+                    # 非 JSON 时不强行落全文，避免误记录敏感信息
+                    data["body"] = {"_non_json": True}
+
+    return data or None
+
+
+def _build_response_result(response) -> Any | None:
+    try:
+        content_type = (response.headers.get("content-type") or "").lower()
+        if "application/json" not in content_type:
+            return None
+
+        body = getattr(response, "body", None)
+        if not body:
+            return None
+        if len(body) > _MAX_CAPTURE_BYTES:
+            return {"_truncated": True}
+
+        parsed = _safe_json_loads(body)
+        return parsed if parsed is not None else {"_unparsed": True}
+    except Exception:
+        return None

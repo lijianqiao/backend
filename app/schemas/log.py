@@ -7,6 +7,7 @@
 """
 
 from datetime import datetime
+from typing import Any
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict
@@ -43,8 +44,11 @@ class OperationLogBase(LogBase):
     summary: str | None = None
     method: str | None = None
     path: str | None = None
+    params: Any | None = None
     response_code: int | None = None
+    response_result: Any | None = None
     duration: float | None = None
+    user_agent: str | None = None
 
 
 class OperationLogCreate(OperationLogBase):
