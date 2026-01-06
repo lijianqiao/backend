@@ -14,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.enums import MenuType
+from app.core.permissions import PermissionCode
 from app.crud.crud_menu import menu as menu_crud
 from app.crud.crud_role import role as role_crud
 from app.models.rbac import Menu, UserRole
@@ -42,7 +43,7 @@ class TestMenusRead:
                 "path": "/kw-hidden",
                 "sort": 10,
                 "is_hidden": True,
-                "permission": "menu:kw:hidden",
+                "permission": PermissionCode.MENU_LIST.value,
             },
         )
         assert resp_hidden.status_code == 200
@@ -57,7 +58,7 @@ class TestMenusRead:
                 "path": "/kw-visible",
                 "sort": 11,
                 "is_hidden": False,
-                "permission": "menu:kw:visible",
+                "permission": PermissionCode.MENU_LIST.value,
             },
         )
         assert resp_visible.status_code == 200
@@ -142,7 +143,7 @@ class TestMenusRead:
                 "path": "/hidden-menu",
                 "sort": 30,
                 "is_hidden": True,
-                "permission": "menu:hidden:test",
+                "permission": PermissionCode.MENU_LIST.value,
             },
         )
         assert resp_hidden.status_code == 200
@@ -157,7 +158,7 @@ class TestMenusRead:
                 "path": "/visible-menu",
                 "sort": 31,
                 "is_hidden": False,
-                "permission": "menu:visible:test",
+                "permission": PermissionCode.MENU_LIST.value,
             },
         )
         assert resp_visible.status_code == 200
@@ -198,7 +199,6 @@ class TestMenusRead:
             json={
                 "title": "Catalog Menu",
                 "name": "CatalogMenu",
-                "path": "/catalog-menu",
                 "sort": 40,
                 "type": MenuType.CATALOG.value,
             },
@@ -400,7 +400,9 @@ class TestMenusUpdate:
     async def test_update_menu(self, client: AsyncClient, auth_headers: dict):
         # Create
         res = await client.post(
-            f"{settings.API_V1_STR}/menus/", headers=auth_headers, json={"title": "To Update", "name": "ToUpdateApi"}
+            f"{settings.API_V1_STR}/menus/",
+            headers=auth_headers,
+            json={"title": "To Update", "name": "ToUpdateApi", "path": "/to-update-api"},
         )
         menu_id = res.json()["data"]["id"]
 
@@ -416,7 +418,9 @@ class TestMenusDelete:
     async def test_delete_menu(self, client: AsyncClient, auth_headers: dict):
         # Create
         res = await client.post(
-            f"{settings.API_V1_STR}/menus/", headers=auth_headers, json={"title": "To Delete", "name": "ToDelApi"}
+            f"{settings.API_V1_STR}/menus/",
+            headers=auth_headers,
+            json={"title": "To Delete", "name": "ToDelApi", "path": "/to-del-api"},
         )
         menu_id = res.json()["data"]["id"]
 
@@ -430,7 +434,9 @@ class TestMenusDelete:
         ids = []
         for i in range(2):
             res = await client.post(
-                f"{settings.API_V1_STR}/menus/", headers=auth_headers, json={"title": f"Batch {i}", "name": f"Batch{i}"}
+                f"{settings.API_V1_STR}/menus/",
+                headers=auth_headers,
+                json={"title": f"Batch {i}", "name": f"Batch{i}", "path": f"/batch-{i}"},
             )
             ids.append(res.json()["data"]["id"])
 

@@ -760,6 +760,46 @@ Format: `application/json`
 
 ---
 
+## Permissions
+
+### 获取权限字典
+
+**URL**: `/api/v1/permissions/`
+
+**Method**: `GET`
+
+**Description**:
+
+获取系统权限字典（权限码以代码为源）。
+
+前端用于菜单/角色管理时的“权限码选择”，避免手动输入权限字符串。
+
+Args:
+    current_user (User): 当前登录用户。
+    permission_service (PermissionService): 权限字典服务依赖。
+    _ (User): 权限依赖（需要 menu:options:list）。
+
+Returns:
+    ResponseBase[list[PermissionDictItem]]: 权限字典列表。
+
+Raises:
+    UnauthorizedException: 未登录或令牌无效时。
+    ForbiddenException: 权限不足时。
+
+#### Responses
+
+**Status Code**: `200` - Successful Response
+
+Format: `application/json`
+
+| 参数名    | 类型      | 必填 | 描述    |
+| :-------- | :-------- | :--- | :------ |
+| `code`    | `integer` | 否   | Code    |
+| `message` | `string`  | 否   | Message |
+| `data`    | `array`   | 否   | Data    |
+
+---
+
 ## Roles
 
 ### 获取角色列表
@@ -1170,12 +1210,12 @@ No properties (Empty Object)
 
 查询用户列表 (分页)。
 
-获取所有系统用户，支持分页。需要超级管理员权限。
+获取所有系统用户，支持分页。需要用户-列表权限。
 
 Args:
     user_service (UserService): 用户服务依赖。
     current_user (User): 当前登录用户。
-    active_superuser (User): 超级管理员权限验证。
+    _ (User): 权限依赖（需要 user:list）。
     page (int, optional): 页码. Defaults to 1.
     page_size (int, optional): 每页数量. Defaults to 20.
     keyword (str | None, optional): 关键词过滤. Defaults to None.
@@ -1227,12 +1267,12 @@ Format: `application/json`
 
 创建新用户。
 
-注册新的系统用户。需要超级管理员权限。
+注册新的系统用户。需要用户-创建权限。
 
 Args:
     user_in (UserCreate): 用户创建数据 (用户名, 密码, 邮箱等)。
     current_user (User): 当前登录用户。
-    active_superuser (User): 超级管理员权限验证。
+    _ (User): 权限依赖（需要 user:create）。
     user_service (UserService): 用户服务依赖。
 
 Returns:
@@ -1283,12 +1323,12 @@ Format: `application/json`
 
 批量删除用户。
 
-支持软删除和硬删除。需要超级管理员权限。
+支持软删除和硬删除。需要用户-删除权限。
 
 Args:
     request (BatchDeleteRequest): 批量删除请求体 (包含 ID 列表和硬删除标志)。
     current_user (User): 当前登录用户。
-    active_superuser (User): 超级管理员权限验证。
+    _ (User): 权限依赖（需要 user:delete）。
     user_service (UserService): 用户服务依赖。
 
 Returns:
@@ -1468,13 +1508,13 @@ Format: `application/json`
 
 管理员重置用户密码。
 
-强制修改指定用户的密码，不需要知道旧密码。需要超级管理员权限。
+强制修改指定用户的密码，不需要知道旧密码。需要用户-重置密码权限。
 
 Args:
     user_id (UUID): 目标用户 ID。
     password_data (ResetPasswordRequest): 密码重置请求 (包含新密码)。
     current_user (User): 当前登录用户。
-    active_superuser (User): 超级管理员权限验证。
+    _ (User): 权限依赖（需要 user:password:reset）。
     user_service (UserService): 用户服务依赖。
 
 Returns:
@@ -1523,12 +1563,12 @@ Format: `application/json`
 **Description**:
 
 获取已删除的用户列表 (回收站)。
-仅限超级管理员。
+需要用户-回收站权限。
 
 Args:
     page (int, optional): 页码. Defaults to 1.
     page_size (int, optional): 每页数量. Defaults to 20.
-    active_superuser (User): 超级管理员权限验证。
+    _ (User): 权限依赖（需要 user:recycle）。
     user_service (UserService): 用户服务依赖。
     keyword (str | None, optional): 关键词过滤. Defaults to None.
     is_superuser (bool | None, optional): 是否超级管理员过滤. Defaults to None.
@@ -1581,7 +1621,7 @@ Format: `application/json`
 
 Args:
     user_id (UUID): 目标用户 ID。
-    active_superuser (User): 超级管理员权限验证。
+    _ (User): 权限依赖（需要 user:list）。
     user_service (UserService): 用户服务依赖。
 
 Returns:
@@ -1625,13 +1665,13 @@ Format: `application/json`
 
 管理员更新用户信息。
 
-允许超级管理员修改任意用户的资料 (昵称、手机号、邮箱、状态等)。
+允许具备权限的管理员修改任意用户的资料 (昵称、手机号、邮箱、状态等)。
 不包含密码修改 (请使用重置密码接口)。
 
 Args:
     user_id (UUID): 目标用户 ID。
     user_in (UserUpdate): 更新的用户数据。
-    active_superuser (User): 超级管理员权限验证。
+    _ (User): 权限依赖（需要 user:update）。
     user_service (UserService): 用户服务依赖。
 
 Returns:
@@ -1688,11 +1728,11 @@ Format: `application/json`
 恢复已删除用户。
 
 从回收站中恢复指定用户。
-需要超级管理员权限。
+需要用户-恢复权限。
 
 Args:
     user_id (UUID): 目标用户 ID。
-    active_superuser (User): 超级管理员权限验证。
+    _ (User): 权限依赖（需要 user:restore）。
     user_service (UserService): 用户服务依赖。
 
 Returns:
@@ -1700,7 +1740,7 @@ Returns:
 
 Raises:
     UnauthorizedException: 未登录或令牌无效时。
-    ForbiddenException: 非超级管理员时。
+    ForbiddenException: 权限不足时。
     NotFoundException: 用户不存在时。
 
 #### Requests Parameters (Query/Path)

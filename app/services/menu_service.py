@@ -6,6 +6,7 @@
 @Docs: 菜单服务业务逻辑 (Menu Service Logic).
 """
 
+import re
 from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -13,7 +14,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.cache import invalidate_user_permissions_cache
 from app.core.decorator import transactional
 from app.core.enums import MenuType
-from app.core.exceptions import NotFoundException
+from app.core.exceptions import NotFoundException, ValidationError
+from app.core.permissions import PermissionCode
 from app.crud.crud_menu import CRUDMenu
 from app.models.rbac import Menu
 from app.models.user import User
@@ -60,6 +62,54 @@ class MenuService:
             updated_at=menu.updated_at,
             children=children,
         )
+
+    @staticmethod
+    def _normalize_path(path: str | None) -> str | None:
+        if path is None:
+            return None
+        p = path.strip()
+        return p or None
+
+    @staticmethod
+    def _is_permission_code_registered(code: str) -> bool:
+        return code in {c.value for c in PermissionCode}
+
+    async def _validate_menu_fields(
+        self, *, menu_type: MenuType, path: str | None, permission: str | None, menu_id=None
+    ) -> None:
+        """按 MenuType 校验字段组合，尽量在写库前拦截无效数据。"""
+
+        normalized_path = self._normalize_path(path)
+
+        # 允许的 path 形式：/system/users、/a-b/c_d 等（不允许空格）
+        if normalized_path is not None and not re.fullmatch(r"/[A-Za-z0-9/_\-]*", normalized_path):
+            raise ValidationError(message="path 格式不正确，示例：/system/users")
+
+        if menu_type == MenuType.CATALOG:
+            if normalized_path is not None:
+                raise ValidationError(message="CATALOG 类型不允许填写 path")
+            # 目录一般不绑定权限码；如确实需要，可后续再放开
+            if permission is not None:
+                raise ValidationError(message="CATALOG 类型不允许填写 permission")
+            return
+
+        if menu_type == MenuType.MENU:
+            # 兼容历史数据：MENU 的 path 允许为空；如果填写则要求格式正确且唯一
+            if normalized_path is not None:
+                if await self.menu_crud.exists_path(self.db, path=normalized_path, exclude_id=menu_id):
+                    raise ValidationError(message="path 已存在，请更换")
+            if permission is not None and not self._is_permission_code_registered(permission):
+                raise ValidationError(message="permission 未注册，请从权限字典选择")
+            return
+
+        if menu_type == MenuType.PERMISSION:
+            if normalized_path is not None:
+                raise ValidationError(message="PERMISSION 类型不允许填写 path")
+            if not permission:
+                raise ValidationError(message="PERMISSION 类型必须填写 permission")
+            if not self._is_permission_code_registered(permission):
+                raise ValidationError(message="permission 未注册，请从权限字典选择")
+            return
 
     async def get_menus(self) -> list[Menu]:
         return await self.menu_crud.get_multi(self.db, limit=1000)
@@ -240,6 +290,7 @@ class MenuService:
 
     @transactional()
     async def create_menu(self, obj_in: MenuCreate) -> MenuResponse:
+        await self._validate_menu_fields(menu_type=obj_in.type, path=obj_in.path, permission=obj_in.permission)
         menu = await self.menu_crud.create(self.db, obj_in=obj_in)
         self._invalidate_permissions_cache_after_commit([])
         return self._to_menu_response(menu, children=[])
@@ -249,6 +300,17 @@ class MenuService:
         menu = await self.menu_crud.get(self.db, id=id)
         if not menu:
             raise NotFoundException(message="菜单不存在")
+
+        # 用“更新后的值”做组合校验（支持部分更新）
+        final_type = obj_in.type or menu.type
+        final_path = obj_in.path if obj_in.path is not None else menu.path
+        final_permission = obj_in.permission if obj_in.permission is not None else menu.permission
+        await self._validate_menu_fields(
+            menu_type=final_type,
+            path=final_path,
+            permission=final_permission,
+            menu_id=id,
+        )
 
         affected_user_ids = await self.menu_crud.get_affected_user_ids(self.db, menu_id=id)
         updated = await self.menu_crud.update(self.db, db_obj=menu, obj_in=obj_in)

@@ -102,6 +102,98 @@ is_hidden = false
 permission = ""
 parent_key = "logs"
 
+# ---- 用户权限点（user:*）----
+[[menus]]
+key = "perm_user_list"
+title = "用户-列表"
+name = "PermUserList"
+path = ""
+component = ""
+icon = "KeyOutline"
+sort = 1051
+type = "PERMISSION"
+is_hidden = true
+permission = "user:list"
+parent_key = "users"
+
+[[menus]]
+key = "perm_user_create"
+title = "用户-创建"
+name = "PermUserCreate"
+path = ""
+component = ""
+icon = "KeyOutline"
+sort = 1052
+type = "PERMISSION"
+is_hidden = true
+permission = "user:create"
+parent_key = "users"
+
+[[menus]]
+key = "perm_user_update"
+title = "用户-更新"
+name = "PermUserUpdate"
+path = ""
+component = ""
+icon = "KeyOutline"
+sort = 1053
+type = "PERMISSION"
+is_hidden = true
+permission = "user:update"
+parent_key = "users"
+
+[[menus]]
+key = "perm_user_delete"
+title = "用户-删除"
+name = "PermUserDelete"
+path = ""
+component = ""
+icon = "KeyOutline"
+sort = 1054
+type = "PERMISSION"
+is_hidden = true
+permission = "user:delete"
+parent_key = "users"
+
+[[menus]]
+key = "perm_user_recycle"
+title = "用户-回收站"
+name = "PermUserRecycle"
+path = ""
+component = ""
+icon = "KeyOutline"
+sort = 1055
+type = "PERMISSION"
+is_hidden = true
+permission = "user:recycle"
+parent_key = "users"
+
+[[menus]]
+key = "perm_user_restore"
+title = "用户-恢复"
+name = "PermUserRestore"
+path = ""
+component = ""
+icon = "KeyOutline"
+sort = 1056
+type = "PERMISSION"
+is_hidden = true
+permission = "user:restore"
+parent_key = "users"
+
+[[menus]]
+key = "perm_user_reset_password"
+title = "用户-重置密码"
+name = "PermUserResetPassword"
+path = ""
+component = ""
+icon = "KeyOutline"
+sort = 1057
+type = "PERMISSION"
+is_hidden = true
+permission = "user:password:reset"
+parent_key = "users"
+
 # ---- 菜单权限点（menu:*）----
 [[menus]]
 key = "perm_menu_list"
@@ -308,6 +400,13 @@ code = "system_admin"
 description = "系统管理全权限"
 sort = 1
 permissions = [
+  "user:list",
+  "user:create",
+  "user:update",
+  "user:delete",
+  "user:recycle",
+  "user:restore",
+  "user:password:reset",
   "menu:list",
   "menu:create",
   "menu:update",

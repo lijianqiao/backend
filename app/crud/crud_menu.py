@@ -81,6 +81,23 @@ class CRUDMenu(CRUDBase[Menu, MenuCreate, MenuUpdate]):
         result = await db.execute(select(func.count(Menu.id)).where(Menu.is_deleted.is_(False)))
         return result.scalar_one()
 
+    async def exists_path(
+        self,
+        db: AsyncSession,
+        *,
+        path: str,
+        exclude_id=None,
+        only_not_deleted: bool = True,
+    ) -> bool:
+        """检查 path 是否已存在（用于避免菜单路由 path 重复）。"""
+
+        stmt = select(func.count(Menu.id)).where(Menu.path == path)
+        if only_not_deleted:
+            stmt = stmt.where(Menu.is_deleted.is_(False))
+        if exclude_id is not None:
+            stmt = stmt.where(Menu.id != exclude_id)
+        return (await db.execute(stmt)).scalar_one() > 0
+
     @staticmethod
     def _apply_keyword_filter(stmt, *, keyword: str | None):
         kw = CRUDBase._normalize_keyword(keyword)

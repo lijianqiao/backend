@@ -22,6 +22,7 @@ from app.core.exception_handlers import register_exception_handlers
 from app.core.logger import logger, setup_logging
 from app.core.metrics import metrics_endpoint
 from app.core.middleware import RequestLogMiddleware
+from app.core.permissions import validate_no_magic_permission_strings
 from app.core.rate_limiter import limiter
 from app.subscribers.log_subscriber import register_log_subscribers
 
@@ -36,6 +37,9 @@ async def lifespan(app: FastAPI):
 
     # 初始化 Redis
     await init_redis()
+
+    # 启动期校验：禁止权限码魔法字符串
+    validate_no_magic_permission_strings()
 
     # 注册事件订阅者
     register_log_subscribers()

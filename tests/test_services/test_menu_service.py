@@ -11,6 +11,7 @@ import uuid
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.enums import MenuType
 from app.core.exceptions import NotFoundException
 
 # Import actual crud instance or mock
@@ -29,6 +30,7 @@ class TestMenuServiceCreate:
         menu_in = MenuCreate(
             title="Svc Menu",
             name="SvcMenu",
+            type=MenuType.CATALOG,
             parent_id=None,
             path=None,
             component=None,
@@ -51,6 +53,7 @@ class TestMenuServiceUpdate:
             obj_in=MenuCreate(
                 title="ToUp",
                 name="ToUp",
+                type=MenuType.CATALOG,
                 parent_id=None,
                 path=None,
                 component=None,
@@ -74,6 +77,7 @@ class TestMenuServiceDelete:
             obj_in=MenuCreate(
                 title="ToDel",
                 name="ToDel",
+                type=MenuType.CATALOG,
                 parent_id=None,
                 path=None,
                 component=None,

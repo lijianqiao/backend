@@ -11,6 +11,7 @@ from typing import Any
 from fastapi import APIRouter, Depends
 
 from app.api import deps
+from app.core.permissions import PermissionCode
 from app.schemas.common import PaginatedResponse, ResponseBase
 from app.schemas.log import LoginLogResponse, OperationLogResponse
 
@@ -21,7 +22,7 @@ router = APIRouter()
 async def read_login_logs(
     current_user: deps.CurrentUser,
     log_service: deps.LogServiceDep,
-    _: deps.User = Depends(deps.require_permissions(["log:login:list"])),
+    _: deps.User = Depends(deps.require_permissions([PermissionCode.LOG_LOGIN_LIST.value])),
     page: int = 1,
     page_size: int = 20,
     keyword: str | None = None,
@@ -49,7 +50,7 @@ async def read_login_logs(
 async def read_operation_logs(
     current_user: deps.CurrentUser,
     log_service: deps.LogServiceDep,
-    _: deps.User = Depends(deps.require_permissions(["log:operation:list"])),
+    _: deps.User = Depends(deps.require_permissions([PermissionCode.LOG_OPERATION_LIST.value])),
     page: int = 1,
     page_size: int = 20,
     keyword: str | None = None,
