@@ -10,10 +10,12 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.core.enums import MenuType
 from app.schemas.common import TimestampSchema
 
 
 class MenuBase(BaseModel):
+    type: MenuType = Field(MenuType.MENU, description="菜单类型（目录/菜单/权限点）")
     parent_id: UUID | None = Field(None, description="父菜单ID")
     path: str | None = Field(None, description="路由路径")
     component: str | None = Field(None, description="组件路径")
@@ -39,6 +41,7 @@ class MenuUpdate(BaseModel):
 
     title: str | None = None
     name: str | None = None
+    type: MenuType | None = None
     parent_id: UUID | None = None
     path: str | None = None
     component: str | None = None

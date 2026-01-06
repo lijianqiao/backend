@@ -19,6 +19,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.db import AsyncSessionLocal, engine
+from app.core.enums import MenuType
 from app.crud.crud_menu import menu as menu_crud
 from app.crud.crud_role import role as role_crud
 from app.crud.crud_user import user as user_crud
@@ -84,6 +85,14 @@ def _to_none_if_empty(value: str | None) -> str | None:
     return v if v else None
 
 
+def _infer_menu_type(*, permission: str | None, component: str | None) -> MenuType:
+    if permission:
+        return MenuType.PERMISSION
+    if component == "Layout":
+        return MenuType.CATALOG
+    return MenuType.MENU
+
+
 async def _get_menu_by_name(db: AsyncSession, *, name: str) -> Menu | None:
     result = await db.execute(select(Menu).where(Menu.name == name))
     return result.scalars().first()
@@ -135,6 +144,14 @@ async def init_rbac(db: AsyncSession) -> None:
         permission = _to_none_if_empty(m.get("permission"))
         sort = int(m.get("sort", 0))
         is_hidden = bool(m.get("is_hidden", False))
+        type_raw = _to_none_if_empty(m.get("type"))
+        if type_raw:
+            try:
+                menu_type = MenuType(str(type_raw))
+            except ValueError as e:
+                raise ValueError(f"菜单 type 非法: key={key}, type={type_raw}") from e
+        else:
+            menu_type = _infer_menu_type(permission=permission, component=component)
 
         existing = await _get_menu_by_name(db, name=name)
         if existing:
@@ -144,6 +161,7 @@ async def init_rbac(db: AsyncSession) -> None:
             existing.component = component
             existing.icon = icon
             existing.sort = sort
+            existing.type = menu_type
             existing.is_hidden = is_hidden
             existing.permission = permission
             existing.is_deleted = False
@@ -160,6 +178,7 @@ async def init_rbac(db: AsyncSession) -> None:
                     component=component,
                     icon=icon,
                     sort=sort,
+                    type=menu_type,
                     is_hidden=is_hidden,
                     permission=permission,
                 ),

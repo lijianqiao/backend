@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.cache import invalidate_user_permissions_cache
 from app.core.decorator import transactional
+from app.core.enums import MenuType
 from app.core.exceptions import NotFoundException
 from app.crud.crud_menu import CRUDMenu
 from app.models.rbac import Menu
@@ -45,6 +46,7 @@ class MenuService:
             id=menu.id,
             title=menu.title,
             name=menu.name,
+            type=menu.type,
             parent_id=menu.parent_id,
             path=menu.path,
             component=menu.component,
@@ -53,6 +55,7 @@ class MenuService:
             is_hidden=menu.is_hidden,
             permission=menu.permission,
             is_deleted=menu.is_deleted,
+            is_active=menu.is_active,
             created_at=menu.created_at,
             updated_at=menu.updated_at,
             children=children,
@@ -74,6 +77,7 @@ class MenuService:
                 id=m.id,
                 title=m.title,
                 name=m.name,
+                type=m.type,
                 parent_id=m.parent_id,
                 path=m.path,
                 component=m.component,
@@ -82,6 +86,7 @@ class MenuService:
                 is_hidden=m.is_hidden,
                 permission=m.permission,
                 is_deleted=m.is_deleted,
+                is_active=m.is_active,
                 created_at=m.created_at,
                 updated_at=m.updated_at,
                 children=[],
@@ -150,7 +155,7 @@ class MenuService:
             allowed = self_allowed or any_child_allowed
 
             # 不输出隐藏菜单（权限点），但它们会影响父级 allowed
-            if menu.is_hidden:
+            if menu.type == MenuType.PERMISSION or menu.is_hidden:
                 return allowed, None
 
             # 对于 permission 为空的“分组/页面菜单”，仅当自己有权限或有可见子菜单时才展示
@@ -161,6 +166,7 @@ class MenuService:
                 id=menu.id,
                 title=menu.title,
                 name=menu.name,
+                type=menu.type,
                 parent_id=menu.parent_id,
                 path=menu.path,
                 component=menu.component,
@@ -169,6 +175,7 @@ class MenuService:
                 is_hidden=menu.is_hidden,
                 permission=menu.permission,
                 is_deleted=menu.is_deleted,
+                is_active=menu.is_active,
                 created_at=menu.created_at,
                 updated_at=menu.updated_at,
                 children=visible_children,
@@ -191,6 +198,7 @@ class MenuService:
         keyword: str | None = None,
         is_active: bool | None = None,
         is_hidden: bool | None = None,
+        type: MenuType | None = None,
     ) -> tuple[list[MenuResponse], int]:
         """
         获取分页菜单列表。
@@ -202,6 +210,7 @@ class MenuService:
             keyword=keyword,
             is_active=is_active,
             is_hidden=is_hidden,
+            type=type,
         )
         return [self._to_menu_response(m, children=[]) for m in menus], total
 
@@ -213,6 +222,7 @@ class MenuService:
         keyword: str | None = None,
         is_active: bool | None = None,
         is_hidden: bool | None = None,
+        type: MenuType | None = None,
     ) -> tuple[list[MenuResponse], int]:
         """
         获取已删除菜单列表 (回收站 - 分页)。
@@ -224,6 +234,7 @@ class MenuService:
             keyword=keyword,
             is_active=is_active,
             is_hidden=is_hidden,
+            type=type,
         )
         return [self._to_menu_response(m, children=[]) for m in menus], total
 
@@ -265,6 +276,7 @@ class MenuService:
             title=deleted_menu.title,
             name=deleted_menu.name,
             sort=deleted_menu.sort,
+            type=deleted_menu.type,
             parent_id=deleted_menu.parent_id,
             path=deleted_menu.path,
             component=deleted_menu.component,
@@ -272,6 +284,7 @@ class MenuService:
             is_hidden=deleted_menu.is_hidden,
             permission=deleted_menu.permission,
             is_deleted=deleted_menu.is_deleted,
+            is_active=deleted_menu.is_active,
             created_at=deleted_menu.created_at,
             updated_at=deleted_menu.updated_at,
             children=[],

@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING, Optional
 from sqlalchemy import Boolean, ForeignKey, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from app.core.enums import MenuType
 from app.models.base import AuditableModel
 
 if TYPE_CHECKING:
@@ -53,6 +54,7 @@ class Menu(AuditableModel):
     component: Mapped[str | None] = mapped_column(String(255), nullable=True, comment="前端组件路径")
     icon: Mapped[str | None] = mapped_column(String(100), nullable=True, comment="菜单图标")
     sort: Mapped[int] = mapped_column(Integer, default=0, comment="排序")
+    type: Mapped[MenuType] = mapped_column(String(20), default=MenuType.MENU, nullable=False, comment="菜单类型")
     is_hidden: Mapped[bool] = mapped_column(Boolean, default=False, comment="是否隐藏")
     permission: Mapped[str | None] = mapped_column(String(100), nullable=True, comment="权限标识 (如 user:list)")
 

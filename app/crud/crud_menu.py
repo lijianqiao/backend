@@ -10,6 +10,7 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.core.enums import MenuType
 from app.crud.base import CRUDBase
 from app.models.rbac import Menu, RoleMenu, UserRole
 from app.schemas.menu import MenuCreate, MenuUpdate
@@ -129,6 +130,7 @@ class CRUDMenu(CRUDBase[Menu, MenuCreate, MenuUpdate]):
         keyword: str | None = None,
         is_active: bool | None = None,
         is_hidden: bool | None = None,
+        type: MenuType | None = None,
     ) -> tuple[list[Menu], int]:
         if page < 1:
             page = 1
@@ -142,6 +144,8 @@ class CRUDMenu(CRUDBase[Menu, MenuCreate, MenuUpdate]):
             count_stmt = count_stmt.where(Menu.is_active.is_(is_active))
         if is_hidden is not None:
             count_stmt = count_stmt.where(Menu.is_hidden.is_(is_hidden))
+        if type is not None:
+            count_stmt = count_stmt.where(Menu.type == type)
         count_stmt = self._apply_keyword_filter(count_stmt, keyword=keyword)
         total = (await db.execute(count_stmt)).scalar_one()
         stmt = (
@@ -156,6 +160,8 @@ class CRUDMenu(CRUDBase[Menu, MenuCreate, MenuUpdate]):
             stmt = stmt.where(Menu.is_active.is_(is_active))
         if is_hidden is not None:
             stmt = stmt.where(Menu.is_hidden.is_(is_hidden))
+        if type is not None:
+            stmt = stmt.where(Menu.type == type)
         stmt = self._apply_keyword_filter(stmt, keyword=keyword)
         result = await db.execute(stmt)
         return list(result.scalars().all()), total
@@ -176,6 +182,7 @@ class CRUDMenu(CRUDBase[Menu, MenuCreate, MenuUpdate]):
         keyword: str | None = None,
         is_active: bool | None = None,
         is_hidden: bool | None = None,
+        type: MenuType | None = None,
     ) -> tuple[list[Menu], int]:
         """
         获取已删除菜单列表 (分页)。
@@ -192,6 +199,8 @@ class CRUDMenu(CRUDBase[Menu, MenuCreate, MenuUpdate]):
             count_stmt = count_stmt.where(Menu.is_active.is_(is_active))
         if is_hidden is not None:
             count_stmt = count_stmt.where(Menu.is_hidden.is_(is_hidden))
+        if type is not None:
+            count_stmt = count_stmt.where(Menu.type == type)
         count_stmt = self._apply_keyword_filter(count_stmt, keyword=keyword)
         total = (await db.execute(count_stmt)).scalar_one()
         stmt = (
@@ -206,6 +215,8 @@ class CRUDMenu(CRUDBase[Menu, MenuCreate, MenuUpdate]):
             stmt = stmt.where(Menu.is_active.is_(is_active))
         if is_hidden is not None:
             stmt = stmt.where(Menu.is_hidden.is_(is_hidden))
+        if type is not None:
+            stmt = stmt.where(Menu.type == type)
         stmt = self._apply_keyword_filter(stmt, keyword=keyword)
         result = await db.execute(stmt)
         return list(result.scalars().all()), total

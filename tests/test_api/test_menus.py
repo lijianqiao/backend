@@ -13,6 +13,7 @@ from sqlalchemy import update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
+from app.core.enums import MenuType
 from app.crud.crud_menu import menu as menu_crud
 from app.crud.crud_role import role as role_crud
 from app.models.rbac import Menu, UserRole
@@ -187,6 +188,49 @@ class TestMenusRead:
         visible_ids = {item["id"] for item in items_visible}
         assert visible_id in visible_ids
         assert hidden_id not in visible_ids
+
+    async def test_create_menu_with_type(self, client: AsyncClient, auth_headers: dict):
+        """测试菜单 type 字段可写入且能在响应中返回。"""
+
+        resp = await client.post(
+            f"{settings.API_V1_STR}/menus/",
+            headers=auth_headers,
+            json={
+                "title": "Catalog Menu",
+                "name": "CatalogMenu",
+                "path": "/catalog-menu",
+                "sort": 40,
+                "type": MenuType.CATALOG.value,
+            },
+        )
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["code"] == 200
+        assert body["data"]["type"] == MenuType.CATALOG.value
+
+        menu_id = body["data"]["id"]
+        resp_list = await client.get(
+            f"{settings.API_V1_STR}/menus/",
+            headers=auth_headers,
+            params={"page": 1, "page_size": 50},
+        )
+        assert resp_list.status_code == 200
+        items = resp_list.json()["data"]["items"]
+        found = [it for it in items if it["id"] == menu_id]
+        assert found
+        assert found[0]["type"] == MenuType.CATALOG.value
+
+        resp_list_catalog = await client.get(
+            f"{settings.API_V1_STR}/menus/",
+            headers=auth_headers,
+            params={"page": 1, "page_size": 50, "type": MenuType.CATALOG.value},
+        )
+        assert resp_list_catalog.status_code == 200
+        items_catalog = resp_list_catalog.json()["data"]["items"]
+        assert items_catalog
+        assert all(it["type"] == MenuType.CATALOG.value for it in items_catalog)
+        catalog_ids = {it["id"] for it in items_catalog}
+        assert menu_id in catalog_ids
 
 
 class TestMenusMe:

@@ -386,6 +386,7 @@ Args:
     keyword (str | None, optional): 关键词过滤. Defaults to None.
     is_active (bool | None, optional): 是否启用过滤. Defaults to None.
     is_hidden (bool | None, optional): 是否隐藏过滤. Defaults to None.
+    type (MenuType | None, optional): 菜单类型过滤. Defaults to None.
 
 Returns:
     ResponseBase[PaginatedResponse[MenuResponse]]: 分页后的菜单列表。
@@ -399,6 +400,7 @@ Returns:
 | `keyword`   | `query` | `string`  | 否   | Keyword   |         |
 | `is_active` | `query` | `string`  | 否   | Is Active |         |
 | `is_hidden` | `query` | `string`  | 否   | Is Hidden |         |
+| `type`      | `query` | `string`  | 否   | Type      |         |
 
 #### Responses
 
@@ -444,17 +446,18 @@ Returns:
 
 #### Request Body (application/json)
 
-| 参数名       | 类型      | 必填 | 描述     |
-| :----------- | :-------- | :--- | :------- |
-| `parent_id`  | `string`  | 否   | 父菜单ID |
-| `path`       | `string`  | 否   | 路由路径 |
-| `component`  | `string`  | 否   | 组件路径 |
-| `icon`       | `string`  | 否   | 图标     |
-| `sort`       | `integer` | 否   | 排序     |
-| `is_hidden`  | `boolean` | 否   | 是否隐藏 |
-| `permission` | `string`  | 否   | 权限标识 |
-| `title`      | `string`  | 是   | 菜单标题 |
-| `name`       | `string`  | 是   | 组件名称 |
+| 参数名       | 类型       | 必填 | 描述                         |
+| :----------- | :--------- | :--- | :--------------------------- |
+| `type`       | `MenuType` | 否   | 菜单类型（目录/菜单/权限点） |
+| `parent_id`  | `string`   | 否   | 父菜单ID                     |
+| `path`       | `string`   | 否   | 路由路径                     |
+| `component`  | `string`   | 否   | 组件路径                     |
+| `icon`       | `string`   | 否   | 图标                         |
+| `sort`       | `integer`  | 否   | 排序                         |
+| `is_hidden`  | `boolean`  | 否   | 是否隐藏                     |
+| `permission` | `string`   | 否   | 权限标识                     |
+| `title`      | `string`   | 是   | 菜单标题                     |
+| `name`       | `string`   | 是   | 组件名称                     |
 
 #### Responses
 
@@ -556,17 +559,19 @@ Returns:
 
 #### Request Body (application/json)
 
-| 参数名       | 类型      | 必填 | 描述       |
-| :----------- | :-------- | :--- | :--------- |
-| `title`      | `string`  | 否   | Title      |
-| `name`       | `string`  | 否   | Name       |
-| `parent_id`  | `string`  | 否   | Parent Id  |
-| `path`       | `string`  | 否   | Path       |
-| `component`  | `string`  | 否   | Component  |
-| `icon`       | `string`  | 否   | Icon       |
-| `sort`       | `integer` | 否   | Sort       |
-| `is_hidden`  | `boolean` | 否   | Is Hidden  |
-| `permission` | `string`  | 否   | Permission |
+| 参数名       | 类型       | 必填 | 描述       |
+| :----------- | :--------- | :--- | :--------- |
+| `title`      | `string`   | 否   | Title      |
+| `name`       | `string`   | 否   | Name       |
+| `type`       | `MenuType` | 否   |            |
+| `parent_id`  | `string`   | 否   | Parent Id  |
+| `path`       | `string`   | 否   | Path       |
+| `component`  | `string`   | 否   | Component  |
+| `icon`       | `string`   | 否   | Icon       |
+| `sort`       | `integer`  | 否   | Sort       |
+| `is_hidden`  | `boolean`  | 否   | Is Hidden  |
+| `is_active`  | `boolean`  | 否   | Is Active  |
+| `permission` | `string`   | 否   | Permission |
 
 #### Responses
 
@@ -658,6 +663,7 @@ Args:
     keyword (str | None, optional): 关键词过滤. Defaults to None.
     is_active (bool | None, optional): 是否启用过滤. Defaults to None.
     is_hidden (bool | None, optional): 是否隐藏过滤. Defaults to None.
+    type (MenuType | None, optional): 菜单类型过滤. Defaults to None.
 
 Returns:
     ResponseBase[PaginatedResponse[MenuResponse]]: 分页后的回收站菜单列表。
@@ -675,6 +681,7 @@ Raises:
 | `keyword`   | `query` | `string`  | 否   | Keyword   |         |
 | `is_active` | `query` | `string`  | 否   | Is Active |         |
 | `is_hidden` | `query` | `string`  | 否   | Is Hidden |         |
+| `type`      | `query` | `string`  | 否   | Type      |         |
 
 #### Responses
 
@@ -945,6 +952,7 @@ Returns:
 | `code`        | `string`  | 否   | 角色编码       |
 | `description` | `string`  | 否   | 描述           |
 | `sort`        | `integer` | 否   | 排序           |
+| `is_active`   | `boolean` | 否   | 是否激活       |
 | `menu_ids`    | `array`   | 否   | 关联菜单ID列表 |
 
 #### Responses

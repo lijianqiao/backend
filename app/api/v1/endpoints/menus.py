@@ -12,6 +12,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends
 
 from app.api import deps
+from app.core.enums import MenuType
 from app.schemas.common import BatchDeleteRequest, BatchOperationResult, PaginatedResponse, ResponseBase
 from app.schemas.menu import MenuCreate, MenuResponse, MenuUpdate
 
@@ -79,6 +80,7 @@ async def read_menus(
     keyword: str | None = None,
     is_active: bool | None = None,
     is_hidden: bool | None = None,
+    type: MenuType | None = None,
 ) -> Any:
     """
     获取菜单列表 (分页)。
@@ -93,6 +95,7 @@ async def read_menus(
         keyword (str | None, optional): 关键词过滤. Defaults to None.
         is_active (bool | None, optional): 是否启用过滤. Defaults to None.
         is_hidden (bool | None, optional): 是否隐藏过滤. Defaults to None.
+        type (MenuType | None, optional): 菜单类型过滤. Defaults to None.
 
     Returns:
         ResponseBase[PaginatedResponse[MenuResponse]]: 分页后的菜单列表。
@@ -103,6 +106,7 @@ async def read_menus(
         keyword=keyword,
         is_active=is_active,
         is_hidden=is_hidden,
+        type=type,
     )
     return ResponseBase(data=PaginatedResponse(total=total, page=page, page_size=page_size, items=menus))
 
@@ -201,6 +205,7 @@ async def get_recycle_bin(
     keyword: str | None = None,
     is_active: bool | None = None,
     is_hidden: bool | None = None,
+    type: MenuType | None = None,
 ) -> Any:
     """
     获取已删除的菜单列表 (回收站)。
@@ -215,6 +220,7 @@ async def get_recycle_bin(
         keyword (str | None, optional): 关键词过滤. Defaults to None.
         is_active (bool | None, optional): 是否启用过滤. Defaults to None.
         is_hidden (bool | None, optional): 是否隐藏过滤. Defaults to None.
+        type (MenuType | None, optional): 菜单类型过滤. Defaults to None.
 
     Returns:
         ResponseBase[PaginatedResponse[MenuResponse]]: 分页后的回收站菜单列表。
@@ -229,6 +235,7 @@ async def get_recycle_bin(
         keyword=keyword,
         is_active=is_active,
         is_hidden=is_hidden,
+        type=type,
     )
     return ResponseBase(data=PaginatedResponse(total=total, page=page, page_size=page_size, items=menus))
 
