@@ -6,8 +6,6 @@
 @Docs: core.decorator 与 core.event_bus 覆盖率补充测试.
 """
 
-from __future__ import annotations
-
 import asyncio
 
 import pytest

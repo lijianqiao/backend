@@ -6,8 +6,6 @@
 @Docs: 日志订阅者单元测试.
 """
 
-from __future__ import annotations
-
 import pytest
 
 import app.subscribers.log_subscriber as subscriber

@@ -10,8 +10,6 @@
 - 以 refresh 会话为主：登录/刷新时 touch；注销/强制下线时 remove。
 """
 
-from __future__ import annotations
-
 import asyncio
 import json
 import time

@@ -10,8 +10,6 @@
 - 优先使用 Redis 以支持多进程/多实例；若 Redis 不可用则降级为进程内内存存储（仅适合本地/测试）。
 """
 
-from __future__ import annotations
-
 import asyncio
 import time
 from collections.abc import Iterable

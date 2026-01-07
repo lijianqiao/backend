@@ -6,8 +6,6 @@
 @Docs: AuthService.refresh_token 额外异常分支覆盖测试.
 """
 
-from __future__ import annotations
-
 import uuid
 from typing import Any, cast
 
