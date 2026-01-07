@@ -12,6 +12,19 @@ icon_set = "ionicons5"
 # type 枚举：CATALOG（目录/分组）、MENU（页面菜单）、PERMISSION（权限点/按钮/API）。
 
 [[menus]]
+key = "dashboard"
+title = "仪表盘"
+name = "Dashboard"
+path = "/dashboard"
+component = ""
+icon = "HomeOutline"
+sort = 10
+type = "MENU"
+is_hidden = false
+permission = ""
+parent_key = ""
+
+[[menus]]
 key = "system"
 title = "系统管理"
 name = "System"

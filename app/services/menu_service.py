@@ -184,6 +184,9 @@ class MenuService:
             children.sort(key=lambda x: x.sort)
 
         def _is_allowed_by_permission(menu: Menu) -> bool:
+            # 仪表盘：所有已登录用户都可见（不依赖任何角色/权限）
+            if menu.path == "/dashboard":
+                return True
             if "*" in allowed_permissions:
                 return True
             if menu.permission:
