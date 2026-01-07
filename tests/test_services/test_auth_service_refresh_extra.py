@@ -43,7 +43,11 @@ def _make_auth_service(user: object | None = None) -> AuthService:
 async def test_refresh_token_type_error(monkeypatch: pytest.MonkeyPatch) -> None:
     from app.services import auth_service as mod
 
-    monkeypatch.setattr(mod.jwt, "decode", lambda *args, **kwargs: {"type": "access", "sub": str(uuid.uuid4())})
+    monkeypatch.setattr(
+        mod.jwt,
+        "decode",
+        lambda *args, **kwargs: {"type": "access", "sub": str(uuid.uuid4()), "iss": "admin-rbac-backend", "jti": "x"},
+    )
 
     svc = _make_auth_service()
 
@@ -57,7 +61,9 @@ async def test_refresh_token_type_error(monkeypatch: pytest.MonkeyPatch) -> None
 async def test_refresh_token_missing_sub(monkeypatch: pytest.MonkeyPatch) -> None:
     from app.services import auth_service as mod
 
-    monkeypatch.setattr(mod.jwt, "decode", lambda *args, **kwargs: {"type": "refresh"})
+    monkeypatch.setattr(
+        mod.jwt, "decode", lambda *args, **kwargs: {"type": "refresh", "iss": "admin-rbac-backend", "jti": "x"}
+    )
 
     svc = _make_auth_service()
 
@@ -92,7 +98,11 @@ async def test_refresh_token_invalid_token(monkeypatch: pytest.MonkeyPatch) -> N
 async def test_refresh_token_invalid_uuid(monkeypatch: pytest.MonkeyPatch) -> None:
     from app.services import auth_service as mod
 
-    monkeypatch.setattr(mod.jwt, "decode", lambda *args, **kwargs: {"type": "refresh", "sub": "not-uuid"})
+    monkeypatch.setattr(
+        mod.jwt,
+        "decode",
+        lambda *args, **kwargs: {"type": "refresh", "sub": "not-uuid", "iss": "admin-rbac-backend", "jti": "x"},
+    )
 
     svc = _make_auth_service()
 
@@ -107,7 +117,11 @@ async def test_refresh_token_user_missing_or_inactive(monkeypatch: pytest.Monkey
     from app.services import auth_service as mod
 
     uid = uuid.uuid4()
-    monkeypatch.setattr(mod.jwt, "decode", lambda *args, **kwargs: {"type": "refresh", "sub": str(uid)})
+    monkeypatch.setattr(
+        mod.jwt,
+        "decode",
+        lambda *args, **kwargs: {"type": "refresh", "sub": str(uid), "iss": "admin-rbac-backend", "jti": "x"},
+    )
 
     # 用户不存在
     svc = _make_auth_service(None)
@@ -127,12 +141,32 @@ async def test_refresh_token_success(monkeypatch: pytest.MonkeyPatch) -> None:
     from app.services import auth_service as mod
 
     uid = uuid.uuid4()
-    monkeypatch.setattr(mod.jwt, "decode", lambda *args, **kwargs: {"type": "refresh", "sub": str(uid)})
+    # 第一次 decode 用于校验传入 refresh；第二次 decode 用于解析新签发的 refresh
+    decoded_payloads = [
+        {"type": "refresh", "sub": str(uid), "iss": "admin-rbac-backend", "jti": "old"},
+        {"type": "refresh", "sub": str(uid), "iss": "admin-rbac-backend", "jti": "new"},
+    ]
+
+    def _decode(*args, **kwargs):
+        return decoded_payloads.pop(0)
+
+    monkeypatch.setattr(mod.jwt, "decode", _decode)
     monkeypatch.setattr(mod.security, "create_access_token", lambda *args, **kwargs: "new_access")
+    monkeypatch.setattr(mod.security, "create_refresh_token", lambda *args, **kwargs: "new_refresh")
+
+    # 让 store 校验通过（模拟“当前 refresh jti == old”）
+    async def _get_user_refresh_jti(*args, **kwargs):
+        return "old"
+
+    async def _set_user_refresh_jti(*args, **kwargs):
+        return None
+
+    monkeypatch.setattr(mod, "get_user_refresh_jti", _get_user_refresh_jti)
+    monkeypatch.setattr(mod, "set_user_refresh_jti", _set_user_refresh_jti)
 
     svc = _make_auth_service(DummyUser(uid, is_active=True))
     token = await svc.refresh_token("refresh_x")
 
     assert token.access_token == "new_access"
-    assert token.refresh_token == "refresh_x"
+    assert token.refresh_token == "new_refresh"
     assert token.token_type == "bearer"

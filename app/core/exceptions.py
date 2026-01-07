@@ -56,10 +56,15 @@ class BadRequestException(CustomException):
         super().__init__(code=400, message=message)
 
 
-class ValidationError(CustomException):
-    """
-    数据验证错误 (422).
+class DomainValidationException(CustomException):
+    """领域数据验证错误 (422).
+
+    说明：避免与 pydantic.ValidationError 同名造成混淆。
     """
 
     def __init__(self, message: str = "Validation Error", details: Any = None):
         super().__init__(code=422, message=message, details=details)
+
+
+# 向后兼容：旧代码可能仍引用 ValidationError（不推荐继续使用）。
+ValidationError = DomainValidationException

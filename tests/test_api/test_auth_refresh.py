@@ -45,10 +45,20 @@ class TestAuthRefresh:
         assert "access_token" in data
         assert "refresh_token" in data
 
+        # Refresh Token Rotation：refresh 应该被轮换
+        assert data["refresh_token"] != refresh_token
+
         # New access token should be different (validity renewed)
         # Note: In strict equality check, if generated in same second it might be same content if no jti/randomness.
         # But create_access_token typically includes exp which differs by seconds.
         assert data["access_token"] != old_access_token
+
+        # 3. Old refresh token should be invalid now
+        response2 = await client.post(
+            f"{settings.API_V1_STR}/auth/refresh",
+            json={"refresh_token": refresh_token},
+        )
+        assert response2.status_code == 401
 
     async def test_refresh_token_invalid(self, client: AsyncClient):
         response = await client.post(

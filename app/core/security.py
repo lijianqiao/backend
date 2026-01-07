@@ -8,6 +8,7 @@
 
 from datetime import UTC, datetime, timedelta
 from typing import Any
+from uuid import uuid4
 
 import jwt
 from pwdlib import PasswordHash
@@ -31,8 +32,16 @@ def create_access_token(subject: str | Any, expires_delta: timedelta | None = No
     else:
         expire = datetime.now(UTC) + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
 
-    to_encode = {"exp": expire, "sub": str(subject), "type": "access"}
-    encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, algorithm="HS256")
+    now = datetime.now(UTC)
+    to_encode = {
+        "exp": expire,
+        "iat": now,
+        "iss": settings.JWT_ISSUER,
+        "jti": uuid4().hex,
+        "sub": str(subject),
+        "type": "access",
+    }
+    encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.JWT_ALGORITHM)
     return encoded_jwt
 
 
@@ -42,6 +51,14 @@ def create_refresh_token(subject: str | Any, expires_delta: timedelta | None = N
     else:
         expire = datetime.now(UTC) + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
 
-    to_encode = {"exp": expire, "sub": str(subject), "type": "refresh"}
-    encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, algorithm="HS256")
+    now = datetime.now(UTC)
+    to_encode = {
+        "exp": expire,
+        "iat": now,
+        "iss": settings.JWT_ISSUER,
+        "jti": uuid4().hex,
+        "sub": str(subject),
+        "type": "refresh",
+    }
+    encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.JWT_ALGORITHM)
     return encoded_jwt

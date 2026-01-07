@@ -23,7 +23,7 @@
 
 ## 🛠️ 技术栈
 
-*   **Python**: 3.12+
+*   **Python**: 3.13+
 *   **Web Framework**: FastAPI
 *   **Database**: PostgreSQL + SQLAlchemy (Async) + Alembic (Migrations)
 *   **Schema**: Pydantic v2

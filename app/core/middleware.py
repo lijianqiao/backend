@@ -8,6 +8,7 @@
 """
 
 import json
+import re
 import time
 from typing import Any
 
@@ -108,13 +109,13 @@ class RequestLogMiddleware:
 
         # Prometheus 指标
         try:
-            if path not in ("/metrics", "/health"):
-                record_request_metrics(method, path, status_code, process_time)
+            if not _is_probe_path(path):
+                record_request_metrics(method, _metrics_endpoint(scope, path), status_code, process_time)
         except Exception:
             pass
 
         # 记录请求完成日志 (File Log)
-        if path != "/health":
+        if not _is_probe_path(path):
             access_logger.info(
                 "API 访问",
                 http_method=method,
@@ -167,6 +168,40 @@ class RequestLogMiddleware:
 _MAX_CAPTURE_BYTES = 20_000
 
 
+def _is_probe_path(path: str) -> bool:
+    return path in ("/metrics", "/health", "/api/v1/health")
+
+
+_UUID_RE = re.compile(r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$")
+_INT_RE = re.compile(r"^\d+$")
+
+
+def _metrics_endpoint(scope: dict[str, Any], path: str) -> str:
+    """用于 Prometheus 的 endpoint label。
+
+    优先使用路由模板（/users/{id}），否则做简单归一化。
+    """
+
+    try:
+        route = scope.get("route")
+        if route is not None:
+            route_path = getattr(route, "path", None)
+            if isinstance(route_path, str) and route_path:
+                return route_path
+    except Exception:
+        pass
+
+    parts = [p for p in path.split("/") if p]
+    normalized: list[str] = []
+    for p in parts:
+        if _UUID_RE.match(p) or _INT_RE.match(p):
+            normalized.append("{id}")
+        else:
+            normalized.append(p)
+
+    return "/" + "/".join(normalized)
+
+
 def _get_state_value(state: Any, key: str) -> Any | None:
     if state is None:
         return None
@@ -190,6 +225,71 @@ def _safe_json_loads(raw: bytes) -> Any | None:
         return json.loads(text)
     except Exception:
         return None
+
+
+_SENSITIVE_KEYS = {
+    "password",
+    "old_password",
+    "new_password",
+    "token",
+    "access_token",
+    "refresh_token",
+    "authorization",
+    "phone",
+    "mobile",
+    "email",
+}
+
+
+def _mask_string_value(key: str, value: str) -> str:
+    k = key.lower()
+    if "password" in k or "token" in k or k == "authorization":
+        return "***"
+
+    if k in ("phone", "mobile"):
+        # +8613800138000 -> +86138****8000
+        if len(value) <= 7:
+            return "***"
+        return value[:5] + "****" + value[-4:]
+
+    if k == "email":
+        # a***@xx.com
+        if "@" not in value:
+            return "***"
+        local, domain = value.split("@", 1)
+        if not local:
+            return "***@" + domain
+        return local[:1] + "***@" + domain
+
+    return "***"
+
+
+def _mask_sensitive_data(obj: Any) -> Any:
+    """递归脱敏 JSON 数据。
+
+    目标：尽量不改变结构，只替换敏感值。
+    """
+
+    if isinstance(obj, dict):
+        masked: dict[str, Any] = {}
+        for k, v in obj.items():
+            key = str(k)
+            low = key.lower()
+            if low in _SENSITIVE_KEYS or any(x in low for x in ("password", "token")):
+                if v is None:
+                    masked[key] = None
+                elif isinstance(v, str):
+                    masked[key] = _mask_string_value(low, v)
+                else:
+                    masked[key] = "***"
+            else:
+                masked[key] = _mask_sensitive_data(v)
+        return masked
+
+    if isinstance(obj, list):
+        return [_mask_sensitive_data(x) for x in obj]
+
+    return obj
 
 
 def _build_request_params_asgi(
@@ -225,7 +325,7 @@ def _build_request_params_asgi(
             elif request_body:
                 if "application/json" in request_content_type:
                     parsed = _safe_json_loads(request_body)
-                    data["body"] = parsed if parsed is not None else {"_unparsed": True}
+                    data["body"] = _mask_sensitive_data(parsed) if parsed is not None else {"_unparsed": True}
                 else:
                     data["body"] = {"_non_json": True}
 
@@ -257,7 +357,7 @@ def _build_response_result_asgi(
         return None
 
     parsed = _safe_json_loads(response_body)
-    return parsed if parsed is not None else {"_unparsed": True}
+    return _mask_sensitive_data(parsed) if parsed is not None else {"_unparsed": True}
 
 
 def _build_full_url(scope: dict[str, Any], query_string: str) -> str:

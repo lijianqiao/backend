@@ -73,7 +73,13 @@ async def get_current_user(request: Request, session: SessionDep, token: TokenDe
     解析 Token 并获取当前登录用户。
     """
     try:
-        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=["HS256"])
+        payload = jwt.decode(
+            token,
+            settings.SECRET_KEY,
+            algorithms=[settings.JWT_ALGORITHM],
+            issuer=settings.JWT_ISSUER,
+            options={"require": ["exp", "sub", "type", "iss"]},
+        )
         token_data = TokenPayload(**payload)
     except (InvalidTokenError, ValidationError) as e:
         logger.error(f"Token 验证失败: {str(e)}", error=str(e))

@@ -148,6 +148,38 @@ Format: `application/json`
 
 ---
 
+### 用户退出登录
+
+**URL**: `/api/v1/auth/logout`
+
+**Method**: `POST`
+
+**Description**:
+
+退出登录。
+
+后端撤销当前用户的 refresh 会话（Refresh Token Rotation 场景下，撤销后 refresh 将不可再用于刷新）。
+Access Token 理论上仍可能在过期前短暂可用，但前端应立即清理并停止使用。
+Args:
+    current_user (User): 当前登录用户 (由依赖自动注入)。
+    auth_service (AuthService): 认证服务依赖。
+Returns:
+    ResponseBase[None]: 统一响应结构，data 为空。
+
+#### Responses
+
+**Status Code**: `200` - Successful Response
+
+Format: `application/json`
+
+| 参数名    | 类型      | 必填 | 描述    |
+| :-------- | :-------- | :--- | :------ |
+| `code`    | `integer` | 否   | Code    |
+| `message` | `string`  | 否   | Message |
+| `data`    | `null`    | 否   | Data    |
+
+---
+
 ## Dashboard
 
 ### 获取仪表盘统计

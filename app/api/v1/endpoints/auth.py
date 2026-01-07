@@ -88,3 +88,23 @@ async def test_token(current_user: deps.CurrentUser) -> ResponseBase[UserRespons
         ResponseBase[UserResponse]: 包含当前用户信息的统一响应结构。
     """
     return ResponseBase(data=UserResponse.model_validate(current_user))
+
+
+@router.post("/logout", response_model=ResponseBase[None], summary="用户退出登录")
+async def logout(
+    current_user: deps.CurrentUser,
+    auth_service: deps.AuthServiceDep,
+) -> ResponseBase[None]:
+    """退出登录。
+
+    后端撤销当前用户的 refresh 会话（Refresh Token Rotation 场景下，撤销后 refresh 将不可再用于刷新）。
+    Access Token 理论上仍可能在过期前短暂可用，但前端应立即清理并停止使用。
+    Args:
+        current_user (User): 当前登录用户 (由依赖自动注入)。
+        auth_service (AuthService): 认证服务依赖。
+    Returns:
+        ResponseBase[None]: 统一响应结构，data 为空。
+    """
+
+    await auth_service.logout(user_id=str(current_user.id))
+    return ResponseBase(data=None, message="退出登录成功")

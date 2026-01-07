@@ -8,6 +8,7 @@
 
 import uuid
 from datetime import timedelta
+from hashlib import sha256
 from typing import Any
 
 import jwt
@@ -18,6 +19,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core import security
 from app.core.config import settings
 from app.core.exceptions import CustomException, UnauthorizedException
+from app.core.token_store import get_user_refresh_jti, revoke_user_refresh, set_user_refresh_jti
 from app.crud.crud_user import CRUDUser
 from app.schemas.token import Token
 from app.services.log_service import LogService
@@ -71,6 +73,25 @@ class AuthService:
         access_token = security.create_access_token(subject=user.id, expires_delta=access_token_expires)
         refresh_token = security.create_refresh_token(subject=user.id)
 
+        # Refresh Token 单端有效：记录当前 refresh 的 jti
+        try:
+            payload = jwt.decode(
+                refresh_token,
+                settings.SECRET_KEY,
+                algorithms=[settings.JWT_ALGORITHM],
+                issuer=settings.JWT_ISSUER,
+                options={"require": ["exp", "sub", "type", "iss"]},
+            )
+            refresh_jti = payload.get("jti")
+            if not refresh_jti:
+                refresh_jti = sha256(refresh_token.encode("utf-8")).hexdigest()
+
+            ttl_seconds = int(settings.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 3600)
+            await set_user_refresh_jti(user_id=str(user.id), jti=str(refresh_jti), ttl_seconds=ttl_seconds)
+        except Exception:
+            # 不阻塞登录：存储失败时降级为“无服务端会话治理”，但 refresh 时会尽可能校验
+            pass
+
         # 记录成功日志 (异步)
         background_tasks.add_task(
             self.log_service.create_login_log,
@@ -88,14 +109,25 @@ class AuthService:
         刷新 Token。验证 Refresh Token 有效性并返回新的 Access Token。
         """
         try:
-            payload = jwt.decode(refresh_token, settings.SECRET_KEY, algorithms=["HS256"])
+            payload = jwt.decode(
+                refresh_token,
+                settings.SECRET_KEY,
+                algorithms=[settings.JWT_ALGORITHM],
+                issuer=settings.JWT_ISSUER,
+                options={"require": ["exp", "sub", "type", "iss"]},
+            )
             token_type = payload.get("type")
             if token_type != "refresh":
-                raise UnauthorizedException(message="无效的刷新令牌 (Token 类型错误)")
+                raise UnauthorizedException(message="无效的刷新令牌")
 
             user_id = payload.get("sub")
             if user_id is None:
-                raise UnauthorizedException(message="无效的刷新令牌 (缺少 sub)")
+                raise UnauthorizedException(message="无效的刷新令牌")
+
+            refresh_jti = payload.get("jti")
+            if not refresh_jti:
+                # 兼容旧 token（没有 jti）：用 token 内容派生一个稳定 id
+                refresh_jti = sha256(refresh_token.encode("utf-8")).hexdigest()
 
         except (InvalidTokenError, Exception) as e:
             raise UnauthorizedException(message="无效的刷新令牌") from e
@@ -110,14 +142,41 @@ class AuthService:
         if not user or not user.is_active:
             raise UnauthorizedException(message="用户不存在或已禁用")
 
+        # 校验 refresh 是否仍为“当前有效”的那一个
+        stored_jti = await get_user_refresh_jti(user_id=str(user.id))
+        if stored_jti is not None and str(stored_jti) != str(refresh_jti):
+            raise UnauthorizedException(message="无效的刷新令牌")
+
         # 签发新的 Token
         access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
         access_token = security.create_access_token(subject=user.id, expires_delta=access_token_expires)
 
-        # 也可以选择此时是否轮换 Refresh Token，这里简单起见只返回新的 Access，前端继续复用 Refresh
-        # 如果需要轮换，则生成新的 refresh_token 并返回
-        # 这里我们选择返回原来的 refresh_token (或者生成的新的，取决于策略，这里保持原样以支持 Refresh Token 长期有效)
-        # 为了安全，也可以在这里签发一个新的 refresh token，实现 Refresh Token Rotation
-        # 简单实现：返回新的 Access Token，Refresh Token 保持不变 (通过参数传入或重新包含在响应中)
+        # Refresh Token Rotation：每次刷新都签发新的 refresh，并覆盖存储，使旧 refresh 立即失效
+        new_refresh_token = security.create_refresh_token(subject=user.id)
+        try:
+            new_payload = jwt.decode(
+                new_refresh_token,
+                settings.SECRET_KEY,
+                algorithms=[settings.JWT_ALGORITHM],
+                issuer=settings.JWT_ISSUER,
+                options={"require": ["exp", "sub", "type", "iss"]},
+            )
+            new_jti = new_payload.get("jti")
+            if not new_jti:
+                new_jti = sha256(new_refresh_token.encode("utf-8")).hexdigest()
 
-        return Token(access_token=access_token, refresh_token=refresh_token, token_type="bearer")
+            ttl_seconds = int(settings.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 3600)
+            await set_user_refresh_jti(user_id=str(user.id), jti=str(new_jti), ttl_seconds=ttl_seconds)
+        except Exception:
+            # 存储失败时仍返回新 refresh；此时无法做到“单端有效”，但不会影响基本可用性
+            pass
+
+        return Token(access_token=access_token, refresh_token=new_refresh_token, token_type="bearer")
+
+    async def logout(self, *, user_id: str) -> None:
+        """注销：撤销当前用户 refresh。
+
+        说明：当前实现是“单端 refresh 会话”，撤销后该用户现有 refresh 将失效。
+        """
+
+        await revoke_user_refresh(user_id=user_id)

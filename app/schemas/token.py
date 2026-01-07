@@ -6,7 +6,7 @@
 @Docs: Token相关的 Schema 定义.
 """
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 
 class Token(BaseModel):
@@ -22,3 +22,9 @@ class TokenRefresh(BaseModel):
 class TokenPayload(BaseModel):
     sub: str | None = None
     type: str | None = None
+    iss: str | None = None
+    jti: str | None = None
+    iat: int | None = None
+    exp: int | None = None
+
+    model_config = ConfigDict(extra="ignore")

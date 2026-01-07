@@ -14,7 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.cache import invalidate_user_permissions_cache
 from app.core.decorator import transactional
 from app.core.enums import MenuType
-from app.core.exceptions import NotFoundException, ValidationError
+from app.core.exceptions import DomainValidationException, NotFoundException
 from app.core.permissions import PermissionCode
 from app.crud.crud_menu import CRUDMenu
 from app.models.rbac import Menu
@@ -83,32 +83,32 @@ class MenuService:
 
         # 允许的 path 形式：/system/users、/a-b/c_d 等（不允许空格）
         if normalized_path is not None and not re.fullmatch(r"/[A-Za-z0-9/_\-]*", normalized_path):
-            raise ValidationError(message="path 格式不正确，示例：/system/users")
+            raise DomainValidationException(message="path 格式不正确，示例：/system/users")
 
         if menu_type == MenuType.CATALOG:
             if normalized_path is not None:
-                raise ValidationError(message="CATALOG 类型不允许填写 path")
+                raise DomainValidationException(message="CATALOG 类型不允许填写 path")
             # 目录一般不绑定权限码；如确实需要，可后续再放开
             if permission is not None:
-                raise ValidationError(message="CATALOG 类型不允许填写 permission")
+                raise DomainValidationException(message="CATALOG 类型不允许填写 permission")
             return
 
         if menu_type == MenuType.MENU:
             # 兼容历史数据：MENU 的 path 允许为空；如果填写则要求格式正确且唯一
             if normalized_path is not None:
                 if await self.menu_crud.exists_path(self.db, path=normalized_path, exclude_id=menu_id):
-                    raise ValidationError(message="path 已存在，请更换")
+                    raise DomainValidationException(message="path 已存在，请更换")
             if permission is not None and not self._is_permission_code_registered(permission):
-                raise ValidationError(message="permission 未注册，请从权限字典选择")
+                raise DomainValidationException(message="permission 未注册，请从权限字典选择")
             return
 
         if menu_type == MenuType.PERMISSION:
             if normalized_path is not None:
-                raise ValidationError(message="PERMISSION 类型不允许填写 path")
+                raise DomainValidationException(message="PERMISSION 类型不允许填写 path")
             if not permission:
-                raise ValidationError(message="PERMISSION 类型必须填写 permission")
+                raise DomainValidationException(message="PERMISSION 类型必须填写 permission")
             if not self._is_permission_code_registered(permission):
-                raise ValidationError(message="permission 未注册，请从权限字典选择")
+                raise DomainValidationException(message="permission 未注册，请从权限字典选择")
             return
 
     async def get_menus(self) -> list[Menu]:

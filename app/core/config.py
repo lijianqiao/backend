@@ -33,6 +33,8 @@ class Settings(BaseSettings):
 
     # 安全
     SECRET_KEY: str = "changethis"
+    JWT_ALGORITHM: str = "HS256"
+    JWT_ISSUER: str = "admin-rbac-backend"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30  # 30 分钟
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7  # 7 天
     PASSWORD_COMPLEXITY_ENABLED: bool = True  # 开启后需要大小写+数字+特殊字符且>=8位
