@@ -14,7 +14,13 @@ from fastapi import APIRouter, Depends
 from app.api import deps
 from app.core.enums import MenuType
 from app.core.permissions import PermissionCode
-from app.schemas.common import BatchDeleteRequest, BatchOperationResult, PaginatedResponse, ResponseBase
+from app.schemas.common import (
+    BatchDeleteRequest,
+    BatchOperationResult,
+    BatchRestoreRequest,
+    PaginatedResponse,
+    ResponseBase,
+)
 from app.schemas.menu import MenuCreate, MenuResponse, MenuUpdate
 
 router = APIRouter()
@@ -264,6 +270,39 @@ async def delete_menu(
     """
     menu = await menu_service.delete_menu(id=id)
     return ResponseBase(data=menu)
+
+
+@router.post("/batch/restore", response_model=ResponseBase[BatchOperationResult], summary="批量恢复菜单")
+async def batch_restore_menus(
+    *,
+    request: BatchRestoreRequest,
+    active_superuser: deps.User = Depends(deps.get_current_active_superuser),
+    _: deps.User = Depends(deps.require_permissions([PermissionCode.MENU_RESTORE.value])),
+    menu_service: deps.MenuServiceDep,
+) -> Any:
+    """批量恢复菜单。
+
+    从回收站中批量恢复软删除菜单。
+    需要超级管理员权限。
+
+    Args:
+        request (BatchRestoreRequest): 批量恢复请求体 (包含 ID 列表)。
+        active_superuser (User): 超级管理员权限验证。
+        _ (User): 权限依赖（需要 menu:restore）。
+        menu_service (MenuService): 菜单服务依赖。
+
+    Returns:
+        ResponseBase[BatchOperationResult]: 批量恢复结果。
+    """
+
+    success_count, failed_ids = await menu_service.batch_restore_menus(ids=request.ids)
+    return ResponseBase(
+        data=BatchOperationResult(
+            success_count=success_count,
+            failed_ids=failed_ids,
+            message=f"成功恢复 {success_count} 个菜单" if not failed_ids else "部分恢复成功",
+        )
+    )
 
 
 @router.post("/{id}/restore", response_model=ResponseBase[MenuResponse], summary="恢复已删除菜单")

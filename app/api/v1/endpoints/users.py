@@ -13,7 +13,13 @@ from fastapi import APIRouter, Depends
 
 from app.api import deps
 from app.core.permissions import PermissionCode
-from app.schemas.common import BatchDeleteRequest, BatchOperationResult, PaginatedResponse, ResponseBase
+from app.schemas.common import (
+    BatchDeleteRequest,
+    BatchOperationResult,
+    BatchRestoreRequest,
+    PaginatedResponse,
+    ResponseBase,
+)
 from app.schemas.role import RoleResponse
 from app.schemas.user import (
     ChangePasswordRequest,
@@ -307,6 +313,38 @@ async def update_user(
     """
     user = await user_service.update_user(user_id=user_id, obj_in=user_in)
     return ResponseBase(data=user, message="用户信息更新成功")
+
+
+@router.post("/batch/restore", response_model=ResponseBase[BatchOperationResult], summary="批量恢复用户")
+async def batch_restore_users(
+    *,
+    request: BatchRestoreRequest,
+    current_user: deps.CurrentUser,
+    _: deps.User = Depends(deps.require_permissions([PermissionCode.USER_RESTORE.value])),
+    user_service: deps.UserServiceDep,
+) -> Any:
+    """批量恢复用户。
+
+    从回收站中批量恢复软删除用户。
+
+    Args:
+        request (BatchRestoreRequest): 批量恢复请求体 (包含 ID 列表)。
+        current_user (User): 当前登录用户。
+        _ (User): 权限依赖（需要 user:restore）。
+        user_service (UserService): 用户服务依赖。
+
+    Returns:
+        ResponseBase[BatchOperationResult]: 批量恢复结果。
+    """
+
+    success_count, failed_ids = await user_service.batch_restore_users(ids=request.ids)
+    return ResponseBase(
+        data=BatchOperationResult(
+            success_count=success_count,
+            failed_ids=failed_ids,
+            message=f"成功恢复 {success_count} 个用户" if not failed_ids else "部分恢复成功",
+        )
+    )
 
 
 @router.post("/{user_id}/restore", response_model=ResponseBase[UserResponse], summary="恢复已删除用户")

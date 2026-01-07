@@ -183,3 +183,26 @@ class RoleService:
 
         self._invalidate_permissions_cache_after_commit(affected_user_ids)
         return role
+
+    @transactional()
+    async def batch_restore_roles(self, ids: list[UUID]) -> tuple[int, list[UUID]]:
+        """批量恢复角色。"""
+
+        success_count = 0
+        failed_ids: list[UUID] = []
+
+        unique_ids = list(dict.fromkeys(ids))
+        if not unique_ids:
+            return success_count, failed_ids
+
+        affected_user_ids = await self.role_crud.get_user_ids_by_roles(self.db, role_ids=unique_ids)
+
+        for role_id in unique_ids:
+            role = await self.role_crud.restore(self.db, id=role_id)
+            if not role:
+                failed_ids.append(role_id)
+                continue
+            success_count += 1
+
+        self._invalidate_permissions_cache_after_commit(affected_user_ids)
+        return success_count, failed_ids

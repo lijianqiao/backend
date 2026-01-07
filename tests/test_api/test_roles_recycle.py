@@ -71,3 +71,62 @@ class TestRoleRecycle:
         res = await client.get(f"{settings.API_V1_STR}/roles/recycle-bin", headers=auth_headers)
         items = res.json()["data"]["items"]
         assert not any(r["id"] == role_id for r in items)
+
+    @pytest.mark.asyncio
+    async def test_batch_restore_roles(self, client: AsyncClient, auth_headers: dict[str, str], db_session):
+        """测试角色批量恢复功能 (创建2个 -> 批量删除 -> 批量恢复)."""
+
+        # 0. Setup
+        data_1 = {
+            "name": "Recycle Role Batch 001",
+            "code": "Recycle_Role_Batch_001",
+            "description": "For batch recycle bin test 001",
+            "sort": 1,
+        }
+        data_2 = {
+            "name": "Recycle Role Batch 002",
+            "code": "Recycle_Role_Batch_002",
+            "description": "For batch recycle bin test 002",
+            "sort": 2,
+        }
+
+        res = await client.post(f"{settings.API_V1_STR}/roles/", headers=auth_headers, json=data_1)
+        assert res.status_code == 200
+        role_id_1 = res.json()["data"]["id"]
+
+        res = await client.post(f"{settings.API_V1_STR}/roles/", headers=auth_headers, json=data_2)
+        assert res.status_code == 200
+        role_id_2 = res.json()["data"]["id"]
+
+        # 1. Batch delete
+        res = await client.request(
+            "DELETE",
+            f"{settings.API_V1_STR}/roles/batch",
+            headers=auth_headers,
+            json={"ids": [role_id_1, role_id_2], "hard_delete": False},
+        )
+        assert res.status_code == 200
+
+        # 2. Verify deleted in recycle bin
+        res = await client.get(f"{settings.API_V1_STR}/roles/recycle-bin", headers=auth_headers)
+        assert res.status_code == 200
+        items = res.json()["data"]["items"]
+        assert any(r["id"] == role_id_1 for r in items)
+        assert any(r["id"] == role_id_2 for r in items)
+
+        # 3. Batch restore
+        res = await client.post(
+            f"{settings.API_V1_STR}/roles/batch/restore",
+            headers=auth_headers,
+            json={"ids": [role_id_1, role_id_2]},
+        )
+        assert res.status_code == 200, res.text
+        assert res.json()["data"]["success_count"] == 2
+        assert res.json()["data"]["failed_ids"] == []
+
+        # 4. Verify NOT in recycle bin
+        res = await client.get(f"{settings.API_V1_STR}/roles/recycle-bin", headers=auth_headers)
+        assert res.status_code == 200
+        items = res.json()["data"]["items"]
+        assert not any(r["id"] == role_id_1 for r in items)
+        assert not any(r["id"] == role_id_2 for r in items)

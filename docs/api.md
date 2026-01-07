@@ -705,6 +705,56 @@ Format: `application/json`
 
 ---
 
+### 批量恢复菜单
+
+**URL**: `/api/v1/menus/batch/restore`
+
+**Method**: `POST`
+
+**Description**:
+
+批量恢复菜单。
+
+从回收站中批量恢复软删除菜单。
+需要超级管理员权限。
+
+Args:
+    request (BatchRestoreRequest): 批量恢复请求体 (包含 ID 列表)。
+    active_superuser (User): 超级管理员权限验证。
+    _ (User): 权限依赖（需要 menu:restore）。
+    menu_service (MenuService): 菜单服务依赖。
+
+Returns:
+    ResponseBase[BatchOperationResult]: 批量恢复结果。
+
+#### Request Body (application/json)
+
+| 参数名 | 类型            | 必填 | 描述             |
+| :----- | :-------------- | :--- | :--------------- |
+| `ids`  | `Array[string]` | 是   | 要恢复的 ID 列表 |
+
+#### Responses
+
+**Status Code**: `200` - Successful Response
+
+Format: `application/json`
+
+| 参数名    | 类型                   | 必填 | 描述    |
+| :-------- | :--------------------- | :--- | :------ |
+| `code`    | `integer`              | 否   | Code    |
+| `message` | `string`               | 否   | Message |
+| `data`    | `BatchOperationResult` | 否   |         |
+
+**Status Code**: `422` - Validation Error
+
+Format: `application/json`
+
+| 参数名   | 类型                     | 必填 | 描述   |
+| :------- | :----------------------- | :--- | :----- |
+| `detail` | `Array[ValidationError]` | 否   | Detail |
+
+---
+
 ### 恢复已删除菜单
 
 **URL**: `/api/v1/menus/{id}/restore`
@@ -1108,6 +1158,56 @@ Format: `application/json`
 | `code`    | `integer`                         | 否   | Code    |
 | `message` | `string`                          | 否   | Message |
 | `data`    | `PaginatedResponse_RoleResponse_` | 否   |         |
+
+**Status Code**: `422` - Validation Error
+
+Format: `application/json`
+
+| 参数名   | 类型                     | 必填 | 描述   |
+| :------- | :----------------------- | :--- | :----- |
+| `detail` | `Array[ValidationError]` | 否   | Detail |
+
+---
+
+### 批量恢复角色
+
+**URL**: `/api/v1/roles/batch/restore`
+
+**Method**: `POST`
+
+**Description**:
+
+批量恢复角色。
+
+从回收站中批量恢复软删除角色。
+需要超级管理员权限。
+
+Args:
+    request (BatchRestoreRequest): 批量恢复请求体 (包含 ID 列表)。
+    active_superuser (User): 超级管理员权限验证。
+    _ (User): 权限依赖（需要 role:restore）。
+    role_service (RoleService): 角色服务依赖。
+
+Returns:
+    ResponseBase[BatchOperationResult]: 批量恢复结果。
+
+#### Request Body (application/json)
+
+| 参数名 | 类型            | 必填 | 描述             |
+| :----- | :-------------- | :--- | :--------------- |
+| `ids`  | `Array[string]` | 是   | 要恢复的 ID 列表 |
+
+#### Responses
+
+**Status Code**: `200` - Successful Response
+
+Format: `application/json`
+
+| 参数名    | 类型                   | 必填 | 描述    |
+| :-------- | :--------------------- | :--- | :------ |
+| `code`    | `integer`              | 否   | Code    |
+| `message` | `string`               | 否   | Message |
+| `data`    | `BatchOperationResult` | 否   |         |
 
 **Status Code**: `422` - Validation Error
 
@@ -1783,6 +1883,55 @@ Format: `application/json`
 | `code`    | `integer`      | 否   | Code    |
 | `message` | `string`       | 否   | Message |
 | `data`    | `UserResponse` | 否   |         |
+
+**Status Code**: `422` - Validation Error
+
+Format: `application/json`
+
+| 参数名   | 类型                     | 必填 | 描述   |
+| :------- | :----------------------- | :--- | :----- |
+| `detail` | `Array[ValidationError]` | 否   | Detail |
+
+---
+
+### 批量恢复用户
+
+**URL**: `/api/v1/users/batch/restore`
+
+**Method**: `POST`
+
+**Description**:
+
+批量恢复用户。
+
+从回收站中批量恢复软删除用户。
+
+Args:
+    request (BatchRestoreRequest): 批量恢复请求体 (包含 ID 列表)。
+    current_user (User): 当前登录用户。
+    _ (User): 权限依赖（需要 user:restore）。
+    user_service (UserService): 用户服务依赖。
+
+Returns:
+    ResponseBase[BatchOperationResult]: 批量恢复结果。
+
+#### Request Body (application/json)
+
+| 参数名 | 类型            | 必填 | 描述             |
+| :----- | :-------------- | :--- | :--------------- |
+| `ids`  | `Array[string]` | 是   | 要恢复的 ID 列表 |
+
+#### Responses
+
+**Status Code**: `200` - Successful Response
+
+Format: `application/json`
+
+| 参数名    | 类型                   | 必填 | 描述    |
+| :-------- | :--------------------- | :--- | :------ |
+| `code`    | `integer`              | 否   | Code    |
+| `message` | `string`               | 否   | Message |
+| `data`    | `BatchOperationResult` | 否   |         |
 
 **Status Code**: `422` - Validation Error
 

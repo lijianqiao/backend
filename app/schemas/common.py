@@ -54,6 +54,16 @@ class BatchDeleteRequest(BaseModel):
     hard_delete: bool = Field(False, description="是否硬删除 (默认软删除)")
 
 
+class BatchRestoreRequest(BaseModel):
+    """
+    批量恢复请求。
+
+    用于从回收站批量恢复软删除数据。
+    """
+
+    ids: list[UUID] = Field(..., description="要恢复的 ID 列表")
+
+
 class BatchOperationResult(BaseModel):
     """
     批量操作结果。

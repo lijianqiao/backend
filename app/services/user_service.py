@@ -246,3 +246,23 @@ class UserService:
         if not user:
             raise NotFoundException(message="用户不存在")
         return user
+
+    @transactional()
+    async def batch_restore_users(self, ids: list[UUID]) -> tuple[int, list[UUID]]:
+        """批量恢复用户。"""
+
+        success_count = 0
+        failed_ids: list[UUID] = []
+
+        unique_ids = list(dict.fromkeys(ids))
+        if not unique_ids:
+            return success_count, failed_ids
+
+        for user_id in unique_ids:
+            user = await self.user_crud.restore(self.db, id=user_id)
+            if not user:
+                failed_ids.append(user_id)
+                continue
+            success_count += 1
+
+        return success_count, failed_ids

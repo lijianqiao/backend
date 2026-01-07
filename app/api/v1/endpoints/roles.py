@@ -13,7 +13,13 @@ from fastapi import APIRouter, Depends
 
 from app.api import deps
 from app.core.permissions import PermissionCode
-from app.schemas.common import BatchDeleteRequest, BatchOperationResult, PaginatedResponse, ResponseBase
+from app.schemas.common import (
+    BatchDeleteRequest,
+    BatchOperationResult,
+    BatchRestoreRequest,
+    PaginatedResponse,
+    ResponseBase,
+)
 from app.schemas.role import RoleCreate, RoleMenusUpdateRequest, RoleResponse, RoleUpdate
 
 router = APIRouter()
@@ -192,6 +198,39 @@ async def delete_role(
     """
     role = await role_service.delete_role(id=id)
     return ResponseBase(data=role)
+
+
+@router.post("/batch/restore", response_model=ResponseBase[BatchOperationResult], summary="批量恢复角色")
+async def batch_restore_roles(
+    *,
+    request: BatchRestoreRequest,
+    active_superuser: deps.User = Depends(deps.get_current_active_superuser),
+    _: deps.User = Depends(deps.require_permissions([PermissionCode.ROLE_RESTORE.value])),
+    role_service: deps.RoleServiceDep,
+) -> Any:
+    """批量恢复角色。
+
+    从回收站中批量恢复软删除角色。
+    需要超级管理员权限。
+
+    Args:
+        request (BatchRestoreRequest): 批量恢复请求体 (包含 ID 列表)。
+        active_superuser (User): 超级管理员权限验证。
+        _ (User): 权限依赖（需要 role:restore）。
+        role_service (RoleService): 角色服务依赖。
+
+    Returns:
+        ResponseBase[BatchOperationResult]: 批量恢复结果。
+    """
+
+    success_count, failed_ids = await role_service.batch_restore_roles(ids=request.ids)
+    return ResponseBase(
+        data=BatchOperationResult(
+            success_count=success_count,
+            failed_ids=failed_ids,
+            message=f"成功恢复 {success_count} 个角色" if not failed_ids else "部分恢复成功",
+        )
+    )
 
 
 @router.post("/{id}/restore", response_model=ResponseBase[RoleResponse], summary="恢复已删除角色")

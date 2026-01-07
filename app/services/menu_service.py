@@ -374,3 +374,26 @@ class MenuService:
 
         self._invalidate_permissions_cache_after_commit(affected_user_ids)
         return self._to_menu_response(menu, children=[])
+
+    @transactional()
+    async def batch_restore_menus(self, ids: list[UUID]) -> tuple[int, list[UUID]]:
+        """批量恢复菜单。"""
+
+        success_count = 0
+        failed_ids: list[UUID] = []
+
+        unique_ids = list(dict.fromkeys(ids))
+        if not unique_ids:
+            return success_count, failed_ids
+
+        affected_user_ids = await self.menu_crud.get_affected_user_ids_by_menu_ids(self.db, menu_ids=unique_ids)
+
+        for menu_id in unique_ids:
+            menu = await self.menu_crud.restore(self.db, id=menu_id)
+            if not menu:
+                failed_ids.append(menu_id)
+                continue
+            success_count += 1
+
+        self._invalidate_permissions_cache_after_commit(affected_user_ids)
+        return success_count, failed_ids
