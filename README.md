@@ -6,36 +6,24 @@
 
 ## ✨ 核心特性
 
-### 🏗️ 架构与规范
-*   **严格分层架构**: API (Controller) -> Service (Business Logic) -> CRUD (Data Access) -> Models/Schemas。
-*   **异步高性能**: 全链路异步 (`async/await`)，基于 `asyncpg` 和 `uvicorn`。
-*   **SQLAlchemy 2.0**: 采用最新的 SQLAlchemy 2.0 语法，支持异步 Session。
-*   **深度依赖注入 (DI)**: 
-    *   Service 层通过构造函数注入 CRUD 依赖，彻底解耦。
-    *   API 层通过 FastAPI `Depends` 自动装配 Service 和 Repository。
-*   **事务管理**: 使用 `@transactional` 装饰器自动管理事务提交与回滚，业务代码零污染。
-*   **类型安全**: 全面的 Type Hinting，通过 MyPy/Pyright 严格模式检查。
+### 架构
+*   **分层清晰**: API -> Service -> CRUD -> Models/Schemas。
+*   **异步链路**: 基于 FastAPI + SQLAlchemy 2.0 Async。
+*   **事务管理**: `@transactional` 自动提交/回滚。
+*   **类型标注**: 全面 Type Hinting，便于静态检查。
 
-### 🛡️ 安全与权限 (RBAC)
-*   **RBAC 模型**: 用户 (User) - 角色 (Role) - 菜单/权限 (Menu/Permission)。
-*   **JWT 认证**: 基于 OAuth2 Password Bearer 流程，支持 Token 自动刷新。
-*   **数据隔离**: (TODO) 支持部门级/个人级数据权限。
-*   **软删除**: 全局支持软删除 (`SoftDeleteMixin`)，查询自动过滤，删除自动标记。
-*   **乐观锁**: 核心业务数据通过 `version_id` 防止并发修改冲突。
+### 权限
+*   **RBAC**: 用户 - 角色 - 菜单/权限。
+*   **JWT 认证**: OAuth2 Password Bearer，支持刷新。
+*   **软删除**: 常用业务实体支持软删除与回收站。
 
-### 📊 日志与审计
-*   **结构化日志**: 使用 `structlog` 输出 JSON 格式日志，支持上下文绑定 (Trace ID)。
-*   **高级文件日志**:
-    *   `logs/api_traffic.log`: 纯净的 API 访问流量日志。
-    *   `logs/info.log`: 应用运行日志 (按天轮转 + Gzip 压缩)。
-    *   `logs/error.log`: 异常堆栈日志。
-*   **全局审计 (Audit Log)**:
-    *   **登录日志**: 记录登录成功/失败、User Agent 解析 (设备/OS/浏览器)。
-    *   **操作日志**: Middleware 自动捕获所有**写操作** (POST/PUT/DELETE) 并异步写入数据库，记录操作人、IP、耗时及状态。
+### 日志
+*   **结构化日志**: `structlog` JSON 日志，带请求上下文。
+*   **审计日志**: 自动记录写操作（POST/PUT/DELETE），包含操作人、IP、耗时、状态。
 
 ## 🛠️ 技术栈
 
-*   **Python**: 3.10+
+*   **Python**: 3.12+
 *   **Web Framework**: FastAPI
 *   **Database**: PostgreSQL + SQLAlchemy (Async) + Alembic (Migrations)
 *   **Schema**: Pydantic v2
@@ -45,7 +33,7 @@
 ## 🚀 快速开始
 
 ### 1. 环境准备
-确保已安装 Python 3.10+ 和 PostgreSQL 数据库。
+确保已安装 Python 3.12+ 和 PostgreSQL 数据库。
 
 ```bash
 uv venv --python 3.13
