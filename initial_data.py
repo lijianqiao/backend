@@ -64,10 +64,10 @@ async def init_db() -> None:
                 password=settings.FIRST_SUPERUSER_PASSWORD,
                 email=settings.FIRST_SUPERUSER_EMAIL,
                 phone=settings.FIRST_SUPERUSER_PHONE,
-                nickname="Administrator",
+                nickname=settings.FIRST_SUPERUSER_NICKNAME,
                 is_superuser=True,
                 is_active=True,
-                gender="male",
+                gender=settings.FIRST_SUPERUSER_GENDER,
             )
             await user_crud.create(db, obj_in=user_in)
             await db.commit()

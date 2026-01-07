@@ -50,33 +50,6 @@ async def list_online_sessions(
     return ResponseBase(data=PaginatedResponse(total=total, page=page, page_size=page_size, items=items))
 
 
-@router.post("/kick/{user_id}", response_model=ResponseBase[None], summary="强制下线(踢人)")
-async def kick_user(
-    user_id: UUID,
-    session_service: deps.SessionServiceDep,
-    current_user: deps.CurrentUser,
-    _: deps.User = Depends(deps.require_permissions([PermissionCode.SESSION_KICK.value])),
-) -> Any:
-    """
-    强制下线指定用户。
-    需要 SESSION_KICK 权限。
-
-    Args:
-        user_id (UUID): 要强制下线的用户ID。
-        session_service (SessionService): 在线会话服务依赖。
-        current_user (User): 当前登录用户。
-
-    Returns:
-        ResponseBase[None]: 空响应对象，表示操作成功。
-
-    Raises:
-        CustomException: 当用户没有权限或用户不存在时抛出相应错误。
-
-    """
-    await session_service.kick_user(user_id=user_id)
-    return ResponseBase(data=None, message="已强制下线")
-
-
 @router.post("/kick/batch", response_model=ResponseBase[BatchOperationResult], summary="批量强制下线")
 async def kick_users(
     request: KickUsersRequest,
@@ -108,3 +81,30 @@ async def kick_users(
             message=f"成功下线 {success_count} 个用户" if not failed_ids else "部分下线成功",
         )
     )
+
+
+@router.post("/kick/{user_id}", response_model=ResponseBase[None], summary="强制下线(踢人)")
+async def kick_user(
+    user_id: UUID,
+    session_service: deps.SessionServiceDep,
+    current_user: deps.CurrentUser,
+    _: deps.User = Depends(deps.require_permissions([PermissionCode.SESSION_KICK.value])),
+) -> Any:
+    """
+    强制下线指定用户。
+    需要 SESSION_KICK 权限。
+
+    Args:
+        user_id (UUID): 要强制下线的用户ID。
+        session_service (SessionService): 在线会话服务依赖。
+        current_user (User): 当前登录用户。
+
+    Returns:
+        ResponseBase[None]: 空响应对象，表示操作成功。
+
+    Raises:
+        CustomException: 当用户没有权限或用户不存在时抛出相应错误。
+
+    """
+    await session_service.kick_user(user_id=user_id)
+    return ResponseBase(data=None, message="已强制下线")

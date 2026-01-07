@@ -115,6 +115,45 @@ is_hidden = false
 permission = ""
 parent_key = "logs"
 
+[[menus]]
+key = "sessions"
+title = "在线会话"
+name = "SessionMgmt"
+path = "/system/sessions"
+component = "/views/sessions/index.vue"
+icon = "PulseOutline"
+sort = 135
+type = "MENU"
+is_hidden = false
+permission = ""
+parent_key = "system"
+
+[[menus]]
+key = "perm_session_list"
+title = "在线会话-列表"
+name = "PermSessionList"
+path = ""
+component = ""
+icon = "KeyOutline"
+sort = 1351
+type = "PERMISSION"
+is_hidden = true
+permission = "session:list"
+parent_key = "sessions"
+
+[[menus]]
+key = "perm_session_kick"
+title = "在线会话-强制下线"
+name = "PermSessionKick"
+path = ""
+component = ""
+icon = "KeyOutline"
+sort = 1352
+type = "PERMISSION"
+is_hidden = true
+permission = "session:kick"
+parent_key = "sessions"
+
 # ---- 用户权限点（user:*）----
 [[menus]]
 key = "perm_user_list"
@@ -489,6 +528,8 @@ permissions = [
   "role:restore",
   "role:menus:list",
   "role:menus:update",
+  "session:list",
+  "session:kick",
   "log:login:list",
   "log:operation:list",
 ]

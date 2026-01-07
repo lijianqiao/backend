@@ -64,6 +64,8 @@ class Settings(BaseSettings):
     FIRST_SUPERUSER_PASSWORD: str = "password"
     FIRST_SUPERUSER_EMAIL: str = "admin@example.com"
     FIRST_SUPERUSER_PHONE: str = "13800138000"
+    FIRST_SUPERUSER_NICKNAME: str = "Administrator"
+    FIRST_SUPERUSER_GENDER: Literal["男", "女", "保密"] = "男"
 
     # Redis
     REDIS_HOST: str = "localhost"

@@ -27,6 +27,7 @@ from app.core.config import settings
 from app.core.db import AsyncSessionLocal
 from app.core.exceptions import ForbiddenException, NotFoundException, UnauthorizedException
 from app.core.logger import logger
+from app.core.token_store import get_user_revoked_after
 from app.crud.crud_log import CRUDLoginLog, CRUDOperationLog
 from app.crud.crud_log import login_log as login_log_crud_global
 from app.crud.crud_log import operation_log as operation_log_crud_global
@@ -116,6 +117,22 @@ async def get_current_user(request: Request, session: SessionDep, token: TokenDe
         raise NotFoundException(message="用户不存在")
     if not user.is_active:
         raise ForbiddenException(message="用户已被禁用")
+
+    # 即时会话失效：若用户被强制下线或注销，设置了 revoked_after，则 iat 早于该时间的 access 立即失效
+    try:
+        revoked_after = await get_user_revoked_after(user_id=str(user.id))
+        if revoked_after is not None and token_data.iat is not None:
+            try:
+                token_iat = int(token_data.iat)
+            except Exception:
+                token_iat = None
+            if token_iat is not None and token_iat <= int(revoked_after):
+                raise UnauthorizedException(message="登录状态已失效，请重新登录")
+    except UnauthorizedException:
+        raise
+    except Exception as e:
+        # 存储不可用时不阻断请求，但记录告警
+        logger.warning(f"revoked_after 校验失败: {e}")
 
     # 将用户信息绑定到 request state，供中间件使用 (存储简单值避免 Session 关闭后的 DetachedInstanceError)
     request.state.user_id = str(user.id)

@@ -19,6 +19,7 @@ from app.core.config import settings
 from app.core.logger import logger
 
 _REVOKED_JTI = "__revoked__"
+_REVOKED_AFTER_TTL_SECONDS = 30 * 24 * 3600  # 访问失效阈值的保存时长（30天），用于即时失效对比
 
 
 def _default_ttl_seconds() -> int:
@@ -78,6 +79,85 @@ class RedisRefreshTokenStore(RefreshTokenStore):
             logger.warning(f"refresh token 撤销失败(REDIS): {e}")
 
 
+# ---- Access Token 即时失效阈值（revoked_after） ----
+
+
+def _revoked_after_key(user_id: str) -> str:
+    return f"v1:auth:revoked_after:{user_id}"
+
+
+class AccessGate:
+    async def set_revoked_after(self, user_id: str, ts_seconds: float) -> None:  # pragma: no cover
+        raise NotImplementedError
+
+    async def get_revoked_after(self, user_id: str) -> float | None:  # pragma: no cover
+        raise NotImplementedError
+
+    async def revoke_now(self, user_id: str) -> None:  # pragma: no cover
+        raise NotImplementedError
+
+    async def revoke_many_now(self, user_ids: Iterable[str]) -> None:  # pragma: no cover
+        for uid in user_ids:
+            await self.revoke_now(uid)
+
+
+class RedisAccessGate(AccessGate):
+    async def set_revoked_after(self, user_id: str, ts_seconds: float) -> None:
+        if redis_client is None:
+            return
+        key = _revoked_after_key(user_id)
+        try:
+            await redis_client.setex(key, _REVOKED_AFTER_TTL_SECONDS, str(int(ts_seconds)))
+        except Exception as e:
+            logger.warning(f"revoked_after 写入失败(REDIS): {e}")
+
+    async def get_revoked_after(self, user_id: str) -> float | None:
+        if redis_client is None:
+            return None
+        key = _revoked_after_key(user_id)
+        try:
+            v = await redis_client.get(key)
+            if not v:
+                return None
+            try:
+                return float(v)
+            except Exception:
+                return None
+        except Exception as e:
+            logger.warning(f"revoked_after 读取失败(REDIS): {e}")
+            return None
+
+    async def revoke_now(self, user_id: str) -> None:
+        await self.set_revoked_after(user_id, time.time())
+
+
+class MemoryAccessGate(AccessGate):
+    def __init__(self) -> None:
+        self._lock = asyncio.Lock()
+        # user_id -> (revoked_after_ts, expire_at)
+        self._data: dict[str, tuple[float, float]] = {}
+
+    async def set_revoked_after(self, user_id: str, ts_seconds: float) -> None:
+        expire_at = time.time() + _REVOKED_AFTER_TTL_SECONDS
+        async with self._lock:
+            self._data[user_id] = (float(ts_seconds), float(expire_at))
+
+    async def get_revoked_after(self, user_id: str) -> float | None:
+        now = time.time()
+        async with self._lock:
+            v = self._data.get(user_id)
+            if not v:
+                return None
+            ts, exp = v
+            if exp <= now:
+                self._data.pop(user_id, None)
+                return None
+            return float(ts)
+
+    async def revoke_now(self, user_id: str) -> None:
+        await self.set_revoked_after(user_id, time.time())
+
+
 class MemoryRefreshTokenStore(RefreshTokenStore):
     """进程内 Refresh Token 存储（仅用于本地/测试降级）。"""
 
@@ -111,11 +191,17 @@ class MemoryRefreshTokenStore(RefreshTokenStore):
 
 _memory_store = MemoryRefreshTokenStore()
 _redis_store = RedisRefreshTokenStore()
+_memory_gate = MemoryAccessGate()
+_redis_gate = RedisAccessGate()
 
 
 def get_refresh_token_store() -> RefreshTokenStore:
     # Redis 可用时优先；否则降级内存。
     return _redis_store if redis_client is not None else _memory_store
+
+
+def get_access_gate() -> AccessGate:
+    return _redis_gate if redis_client is not None else _memory_gate
 
 
 async def set_user_refresh_jti(*, user_id: str, jti: str, ttl_seconds: int) -> None:
@@ -132,3 +218,22 @@ async def revoke_user_refresh(*, user_id: str) -> None:
 
 async def revoke_users_refresh(*, user_ids: Iterable[str]) -> None:
     await get_refresh_token_store().revoke_users(user_ids)
+
+
+# ---- 外部使用的 Access Gate 方法 ----
+
+
+async def set_user_revoked_after(*, user_id: str, ts_seconds: float) -> None:
+    await get_access_gate().set_revoked_after(user_id, ts_seconds)
+
+
+async def get_user_revoked_after(*, user_id: str) -> float | None:
+    return await get_access_gate().get_revoked_after(user_id)
+
+
+async def revoke_user_access_now(*, user_id: str) -> None:
+    await get_access_gate().revoke_now(user_id)
+
+
+async def revoke_users_access_now(*, user_ids: Iterable[str]) -> None:
+    await get_access_gate().revoke_many_now(user_ids)

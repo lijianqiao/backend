@@ -13,7 +13,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import NotFoundException
 from app.core.session_store import list_online_sessions, remove_online_session, remove_online_sessions
-from app.core.token_store import revoke_user_refresh, revoke_users_refresh
+from app.core.token_store import (
+    revoke_user_access_now,
+    revoke_user_refresh,
+    revoke_users_access_now,
+    revoke_users_refresh,
+)
 from app.crud.crud_user import CRUDUser
 from app.schemas.session import OnlineSessionResponse
 
@@ -52,6 +57,7 @@ class SessionService:
             raise NotFoundException(message="用户不存在")
 
         await revoke_user_refresh(user_id=str(user_id))
+        await revoke_user_access_now(user_id=str(user_id))
         await remove_online_session(user_id=str(user_id))
 
     async def kick_users(self, *, user_ids: list[UUID]) -> tuple[int, list[UUID]]:
@@ -71,7 +77,9 @@ class SessionService:
                 success.append(uid)
 
         if success:
-            await revoke_users_refresh(user_ids=[str(x) for x in success])
-            await remove_online_sessions(user_ids=[str(x) for x in success])
+            str_ids = [str(x) for x in success]
+            await revoke_users_refresh(user_ids=str_ids)
+            await revoke_users_access_now(user_ids=str_ids)
+            await remove_online_sessions(user_ids=str_ids)
 
         return len(success), failed

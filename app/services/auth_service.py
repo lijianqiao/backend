@@ -20,7 +20,12 @@ from app.core import security
 from app.core.config import settings
 from app.core.exceptions import CustomException, UnauthorizedException
 from app.core.session_store import remove_online_session, touch_online_session
-from app.core.token_store import get_user_refresh_jti, revoke_user_refresh, set_user_refresh_jti
+from app.core.token_store import (
+    get_user_refresh_jti,
+    revoke_user_access_now,
+    revoke_user_refresh,
+    set_user_refresh_jti,
+)
 from app.crud.crud_user import CRUDUser
 from app.schemas.token import Token
 from app.services.log_service import LogService
@@ -213,8 +218,12 @@ class AuthService:
 
         说明：当前实现是“单端 refresh 会话”，撤销后该用户现有 refresh 将失效。
         """
-
         await revoke_user_refresh(user_id=user_id)
+        # 立即使当前所有 access 失效（其他标签页/API 调用立刻 401）
+        try:
+            await revoke_user_access_now(user_id=user_id)
+        except Exception:
+            pass
         try:
             await remove_online_session(user_id=user_id)
         except Exception:
