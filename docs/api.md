@@ -1388,6 +1388,160 @@ Format: `application/json`
 
 ---
 
+## Sessions
+
+### 获取在线会话列表
+
+**URL**: `/api/v1/sessions/online`
+
+**Method**: `GET`
+
+**Description**:
+
+获取在线会话列表，支持分页。
+需要 SESSION_LIST 权限。
+
+Args:
+    session_service (SessionService): 在线会话服务依赖。
+    current_user (User): 当前登录用户。
+    page (int): 页码，默认值为 1。
+    page_size (int): 每页数量，默认值为 20。
+
+Returns:
+    ResponseBase[PaginatedResponse[OnlineSessionResponse]]: 包含在线会话列表的响应对象。
+
+Raises:
+    CustomException: 当用户没有权限时抛出 403 错误。
+
+#### Requests Parameters (Query/Path)
+
+| 参数名      | 位置    | 类型      | 必填 | 描述      | Default |
+| :---------- | :------ | :-------- | :--- | :-------- | :------ |
+| `page`      | `query` | `integer` | 否   | Page      | 1       |
+| `page_size` | `query` | `integer` | 否   | Page Size | 20      |
+
+#### Responses
+
+**Status Code**: `200` - Successful Response
+
+Format: `application/json`
+
+| 参数名    | 类型                                       | 必填 | 描述    |
+| :-------- | :----------------------------------------- | :--- | :------ |
+| `code`    | `integer`                                  | 否   | Code    |
+| `message` | `string`                                   | 否   | Message |
+| `data`    | `PaginatedResponse_OnlineSessionResponse_` | 否   |         |
+
+**Status Code**: `422` - Validation Error
+
+Format: `application/json`
+
+| 参数名   | 类型                     | 必填 | 描述   |
+| :------- | :----------------------- | :--- | :----- |
+| `detail` | `Array[ValidationError]` | 否   | Detail |
+
+---
+
+### 强制下线(踢人)
+
+**URL**: `/api/v1/sessions/kick/{user_id}`
+
+**Method**: `POST`
+
+**Description**:
+
+强制下线指定用户。
+需要 SESSION_KICK 权限。
+
+Args:
+    user_id (UUID): 要强制下线的用户ID。
+    session_service (SessionService): 在线会话服务依赖。
+    current_user (User): 当前登录用户。
+
+Returns:
+    ResponseBase[None]: 空响应对象，表示操作成功。
+
+Raises:
+    CustomException: 当用户没有权限或用户不存在时抛出相应错误。
+
+#### Requests Parameters (Query/Path)
+
+| 参数名    | 位置   | 类型     | 必填 | 描述    | Default |
+| :-------- | :----- | :------- | :--- | :------ | :------ |
+| `user_id` | `path` | `string` | 是   | User Id |         |
+
+#### Responses
+
+**Status Code**: `200` - Successful Response
+
+Format: `application/json`
+
+| 参数名    | 类型      | 必填 | 描述    |
+| :-------- | :-------- | :--- | :------ |
+| `code`    | `integer` | 否   | Code    |
+| `message` | `string`  | 否   | Message |
+| `data`    | `null`    | 否   | Data    |
+
+**Status Code**: `422` - Validation Error
+
+Format: `application/json`
+
+| 参数名   | 类型                     | 必填 | 描述   |
+| :------- | :----------------------- | :--- | :----- |
+| `detail` | `Array[ValidationError]` | 否   | Detail |
+
+---
+
+### 批量强制下线
+
+**URL**: `/api/v1/sessions/kick/batch`
+
+**Method**: `POST`
+
+**Description**:
+
+批量强制下线指定用户列表。
+需要 SESSION_KICK 权限。
+
+Args:
+    request (KickUsersRequest): 包含要强制下线的用户ID列表的请求体。
+    session_service (SessionService): 在线会话服务依赖。
+    current_user (User): 当前登录用户。
+
+Returns:
+    ResponseBase[BatchOperationResult]: 包含操作结果的响应对象，包括成功数量和失败ID列表。
+
+Raises:
+    CustomException: 当用户没有权限时抛出 403 错误。
+
+#### Request Body (application/json)
+
+| 参数名     | 类型            | 必填 | 描述                   |
+| :--------- | :-------------- | :--- | :--------------------- |
+| `user_ids` | `Array[string]` | 是   | 要强制下线的用户ID列表 |
+
+#### Responses
+
+**Status Code**: `200` - Successful Response
+
+Format: `application/json`
+
+| 参数名    | 类型                   | 必填 | 描述    |
+| :-------- | :--------------------- | :--- | :------ |
+| `code`    | `integer`              | 否   | Code    |
+| `message` | `string`               | 否   | Message |
+| `data`    | `BatchOperationResult` | 否   |         |
+
+**Status Code**: `422` - Validation Error
+
+Format: `application/json`
+
+| 参数名   | 类型                     | 必填 | 描述   |
+| :------- | :----------------------- | :--- | :----- |
+| `detail` | `Array[ValidationError]` | 否   | Detail |
+
+---
+
 ## Uncategorized
 
 ### Health Check

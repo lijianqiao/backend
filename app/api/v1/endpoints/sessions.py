@@ -29,6 +29,23 @@ async def list_online_sessions(
     page: int = 1,
     page_size: int = 20,
 ) -> Any:
+    """
+    获取在线会话列表，支持分页。
+    需要 SESSION_LIST 权限。
+
+    Args:
+        session_service (SessionService): 在线会话服务依赖。
+        current_user (User): 当前登录用户。
+        page (int): 页码，默认值为 1。
+        page_size (int): 每页数量，默认值为 20。
+
+    Returns:
+        ResponseBase[PaginatedResponse[OnlineSessionResponse]]: 包含在线会话列表的响应对象。
+
+    Raises:
+        CustomException: 当用户没有权限时抛出 403 错误。
+
+    """
     items, total = await session_service.list_online(page=page, page_size=page_size)
     return ResponseBase(data=PaginatedResponse(total=total, page=page, page_size=page_size, items=items))
 
@@ -40,6 +57,22 @@ async def kick_user(
     current_user: deps.CurrentUser,
     _: deps.User = Depends(deps.require_permissions([PermissionCode.SESSION_KICK.value])),
 ) -> Any:
+    """
+    强制下线指定用户。
+    需要 SESSION_KICK 权限。
+
+    Args:
+        user_id (UUID): 要强制下线的用户ID。
+        session_service (SessionService): 在线会话服务依赖。
+        current_user (User): 当前登录用户。
+
+    Returns:
+        ResponseBase[None]: 空响应对象，表示操作成功。
+
+    Raises:
+        CustomException: 当用户没有权限或用户不存在时抛出相应错误。
+
+    """
     await session_service.kick_user(user_id=user_id)
     return ResponseBase(data=None, message="已强制下线")
 
@@ -51,6 +84,22 @@ async def kick_users(
     current_user: deps.CurrentUser,
     _: deps.User = Depends(deps.require_permissions([PermissionCode.SESSION_KICK.value])),
 ) -> Any:
+    """
+    批量强制下线指定用户列表。
+    需要 SESSION_KICK 权限。
+
+    Args:
+        request (KickUsersRequest): 包含要强制下线的用户ID列表的请求体。
+        session_service (SessionService): 在线会话服务依赖。
+        current_user (User): 当前登录用户。
+
+    Returns:
+        ResponseBase[BatchOperationResult]: 包含操作结果的响应对象，包括成功数量和失败ID列表。
+
+    Raises:
+        CustomException: 当用户没有权限时抛出 403 错误。
+
+    """
     success_count, failed_ids = await session_service.kick_users(user_ids=request.user_ids)
     return ResponseBase(
         data=BatchOperationResult(
