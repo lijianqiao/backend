@@ -43,7 +43,7 @@ class FakeSessionFactory:
     def __init__(self, session: FakeSession) -> None:
         self.session = session
 
-    def __call__(self) -> FakeSessionFactory:
+    def __call__(self) -> "FakeSessionFactory":
         return self
 
     async def __aenter__(self) -> FakeSession:

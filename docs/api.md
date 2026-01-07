@@ -28,7 +28,7 @@ Args:
     auth_service (AuthService): 认证服务依赖。
 
 Returns:
-    Token: 包含 Access Token 和 Refresh Token 的响应对象。
+    TokenAccess: 包含 Access Token 和 Refresh Token 的响应对象。
 
 Raises:
     CustomException: 当用户名或密码错误时抛出 400 错误。
@@ -50,11 +50,10 @@ Raises:
 
 Format: `application/json`
 
-| 参数名          | 类型     | 必填 | 描述          |
-| :-------------- | :------- | :--- | :------------ |
-| `access_token`  | `string` | 是   | Access Token  |
-| `refresh_token` | `string` | 是   | Refresh Token |
-| `token_type`    | `string` | 是   | Token Type    |
+| 参数名         | 类型     | 必填 | 描述         |
+| :------------- | :------- | :--- | :----------- |
+| `access_token` | `string` | 是   | Access Token |
+| `token_type`   | `string` | 是   | Token Type   |
 
 **Status Code**: `422` - Validation Error
 
@@ -88,31 +87,16 @@ Returns:
 Raises:
     UnauthorizedException: 当 Refresh Token 无效或过期时抛出 401 错误。
 
-#### Request Body (application/json)
-
-| 参数名          | 类型     | 必填 | 描述          |
-| :-------------- | :------- | :--- | :------------ |
-| `refresh_token` | `string` | 是   | Refresh Token |
-
 #### Responses
 
 **Status Code**: `200` - Successful Response
 
 Format: `application/json`
 
-| 参数名          | 类型     | 必填 | 描述          |
-| :-------------- | :------- | :--- | :------------ |
-| `access_token`  | `string` | 是   | Access Token  |
-| `refresh_token` | `string` | 是   | Refresh Token |
-| `token_type`    | `string` | 是   | Token Type    |
-
-**Status Code**: `422` - Validation Error
-
-Format: `application/json`
-
-| 参数名   | 类型                     | 必填 | 描述   |
-| :------- | :----------------------- | :--- | :----- |
-| `detail` | `Array[ValidationError]` | 否   | Detail |
+| 参数名         | 类型     | 必填 | 描述         |
+| :------------- | :------- | :--- | :----------- |
+| `access_token` | `string` | 是   | Access Token |
+| `token_type`   | `string` | 是   | Token Type   |
 
 ---
 
@@ -161,6 +145,7 @@ Format: `application/json`
 后端撤销当前用户的 refresh 会话（Refresh Token Rotation 场景下，撤销后 refresh 将不可再用于刷新）。
 Access Token 理论上仍可能在过期前短暂可用，但前端应立即清理并停止使用。
 Args:
+    response (Response): 响应对象，用于清理认证相关的 Cookie。
     current_user (User): 当前登录用户 (由依赖自动注入)。
     auth_service (AuthService): 认证服务依赖。
 Returns:

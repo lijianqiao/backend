@@ -39,6 +39,14 @@ class Settings(BaseSettings):
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7  # 7 天
     PASSWORD_COMPLEXITY_ENABLED: bool = True  # 开启后需要大小写+数字+特殊字符且>=8位
 
+    # Auth Cookie/CSRF
+    AUTH_REFRESH_COOKIE_NAME: str = "refresh_token"
+    AUTH_CSRF_COOKIE_NAME: str = "csrf_token"
+    AUTH_CSRF_HEADER_NAME: str = "X-CSRF-Token"
+    AUTH_COOKIE_DOMAIN: str | None = None
+    AUTH_COOKIE_SECURE: bool = False  # 生产环境应使用 https 并设为 True
+    AUTH_COOKIE_SAMESITE: Literal["lax", "strict", "none"] = "lax"
+
     # CORS (跨域资源共享)
     BACKEND_CORS_ORIGINS: list[str] = ["*"]
 

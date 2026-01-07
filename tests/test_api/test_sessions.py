@@ -8,6 +8,7 @@
 
 from httpx import AsyncClient
 
+from app.core.auth_cookies import csrf_cookie_name, csrf_header_name
 from app.core.config import settings
 
 
@@ -28,8 +29,10 @@ class TestSessions:
         )
         assert resp.status_code == 200
         login_data = resp.json()
-        refresh_token = login_data["refresh_token"]
         access_token = login_data["access_token"]
+
+        csrf = client.cookies.get(csrf_cookie_name())
+        assert csrf
 
         # 2) kick
         me = await client.get(f"{settings.API_V1_STR}/users/me", headers={"Authorization": f"Bearer {access_token}"})
@@ -45,6 +48,6 @@ class TestSessions:
         # 3) refresh should fail
         resp3 = await client.post(
             f"{settings.API_V1_STR}/auth/refresh",
-            json={"refresh_token": refresh_token},
+            headers={csrf_header_name(): str(csrf)},
         )
         assert resp3.status_code == 401

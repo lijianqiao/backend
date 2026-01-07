@@ -10,6 +10,7 @@ import asyncio
 
 from httpx import AsyncClient
 
+from app.core.auth_cookies import csrf_cookie_name, csrf_header_name, refresh_cookie_name
 from app.core.config import settings
 
 
@@ -22,15 +23,22 @@ class TestAuthRefresh:
         assert response.status_code == 200
         data = response.json()
         assert "access_token" in data
-        assert "refresh_token" in data
         assert data["token_type"] == "bearer"
+
+        # refresh_token 应通过 HttpOnly Cookie 下发
+        assert refresh_cookie_name() in client.cookies
+        assert csrf_cookie_name() in client.cookies
         return data
 
     async def test_refresh_token_valid(self, client: AsyncClient, test_user):
         # 1. Login to get refresh token
         login_data = await self.test_login_returns_refresh_token(client, test_user)
-        refresh_token = login_data["refresh_token"]
         old_access_token = login_data["access_token"]
+
+        csrf = client.cookies.get(csrf_cookie_name())
+        old_refresh = client.cookies.get(refresh_cookie_name())
+        assert csrf
+        assert old_refresh
 
         # Wait 1.1s
         await asyncio.sleep(1.1)
@@ -38,15 +46,16 @@ class TestAuthRefresh:
         # 2. Refresh
         response = await client.post(
             f"{settings.API_V1_STR}/auth/refresh",
-            json={"refresh_token": refresh_token},
+            headers={csrf_header_name(): str(csrf)},
         )
         assert response.status_code == 200
         data = response.json()
         assert "access_token" in data
-        assert "refresh_token" in data
 
-        # Refresh Token Rotation：refresh 应该被轮换
-        assert data["refresh_token"] != refresh_token
+        # Refresh Token Rotation：refresh cookie 应该被轮换
+        new_refresh = client.cookies.get(refresh_cookie_name())
+        assert new_refresh
+        assert str(new_refresh) != str(old_refresh)
 
         # New access token should be different (validity renewed)
         # Note: In strict equality check, if generated in same second it might be same content if no jti/randomness.
@@ -56,13 +65,15 @@ class TestAuthRefresh:
         # 3. Old refresh token should be invalid now
         response2 = await client.post(
             f"{settings.API_V1_STR}/auth/refresh",
-            json={"refresh_token": refresh_token},
+            headers={csrf_header_name(): str(client.cookies.get(csrf_cookie_name()))},
+            cookies={
+                refresh_cookie_name(): str(old_refresh),
+                csrf_cookie_name(): str(client.cookies.get(csrf_cookie_name())),
+            },
         )
         assert response2.status_code == 401
 
     async def test_refresh_token_invalid(self, client: AsyncClient):
-        response = await client.post(
-            f"{settings.API_V1_STR}/auth/refresh",
-            json={"refresh_token": "invalid_token_string"},
-        )
+        # 缺少 refresh cookie -> 401
+        response = await client.post(f"{settings.API_V1_STR}/auth/refresh")
         assert response.status_code == 401

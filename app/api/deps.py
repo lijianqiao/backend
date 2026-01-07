@@ -10,6 +10,7 @@ import json
 import uuid
 from collections.abc import AsyncGenerator
 from typing import Annotated
+from urllib.parse import urlparse
 
 import jwt
 from fastapi import Depends, Request
@@ -20,6 +21,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.core.auth_cookies import csrf_cookie_name, csrf_header_name, refresh_cookie_name
 from app.core.cache import redis_client
 from app.core.config import settings
 from app.core.db import AsyncSessionLocal
@@ -172,6 +174,64 @@ def require_permissions(required_permissions: list[str]):
 
 
 CurrentUser = Annotated[User, Depends(get_current_user)]
+
+
+def _is_origin_allowed(origin: str) -> bool:
+    if not origin:
+        return True
+
+    allowed = settings.BACKEND_CORS_ORIGINS
+    if any(str(x) == "*" for x in allowed):
+        return True
+
+    return origin in set(allowed)
+
+
+def _extract_origin_from_referer(referer: str) -> str | None:
+    if not referer:
+        return None
+    try:
+        u = urlparse(referer)
+        if not u.scheme or not u.netloc:
+            return None
+        return f"{u.scheme}://{u.netloc}"
+    except Exception:
+        return None
+
+
+async def require_refresh_cookie_and_csrf(request: Request) -> str:
+    """Refresh Cookie + CSRF 校验。
+
+    说明：
+    - refresh_token 放在 HttpOnly Cookie，因此 refresh 接口属于 Cookie 认证，需要 CSRF 防护。
+    - CSRF 采用双提交 Cookie：csrf_token Cookie(非 HttpOnly) + X-CSRF-Token 请求头。
+    - 额外校验 Origin/Referer（若存在且配置了白名单）。
+    """
+
+    refresh_token = request.cookies.get(refresh_cookie_name())
+    if not refresh_token:
+        raise UnauthorizedException(message="缺少刷新令牌")
+
+    csrf_cookie = request.cookies.get(csrf_cookie_name())
+    csrf_header = request.headers.get(csrf_header_name())
+    if not csrf_cookie or not csrf_header or str(csrf_cookie) != str(csrf_header):
+        raise ForbiddenException(message="CSRF 校验失败")
+
+    origin = request.headers.get("origin")
+    if origin:
+        if not _is_origin_allowed(origin):
+            raise ForbiddenException(message="CSRF 校验失败 (Origin 不允许)")
+    else:
+        referer = request.headers.get("referer")
+        if referer:
+            ref_origin = _extract_origin_from_referer(referer)
+            if ref_origin and not _is_origin_allowed(ref_origin):
+                raise ForbiddenException(message="CSRF 校验失败 (Referer 不允许)")
+
+    return str(refresh_token)
+
+
+RefreshCookieDep = Annotated[str, Depends(require_refresh_cookie_and_csrf)]
 
 
 async def get_current_active_superuser(current_user: CurrentUser) -> User:

@@ -15,6 +15,11 @@ class Token(BaseModel):
     token_type: str
 
 
+class TokenAccess(BaseModel):
+    access_token: str
+    token_type: str
+
+
 class TokenRefresh(BaseModel):
     refresh_token: str
 

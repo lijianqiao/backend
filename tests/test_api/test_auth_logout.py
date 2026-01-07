@@ -8,6 +8,7 @@
 
 from httpx import AsyncClient
 
+from app.core.auth_cookies import csrf_cookie_name, csrf_header_name, refresh_cookie_name
 from app.core.config import settings
 
 
@@ -20,8 +21,12 @@ class TestAuthLogout:
         )
         assert resp.status_code == 200
         login_data = resp.json()
-        refresh_token = login_data["refresh_token"]
         access_token = login_data["access_token"]
+
+        old_refresh = client.cookies.get(refresh_cookie_name())
+        csrf = client.cookies.get(csrf_cookie_name())
+        assert old_refresh
+        assert csrf
 
         # 2) logout
         resp2 = await client.post(
@@ -35,7 +40,11 @@ class TestAuthLogout:
         # 3) old refresh should not work
         resp3 = await client.post(
             f"{settings.API_V1_STR}/auth/refresh",
-            json={"refresh_token": refresh_token},
+            headers={csrf_header_name(): str(csrf)},
+            cookies={
+                refresh_cookie_name(): str(old_refresh),
+                csrf_cookie_name(): str(csrf),
+            },
         )
         assert resp3.status_code == 401
 
