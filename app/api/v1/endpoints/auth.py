@@ -54,6 +54,7 @@ async def login_access_token(
 @router.post("/refresh", response_model=Token, summary="刷新令牌")
 async def refresh_token(
     token_in: TokenRefresh,
+    request: Request,
     auth_service: deps.AuthServiceDep,
 ) -> Token:
     """
@@ -71,7 +72,7 @@ async def refresh_token(
     Raises:
         UnauthorizedException: 当 Refresh Token 无效或过期时抛出 401 错误。
     """
-    return await auth_service.refresh_token(refresh_token=token_in.refresh_token)
+    return await auth_service.refresh_token(refresh_token=token_in.refresh_token, request=request)
 
 
 @router.post("/test-token", response_model=ResponseBase[UserResponse], summary="测试令牌有效性")

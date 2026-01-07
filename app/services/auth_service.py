@@ -19,6 +19,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core import security
 from app.core.config import settings
 from app.core.exceptions import CustomException, UnauthorizedException
+from app.core.session_store import remove_online_session, touch_online_session
 from app.core.token_store import get_user_refresh_jti, revoke_user_refresh, set_user_refresh_jti
 from app.crud.crud_user import CRUDUser
 from app.schemas.token import Token
@@ -73,6 +74,22 @@ class AuthService:
         access_token = security.create_access_token(subject=user.id, expires_delta=access_token_expires)
         refresh_token = security.create_refresh_token(subject=user.id)
 
+        # 在线会话：登录时记录并 touch
+        try:
+            ttl_seconds = int(settings.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 3600)
+            headers = request.headers
+            ip = request.client.host if request.client else None
+            user_agent = headers.get("user-agent")
+            await touch_online_session(
+                user_id=str(user.id),
+                username=str(user.username),
+                ip=ip,
+                user_agent=user_agent,
+                ttl_seconds=ttl_seconds,
+            )
+        except Exception:
+            pass
+
         # Refresh Token 单端有效：记录当前 refresh 的 jti
         try:
             payload = jwt.decode(
@@ -104,7 +121,7 @@ class AuthService:
 
         return Token(access_token=access_token, refresh_token=refresh_token, token_type="bearer")
 
-    async def refresh_token(self, refresh_token: str) -> Token:
+    async def refresh_token(self, refresh_token: str, *, request: Request | None = None) -> Token:
         """
         刷新 Token。验证 Refresh Token 有效性并返回新的 Access Token。
         """
@@ -171,6 +188,24 @@ class AuthService:
             # 存储失败时仍返回新 refresh；此时无法做到“单端有效”，但不会影响基本可用性
             pass
 
+        # 在线会话：刷新时 touch（记录最后活跃）
+        try:
+            ttl_seconds = int(settings.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 3600)
+            ip = None
+            user_agent = None
+            if request is not None:
+                ip = request.client.host if request.client else None
+                user_agent = request.headers.get("user-agent")
+            await touch_online_session(
+                user_id=str(user.id),
+                username=str(user.username),
+                ip=ip,
+                user_agent=user_agent,
+                ttl_seconds=ttl_seconds,
+            )
+        except Exception:
+            pass
+
         return Token(access_token=access_token, refresh_token=new_refresh_token, token_type="bearer")
 
     async def logout(self, *, user_id: str) -> None:
@@ -180,3 +215,7 @@ class AuthService:
         """
 
         await revoke_user_refresh(user_id=user_id)
+        try:
+            await remove_online_session(user_id=user_id)
+        except Exception:
+            pass

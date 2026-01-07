@@ -43,6 +43,7 @@ from app.services.log_service import LogService
 from app.services.menu_service import MenuService
 from app.services.permission_service import PermissionService
 from app.services.role_service import RoleService
+from app.services.session_service import SessionService
 from app.services.user_service import UserService
 
 # -----------------------
@@ -263,6 +264,13 @@ def get_dashboard_service(
     return DashboardService(db, user_crud, role_crud, menu_crud, login_log_crud, operation_log_crud)
 
 
+def get_session_service(
+    db: SessionDep,
+    user_crud: Annotated[CRUDUser, Depends(get_user_crud)],
+) -> SessionService:
+    return SessionService(db, user_crud)
+
+
 UserServiceDep = Annotated[UserService, Depends(get_user_service)]
 LogServiceDep = Annotated[LogService, Depends(get_log_service)]
 RoleServiceDep = Annotated[RoleService, Depends(get_role_service)]
@@ -270,3 +278,4 @@ MenuServiceDep = Annotated[MenuService, Depends(get_menu_service)]
 PermissionServiceDep = Annotated[PermissionService, Depends(get_permission_service)]
 AuthServiceDep = Annotated[AuthService, Depends(get_auth_service)]
 DashboardServiceDep = Annotated[DashboardService, Depends(get_dashboard_service)]
+SessionServiceDep = Annotated[SessionService, Depends(get_session_service)]

@@ -47,6 +47,9 @@ class PermissionCode(str, Enum):
     LOG_LOGIN_LIST = "log:login:list"
     LOG_OPERATION_LIST = "log:operation:list"
 
+    SESSION_LIST = "session:list"
+    SESSION_KICK = "session:kick"
+
 
 @dataclass(frozen=True, slots=True)
 class PermissionDef:
@@ -82,6 +85,8 @@ PERMISSION_DEFS: tuple[PermissionDef, ...] = (
     PermissionDef(PermissionCode.ROLE_MENUS_UPDATE, "角色-菜单-设置"),
     PermissionDef(PermissionCode.LOG_LOGIN_LIST, "登录日志-列表"),
     PermissionDef(PermissionCode.LOG_OPERATION_LIST, "操作日志-列表"),
+    PermissionDef(PermissionCode.SESSION_LIST, "在线会话-列表"),
+    PermissionDef(PermissionCode.SESSION_KICK, "在线会话-强制下线"),
 )
 
 
