@@ -67,6 +67,9 @@ class Settings(BaseSettings):
     FIRST_SUPERUSER_NICKNAME: str = "Administrator"
     FIRST_SUPERUSER_GENDER: Literal["男", "女", "保密"] = "男"
 
+    # 默认角色（创建非超级管理员用户时自动绑定）
+    DEFAULT_USER_ROLE_CODE: str = "employee"
+
     # Redis
     REDIS_HOST: str = "localhost"
     REDIS_PORT: int = 6379

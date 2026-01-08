@@ -19,7 +19,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.db import AsyncSessionLocal, engine
-from app.core.enums import MenuType
+from app.core.enums import DataScope, MenuType
 from app.crud.crud_dept import dept_crud
 from app.crud.crud_menu import menu as menu_crud
 from app.crud.crud_role import role as role_crud
@@ -284,6 +284,13 @@ async def init_rbac(db: AsyncSession) -> None:
         role_desc = _to_none_if_empty(r.get("description"))
         role_sort = int(r.get("sort", 0))
         permissions: list[str] = list(r.get("permissions", []) or [])
+        data_scope_raw = _to_none_if_empty(r.get("data_scope"))
+        data_scope: DataScope | None = None
+        if data_scope_raw:
+            try:
+                data_scope = DataScope(str(data_scope_raw))
+            except ValueError as e:
+                raise ValueError(f"角色 data_scope 非法: code={role_code}, data_scope={data_scope_raw}") from e
 
         menu_ids: list[UUID] = []
         missing: list[str] = []
@@ -302,6 +309,8 @@ async def init_rbac(db: AsyncSession) -> None:
             existing_role.name = role_name
             existing_role.description = role_desc
             existing_role.sort = role_sort
+            if data_scope is not None:
+                existing_role.data_scope = data_scope
             existing_role.is_deleted = False
             existing_role.is_active = True
             # 重新绑定 menus
@@ -317,6 +326,8 @@ async def init_rbac(db: AsyncSession) -> None:
                     sort=role_sort,
                 ),
             )
+            if data_scope is not None:
+                new_role.data_scope = data_scope
             result = await db.execute(select(Menu).where(Menu.id.in_(menu_ids)))
             new_role.menus = list(result.scalars().all())
 

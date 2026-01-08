@@ -710,3 +710,11 @@ permissions = [
   "log:login:list",
   "log:operation:list",
 ]
+
+[[roles]]
+name = "员工"
+code = "employee"
+description = "默认员工基础角色（新建非超管用户自动绑定）"
+sort = 100
+data_scope = "DEPT"
+permissions = []

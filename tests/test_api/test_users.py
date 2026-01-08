@@ -218,6 +218,54 @@ class TestUsersRead:
         assert all(item["is_superuser"] is True for item in items_su)
 
         # keyword=普通用户 -> is_superuser=False
+
+
+class TestUsersCreate:
+    async def test_create_user_with_dept_id_persists(self, client: AsyncClient, auth_headers: dict):
+        """创建用户时传 dept_id，应正确写入并返回。"""
+
+        # 1) 先创建部门
+        resp_dept = await client.post(
+            f"{settings.API_V1_STR}/depts/",
+            headers=auth_headers,
+            json={
+                "name": "测试部门",
+                "code": "TEST_DEPT",
+                "parent_id": None,
+                "sort": 0,
+                "leader": "张三",
+                "phone": None,
+                "email": None,
+            },
+        )
+        assert resp_dept.status_code == 200, resp_dept.text
+        dept_id = resp_dept.json()["data"]["id"]
+
+        # 2) 创建用户并选择部门
+        resp_user = await client.post(
+            f"{settings.API_V1_STR}/users/",
+            headers=auth_headers,
+            json={
+                "username": "dept_user_create_1",
+                "phone": "13500135111",
+                "password": "Test@12345",
+                "email": "dept_user_create_1@example.com",
+                "dept_id": dept_id,
+                "is_superuser": False,
+            },
+        )
+        assert resp_user.status_code == 200, resp_user.text
+        data = resp_user.json()["data"]
+        assert data["dept_id"] == dept_id
+
+        # 3) 再查一次用户详情，确认持久化
+        user_id = data["id"]
+        resp_get = await client.get(
+            f"{settings.API_V1_STR}/users/{user_id}",
+            headers=auth_headers,
+        )
+        assert resp_get.status_code == 200, resp_get.text
+        assert resp_get.json()["data"]["dept_id"] == dept_id
         resp_normal = await client.get(
             f"{settings.API_V1_STR}/users/",
             headers=auth_headers,

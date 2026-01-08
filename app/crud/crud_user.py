@@ -279,6 +279,7 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
             gender=obj_in.gender,
             is_active=obj_in.is_active,
             is_superuser=obj_in.is_superuser,
+            dept_id=obj_in.dept_id,
             password=get_password_hash(obj_in.password),
         )
         db.add(db_obj)

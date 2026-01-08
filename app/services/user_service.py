@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core import security
 from app.core.cache import invalidate_user_permissions_cache
+from app.core.config import settings
 from app.core.decorator import transactional
 from app.core.exceptions import BadRequestException, NotFoundException
 from app.crud.crud_role import CRUDRole
@@ -65,7 +66,19 @@ class UserService:
                     raise BadRequestException(message="该邮箱已被注销/删除，请联系管理员恢复")
                 raise BadRequestException(message="该邮箱的用户已存在")
 
-        return await self.user_crud.create(self.db, obj_in=obj_in)
+        created_user = await self.user_crud.create(self.db, obj_in=obj_in)
+
+        # 默认角色：非超级管理员创建后自动绑定一个基础角色
+        if not created_user.is_superuser:
+            default_role_code = (settings.DEFAULT_USER_ROLE_CODE or "").strip()
+            if default_role_code:
+                default_role = await self.role_crud.get_by_code(self.db, code=default_role_code)
+                if default_role and default_role.is_active and not default_role.is_deleted:
+                    created_user.roles = [default_role]
+                    self.db.add(created_user)
+                    await self.db.flush()
+
+        return created_user
 
     async def get_user(self, user_id: UUID) -> User | None:
         """
