@@ -31,7 +31,7 @@ parent_code = "HQ"
 [[depts]]
 code = "TECH_DEV"
 name = "开发组"
-sort = 11
+sort = 101
 leader = ""
 phone = ""
 email = ""
@@ -40,7 +40,7 @@ parent_code = "TECH"
 [[depts]]
 code = "TECH_OPS"
 name = "运维组"
-sort = 12
+sort = 102
 leader = ""
 phone = ""
 email = ""
@@ -49,7 +49,7 @@ parent_code = "TECH"
 [[depts]]
 code = "HR"
 name = "人力资源部"
-sort = 20
+sort = 11
 leader = ""
 phone = ""
 email = ""
@@ -58,7 +58,7 @@ parent_code = "HQ"
 [[depts]]
 code = "FINANCE"
 name = "财务部"
-sort = 30
+sort = 12
 leader = ""
 phone = ""
 email = ""
