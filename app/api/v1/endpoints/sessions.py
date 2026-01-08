@@ -28,9 +28,10 @@ async def list_online_sessions(
     _: deps.User = Depends(deps.require_permissions([PermissionCode.SESSION_LIST.value])),
     page: int = 1,
     page_size: int = 20,
+    keyword: str | None = None,
 ) -> ResponseBase[PaginatedResponse[OnlineSessionResponse]]:
     """
-    获取在线会话列表，支持分页。
+    获取在线会话列表，支持分页和搜索。
     需要 SESSION_LIST 权限。
 
     Args:
@@ -38,6 +39,7 @@ async def list_online_sessions(
         current_user (User): 当前登录用户。
         page (int): 页码，默认值为 1。
         page_size (int): 每页数量，默认值为 20。
+        keyword (str | None): 关键词过滤，支持用户名和 IP 搜索。
 
     Returns:
         ResponseBase[PaginatedResponse[OnlineSessionResponse]]: 包含在线会话列表的响应对象。
@@ -46,7 +48,7 @@ async def list_online_sessions(
         CustomException: 当用户没有权限时抛出 403 错误。
 
     """
-    items, total = await session_service.list_online(page=page, page_size=page_size)
+    items, total = await session_service.list_online(page=page, page_size=page_size, keyword=keyword)
     return ResponseBase(data=PaginatedResponse(total=total, page=page, page_size=page_size, items=items))
 
 

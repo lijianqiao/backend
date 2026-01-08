@@ -28,8 +28,10 @@ class SessionService:
         self.db = db
         self.user_crud = user_crud
 
-    async def list_online(self, *, page: int = 1, page_size: int = 20) -> tuple[list[OnlineSessionResponse], int]:
-        sessions, total = await list_online_sessions(page=page, page_size=page_size)
+    async def list_online(
+        self, *, page: int = 1, page_size: int = 20, keyword: str | None = None
+    ) -> tuple[list[OnlineSessionResponse], int]:
+        sessions, total = await list_online_sessions(page=page, page_size=page_size, keyword=keyword)
 
         items: list[OnlineSessionResponse] = []
         for s in sessions:

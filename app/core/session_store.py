@@ -44,19 +44,21 @@ def _default_online_ttl_seconds() -> int:
 
 
 class SessionStore:
-    async def upsert_session(self, session: OnlineSession, ttl_seconds: int) -> None:  # pragma: no cover
+    async def upsert_session(self, session: OnlineSession, ttl_seconds: int) -> None:
         raise NotImplementedError
 
-    async def get_session(self, user_id: str) -> OnlineSession | None:  # pragma: no cover
+    async def get_session(self, user_id: str) -> OnlineSession | None:
         raise NotImplementedError
 
-    async def remove_session(self, user_id: str) -> None:  # pragma: no cover
+    async def remove_session(self, user_id: str) -> None:
         raise NotImplementedError
 
-    async def list_online(self, *, page: int, page_size: int) -> tuple[list[OnlineSession], int]:  # pragma: no cover
+    async def list_online(
+        self, *, page: int, page_size: int, keyword: str | None = None
+    ) -> tuple[list[OnlineSession], int]:
         raise NotImplementedError
 
-    async def remove_sessions(self, user_ids: Iterable[str]) -> None:  # pragma: no cover
+    async def remove_sessions(self, user_ids: Iterable[str]) -> None:
         for uid in user_ids:
             await self.remove_session(uid)
 
@@ -119,7 +121,9 @@ class RedisSessionStore(SessionStore):
         except Exception as e:
             logger.warning(f"在线会话删除失败(REDIS): {e}")
 
-    async def list_online(self, *, page: int, page_size: int) -> tuple[list[OnlineSession], int]:
+    async def list_online(
+        self, *, page: int, page_size: int, keyword: str | None = None
+    ) -> tuple[list[OnlineSession], int]:
         if redis_client is None:
             return [], 0
 
@@ -146,6 +150,17 @@ class RedisSessionStore(SessionStore):
             session = await self.get_session(str(uid))
             if session is not None:
                 sessions.append(session)
+
+        # 关键词过滤：支持用户名和 IP 搜索
+        if keyword:
+            kw = keyword.strip().lower()
+            if kw:
+                sessions = [s for s in sessions if kw in (s.username or "").lower() or kw in (s.ip or "").lower()]
+                total = len(sessions)
+                # 重新分页
+                start = (page - 1) * page_size
+                end = start + page_size
+                return sessions[start:end], total
 
         return sessions, total
 
@@ -177,7 +192,9 @@ class MemorySessionStore(SessionStore):
         async with self._lock:
             self._data.pop(user_id, None)
 
-    async def list_online(self, *, page: int, page_size: int) -> tuple[list[OnlineSession], int]:
+    async def list_online(
+        self, *, page: int, page_size: int, keyword: str | None = None
+    ) -> tuple[list[OnlineSession], int]:
         if page < 1:
             page = 1
         if page_size < 1:
@@ -195,6 +212,13 @@ class MemorySessionStore(SessionStore):
             items = [s for (s, _) in self._data.values()]
 
         items.sort(key=lambda x: x.last_seen_at, reverse=True)
+
+        # 关键词过滤：支持用户名和 IP 搜索
+        if keyword:
+            kw = keyword.strip().lower()
+            if kw:
+                items = [s for s in items if kw in (s.username or "").lower() or kw in (s.ip or "").lower()]
+
         total = len(items)
         start = (page - 1) * page_size
         end = start + page_size
@@ -241,5 +265,7 @@ async def remove_online_sessions(*, user_ids: Iterable[str]) -> None:
     await get_session_store().remove_sessions(user_ids)
 
 
-async def list_online_sessions(*, page: int = 1, page_size: int = 20) -> tuple[list[OnlineSession], int]:
-    return await get_session_store().list_online(page=page, page_size=page_size)
+async def list_online_sessions(
+    *, page: int = 1, page_size: int = 20, keyword: str | None = None
+) -> tuple[list[OnlineSession], int]:
+    return await get_session_store().list_online(page=page, page_size=page_size, keyword=keyword)
