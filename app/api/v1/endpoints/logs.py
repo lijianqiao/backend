@@ -6,8 +6,6 @@
 @Docs: 日志 API 接口 (Logs API).
 """
 
-from typing import Any
-
 from fastapi import APIRouter, Depends
 
 from app.api import deps
@@ -26,7 +24,7 @@ async def read_login_logs(
     page: int = 1,
     page_size: int = 20,
     keyword: str | None = None,
-) -> Any:
+) -> ResponseBase[PaginatedResponse[LoginLogResponse]]:
     """
     获取登录日志 (分页)。
 
@@ -43,7 +41,11 @@ async def read_login_logs(
         ResponseBase[PaginatedResponse[LoginLogResponse]]: 分页后的登录日志列表。
     """
     logs, total = await log_service.get_login_logs_paginated(page=page, page_size=page_size, keyword=keyword)
-    return ResponseBase(data=PaginatedResponse(total=total, page=page, page_size=page_size, items=logs))
+    return ResponseBase(
+        data=PaginatedResponse(
+            total=total, page=page, page_size=page_size, items=[LoginLogResponse.model_validate(log) for log in logs]
+        )
+    )
 
 
 @router.get("/operation", response_model=ResponseBase[PaginatedResponse[OperationLogResponse]], summary="获取操作日志")
@@ -54,7 +56,7 @@ async def read_operation_logs(
     page: int = 1,
     page_size: int = 20,
     keyword: str | None = None,
-) -> Any:
+) -> ResponseBase[PaginatedResponse[OperationLogResponse]]:
     """
     获取操作日志 (分页)。
 
@@ -71,4 +73,11 @@ async def read_operation_logs(
         ResponseBase[PaginatedResponse[OperationLogResponse]]: 分页后的操作日志列表。
     """
     logs, total = await log_service.get_operation_logs_paginated(page=page, page_size=page_size, keyword=keyword)
-    return ResponseBase(data=PaginatedResponse(total=total, page=page, page_size=page_size, items=logs))
+    return ResponseBase(
+        data=PaginatedResponse(
+            total=total,
+            page=page,
+            page_size=page_size,
+            items=[OperationLogResponse.model_validate(log) for log in logs],
+        )
+    )

@@ -28,7 +28,7 @@ async def list_online_sessions(
     _: deps.User = Depends(deps.require_permissions([PermissionCode.SESSION_LIST.value])),
     page: int = 1,
     page_size: int = 20,
-) -> Any:
+) -> ResponseBase[PaginatedResponse[OnlineSessionResponse]]:
     """
     获取在线会话列表，支持分页。
     需要 SESSION_LIST 权限。

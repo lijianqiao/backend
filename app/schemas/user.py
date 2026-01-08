@@ -39,6 +39,30 @@ def validate_password_strength(password: str) -> str:
     return password
 
 
+def validate_phone_number(v: str | None, *, required: bool = False) -> str | None:
+    """
+    验证手机号格式 (支持国际化，默认推断或需加区号，这里假设中国大陆 +86 或用户输入带区号).
+
+    Args:
+        v: 手机号码字符串
+        required: 是否为必填字段
+
+    Returns:
+        格式化后的 E.164 格式手机号
+    """
+    if v is None:
+        if required:
+            raise ValueError("手机号不能为空")
+        return None
+    try:
+        parsed_number = phonenumbers.parse(v, "CN")
+        if not phonenumbers.is_valid_number(parsed_number):
+            raise ValueError("无效的手机号码")
+        return phonenumbers.format_number(parsed_number, phonenumbers.PhoneNumberFormat.E164)
+    except phonenumbers.NumberParseException as e:
+        raise ValueError("手机号码格式错误") from e
+
+
 class UserBase(BaseModel):
     username: str = Field(..., description="用户名")
     email: EmailStr | None = Field(None, description="邮箱")
@@ -51,16 +75,11 @@ class UserBase(BaseModel):
     @field_validator("phone")
     @classmethod
     def validate_phone(cls, v: str) -> str:
-        """
-        验证手机号格式 (支持国际化，默认推断或需加区号，这里假设中国大陆 +86 或用户输入带区号)
-        """
-        try:
-            parsed_number = phonenumbers.parse(v, "CN")
-            if not phonenumbers.is_valid_number(parsed_number):
-                raise ValueError("无效的手机号码")
-            return phonenumbers.format_number(parsed_number, phonenumbers.PhoneNumberFormat.E164)
-        except phonenumbers.NumberParseException as e:
-            raise ValueError("手机号码格式错误") from e
+        """验证手机号格式。"""
+        result = validate_phone_number(v, required=True)
+        # required=True 保证返回非 None
+        assert result is not None
+        return result
 
 
 class UserCreate(UserBase):
@@ -84,15 +103,8 @@ class UserUpdate(BaseModel):
     @field_validator("phone")
     @classmethod
     def validate_phone(cls, v: str | None) -> str | None:
-        if v is None:
-            return None
-        try:
-            parsed_number = phonenumbers.parse(v, "CN")
-            if not phonenumbers.is_valid_number(parsed_number):
-                raise ValueError("无效的手机号码")
-            return phonenumbers.format_number(parsed_number, phonenumbers.PhoneNumberFormat.E164)
-        except phonenumbers.NumberParseException as e:
-            raise ValueError("手机号码格式错误") from e
+        """验证手机号格式。"""
+        return validate_phone_number(v)
 
 
 class UserMeUpdate(BaseModel):
@@ -115,15 +127,8 @@ class UserMeUpdate(BaseModel):
     @field_validator("phone")
     @classmethod
     def validate_phone(cls, v: str | None) -> str | None:
-        if v is None:
-            return None
-        try:
-            parsed_number = phonenumbers.parse(v, "CN")
-            if not phonenumbers.is_valid_number(parsed_number):
-                raise ValueError("无效的手机号码")
-            return phonenumbers.format_number(parsed_number, phonenumbers.PhoneNumberFormat.E164)
-        except phonenumbers.NumberParseException as e:
-            raise ValueError("手机号码格式错误") from e
+        """验证手机号格式。"""
+        return validate_phone_number(v)
 
 
 class UserResponse(UserBase, TimestampSchema):

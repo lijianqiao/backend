@@ -70,7 +70,11 @@ async def read_users(
         is_superuser=is_superuser,
         is_active=is_active,
     )
-    return ResponseBase(data=PaginatedResponse(total=total, page=page, page_size=page_size, items=users))
+    return ResponseBase(
+        data=PaginatedResponse(
+            total=total, page=page, page_size=page_size, items=[UserResponse.model_validate(u) for u in users]
+        )
+    )
 
 
 @router.post("/", response_model=ResponseBase[UserResponse], summary="创建用户")
@@ -96,7 +100,7 @@ async def create_user(
         ResponseBase[UserResponse]: 创建成功的用户对象。
     """
     user = await user_service.create_user(obj_in=user_in)
-    return ResponseBase(data=user)
+    return ResponseBase(data=UserResponse.model_validate(user))
 
 
 @router.delete("/batch", response_model=ResponseBase[BatchOperationResult], summary="批量删除用户")
@@ -106,7 +110,7 @@ async def batch_delete_users(
     current_user: deps.CurrentUser,
     _: deps.User = Depends(deps.require_permissions([PermissionCode.USER_DELETE.value])),
     user_service: deps.UserServiceDep,
-) -> Any:
+) -> ResponseBase[BatchOperationResult]:
     """
     批量删除用户。
 
@@ -134,7 +138,7 @@ async def batch_delete_users(
 @router.get("/me", response_model=ResponseBase[UserResponse], summary="获取当前用户")
 async def read_user_me(
     current_user: deps.CurrentUser,
-) -> Any:
+) -> ResponseBase[UserResponse]:
     """
     获取当前用户信息。
 
@@ -146,7 +150,7 @@ async def read_user_me(
     Returns:
         ResponseBase[UserResponse]: 当前用户的详细信息。
     """
-    return ResponseBase(data=current_user)
+    return ResponseBase(data=UserResponse.model_validate(current_user))
 
 
 @router.put("/me", response_model=ResponseBase[UserResponse], summary="更新当前用户")
@@ -155,7 +159,7 @@ async def update_user_me(
     user_service: deps.UserServiceDep,
     user_in: UserMeUpdate,
     current_user: deps.CurrentUser,
-) -> Any:
+) -> ResponseBase[UserResponse]:
     """
     更新当前用户信息。
 
@@ -170,7 +174,7 @@ async def update_user_me(
         ResponseBase[UserResponse]: 更新后的用户信息。
     """
     user = await user_service.update_user_me(user_id=current_user.id, obj_in=user_in)
-    return ResponseBase(data=user)
+    return ResponseBase(data=UserResponse.model_validate(user))
 
 
 @router.put("/me/password", response_model=ResponseBase[UserResponse], summary="修改密码 (当前用户)")
@@ -179,7 +183,7 @@ async def change_password_me(
     user_service: deps.UserServiceDep,
     password_data: ChangePasswordRequest,
     current_user: deps.CurrentUser,
-) -> Any:
+) -> ResponseBase[UserResponse]:
     """
     修改当前用户密码。
 
@@ -198,7 +202,7 @@ async def change_password_me(
         old_password=password_data.old_password,
         new_password=password_data.new_password,
     )
-    return ResponseBase(data=user, message="密码修改成功")
+    return ResponseBase(data=UserResponse.model_validate(user), message="密码修改成功")
 
 
 @router.put("/{user_id}/password", response_model=ResponseBase[UserResponse], summary="重置密码 (管理员)")
@@ -209,7 +213,7 @@ async def reset_user_password(
     current_user: deps.CurrentUser,
     _: deps.User = Depends(deps.require_permissions([PermissionCode.USER_PASSWORD_RESET.value])),
     user_service: deps.UserServiceDep,
-) -> Any:
+) -> ResponseBase[UserResponse]:
     """
     管理员重置用户密码。
 
@@ -226,7 +230,7 @@ async def reset_user_password(
         ResponseBase[UserResponse]: 用户信息 (密码重置成功后)。
     """
     user = await user_service.reset_password(user_id=user_id, new_password=password_data.new_password)
-    return ResponseBase(data=user, message="密码重置成功")
+    return ResponseBase(data=UserResponse.model_validate(user), message="密码重置成功")
 
 
 @router.get("/recycle-bin", response_model=ResponseBase[PaginatedResponse[UserResponse]], summary="获取用户回收站列表")
@@ -239,7 +243,7 @@ async def get_recycle_bin(
     keyword: str | None = None,
     is_superuser: bool | None = None,
     is_active: bool | None = None,
-) -> Any:
+) -> ResponseBase[PaginatedResponse[UserResponse]]:
     """
     获取已删除的用户列表 (回收站)。
     需要用户-回收站权限。
@@ -263,7 +267,11 @@ async def get_recycle_bin(
         is_superuser=is_superuser,
         is_active=is_active,
     )
-    return ResponseBase(data=PaginatedResponse(total=total, page=page, page_size=page_size, items=users))
+    return ResponseBase(
+        data=PaginatedResponse(
+            total=total, page=page, page_size=page_size, items=[UserResponse.model_validate(u) for u in users]
+        )
+    )
 
 
 @router.get("/{user_id}", response_model=ResponseBase[UserResponse], summary="获取特定用户信息")
@@ -272,7 +280,7 @@ async def read_user_by_id(
     user_id: UUID,
     _: deps.User = Depends(deps.require_permissions([PermissionCode.USER_LIST.value])),
     user_service: deps.UserServiceDep,
-) -> Any:
+) -> ResponseBase[UserResponse]:
     """
     获取特定用户的详细信息 (管理员)。
 
@@ -285,7 +293,7 @@ async def read_user_by_id(
         ResponseBase[UserResponse]: 用户详细信息。
     """
     user = await user_service.get_user(user_id=user_id)
-    return ResponseBase(data=user)
+    return ResponseBase(data=UserResponse.model_validate(user))
 
 
 @router.put("/{user_id}", response_model=ResponseBase[UserResponse], summary="更新用户信息 (管理员)")
@@ -295,7 +303,7 @@ async def update_user(
     user_in: UserUpdate,
     _: deps.User = Depends(deps.require_permissions([PermissionCode.USER_UPDATE.value])),
     user_service: deps.UserServiceDep,
-) -> Any:
+) -> ResponseBase[UserResponse]:
     """
     管理员更新用户信息。
 
@@ -312,7 +320,7 @@ async def update_user(
         ResponseBase[UserResponse]: 更新后的用户信息。
     """
     user = await user_service.update_user(user_id=user_id, obj_in=user_in)
-    return ResponseBase(data=user, message="用户信息更新成功")
+    return ResponseBase(data=UserResponse.model_validate(user), message="用户信息更新成功")
 
 
 @router.post("/batch/restore", response_model=ResponseBase[BatchOperationResult], summary="批量恢复用户")
@@ -322,7 +330,7 @@ async def batch_restore_users(
     current_user: deps.CurrentUser,
     _: deps.User = Depends(deps.require_permissions([PermissionCode.USER_RESTORE.value])),
     user_service: deps.UserServiceDep,
-) -> Any:
+) -> ResponseBase[BatchOperationResult]:
     """批量恢复用户。
 
     从回收站中批量恢复软删除用户。
@@ -353,7 +361,7 @@ async def restore_user(
     user_id: UUID,
     _: deps.User = Depends(deps.require_permissions([PermissionCode.USER_RESTORE.value])),
     user_service: deps.UserServiceDep,
-) -> Any:
+) -> ResponseBase[UserResponse]:
     """
     恢复已删除用户。
 
@@ -374,7 +382,7 @@ async def restore_user(
         NotFoundException: 用户不存在时。
     """
     user = await user_service.restore_user(id=user_id)
-    return ResponseBase(data=user, message="用户恢复成功")
+    return ResponseBase(data=UserResponse.model_validate(user), message="用户恢复成功")
 
 
 @router.get("/{user_id}/roles", response_model=ResponseBase[list[RoleResponse]], summary="获取用户角色")
@@ -384,7 +392,7 @@ async def get_user_roles(
     current_user: deps.CurrentUser,
     _: deps.User = Depends(deps.require_permissions([PermissionCode.USER_ROLES_LIST.value])),
     user_service: deps.UserServiceDep,
-) -> Any:
+) -> ResponseBase[list[RoleResponse]]:
     """
     获取用户已绑定的角色列表。
 
@@ -403,7 +411,7 @@ async def get_user_roles(
     """
 
     roles = await user_service.get_user_roles(user_id=user_id)
-    return ResponseBase(data=roles)
+    return ResponseBase(data=[RoleResponse.model_validate(r) for r in roles])
 
 
 @router.put("/{user_id}/roles", response_model=ResponseBase[list[RoleResponse]], summary="设置用户角色")
@@ -414,7 +422,7 @@ async def set_user_roles(
     current_user: deps.CurrentUser,
     _: deps.User = Depends(deps.require_permissions([PermissionCode.USER_ROLES_UPDATE.value])),
     user_service: deps.UserServiceDep,
-) -> Any:
+) -> ResponseBase[list[RoleResponse]]:
     """
     设置用户角色（全量覆盖，幂等）。
 
@@ -434,4 +442,4 @@ async def set_user_roles(
     """
 
     roles = await user_service.set_user_roles(user_id=user_id, role_ids=req.role_ids)
-    return ResponseBase(data=roles, message="用户角色设置成功")
+    return ResponseBase(data=[RoleResponse.model_validate(r) for r in roles], message="用户角色设置成功")

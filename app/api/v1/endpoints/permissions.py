@@ -6,8 +6,6 @@
 @Docs: 权限字典 API（用于前端选择/绑定权限码）。
 """
 
-from typing import Any
-
 from fastapi import APIRouter, Depends
 
 from app.api import deps
@@ -23,7 +21,7 @@ async def list_permissions(
     current_user: deps.CurrentUser,
     permission_service: deps.PermissionServiceDep,
     _: deps.User = Depends(deps.require_permissions([PermissionCode.MENU_OPTIONS_LIST.value])),
-) -> Any:
+) -> ResponseBase[list[PermissionDictItem]]:
     """获取系统权限字典（权限码以代码为源）。
 
     前端用于菜单/角色管理时的“权限码选择”，避免手动输入权限字符串。

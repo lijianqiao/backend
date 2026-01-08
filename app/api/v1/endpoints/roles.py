@@ -6,7 +6,6 @@
 @Docs: 角色 API 接口 (Roles API).
 """
 
-from typing import Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends
@@ -34,7 +33,7 @@ async def read_roles(
     page_size: int = 20,
     keyword: str | None = None,
     is_active: bool | None = None,
-) -> Any:
+) -> ResponseBase[PaginatedResponse[RoleResponse]]:
     """
     获取角色列表 (分页)。
 
@@ -54,7 +53,11 @@ async def read_roles(
     roles, total = await role_service.get_roles_paginated(
         page=page, page_size=page_size, keyword=keyword, is_active=is_active
     )
-    return ResponseBase(data=PaginatedResponse(total=total, page=page, page_size=page_size, items=roles))
+    return ResponseBase(
+        data=PaginatedResponse(
+            total=total, page=page, page_size=page_size, items=[RoleResponse.model_validate(r) for r in roles]
+        )
+    )
 
 
 @router.post("/", response_model=ResponseBase[RoleResponse], summary="创建角色")
@@ -64,7 +67,7 @@ async def create_role(
     current_user: deps.CurrentUser,
     _: deps.User = Depends(deps.require_permissions([PermissionCode.ROLE_CREATE.value])),
     role_service: deps.RoleServiceDep,
-) -> Any:
+) -> ResponseBase[RoleResponse]:
     """
     创建新角色。
 
@@ -79,7 +82,7 @@ async def create_role(
         ResponseBase[RoleResponse]: 创建成功的角色对象。
     """
     role = await role_service.create_role(obj_in=role_in)
-    return ResponseBase(data=role)
+    return ResponseBase(data=RoleResponse.model_validate(role))
 
 
 @router.delete("/batch", response_model=ResponseBase[BatchOperationResult], summary="批量删除角色")
@@ -89,7 +92,7 @@ async def batch_delete_roles(
     current_user: deps.CurrentUser,
     _: deps.User = Depends(deps.require_permissions([PermissionCode.ROLE_DELETE.value])),
     role_service: deps.RoleServiceDep,
-) -> Any:
+) -> ResponseBase[BatchOperationResult]:
     """
     批量删除角色。
 
@@ -121,7 +124,7 @@ async def update_role(
     current_user: deps.CurrentUser,
     _: deps.User = Depends(deps.require_permissions([PermissionCode.ROLE_UPDATE.value])),
     role_service: deps.RoleServiceDep,
-) -> Any:
+) -> ResponseBase[RoleResponse]:
     """
     更新角色。
 
@@ -137,7 +140,7 @@ async def update_role(
         ResponseBase[RoleResponse]: 更新后的角色对象。
     """
     role = await role_service.update_role(id=id, obj_in=role_in)
-    return ResponseBase(data=role)
+    return ResponseBase(data=RoleResponse.model_validate(role))
 
 
 @router.get("/recycle-bin", response_model=ResponseBase[PaginatedResponse[RoleResponse]], summary="获取角色回收站列表")
@@ -150,7 +153,7 @@ async def get_recycle_bin(
     role_service: deps.RoleServiceDep,
     keyword: str | None = None,
     is_active: bool | None = None,
-) -> Any:
+) -> ResponseBase[PaginatedResponse[RoleResponse]]:
     """
     获取已删除的角色列表 (回收站)。
     仅限超级管理员。
@@ -174,7 +177,11 @@ async def get_recycle_bin(
     roles, total = await role_service.get_deleted_roles(
         page=page, page_size=page_size, keyword=keyword, is_active=is_active
     )
-    return ResponseBase(data=PaginatedResponse(total=total, page=page, page_size=page_size, items=roles))
+    return ResponseBase(
+        data=PaginatedResponse(
+            total=total, page=page, page_size=page_size, items=[RoleResponse.model_validate(r) for r in roles]
+        )
+    )
 
 
 @router.delete("/{id}", response_model=ResponseBase[RoleResponse], summary="删除角色")
@@ -184,7 +191,7 @@ async def delete_role(
     active_superuser: deps.User = Depends(deps.get_current_active_superuser),
     _: deps.User = Depends(deps.require_permissions([PermissionCode.ROLE_DELETE.value])),
     role_service: deps.RoleServiceDep,
-) -> Any:
+) -> ResponseBase[RoleResponse]:
     """
     删除角色 (软删除)。
 
@@ -197,7 +204,7 @@ async def delete_role(
         ResponseBase[RoleResponse]: 删除后的角色对象。
     """
     role = await role_service.delete_role(id=id)
-    return ResponseBase(data=role)
+    return ResponseBase(data=RoleResponse.model_validate(role))
 
 
 @router.post("/batch/restore", response_model=ResponseBase[BatchOperationResult], summary="批量恢复角色")
@@ -207,7 +214,7 @@ async def batch_restore_roles(
     active_superuser: deps.User = Depends(deps.get_current_active_superuser),
     _: deps.User = Depends(deps.require_permissions([PermissionCode.ROLE_RESTORE.value])),
     role_service: deps.RoleServiceDep,
-) -> Any:
+) -> ResponseBase[BatchOperationResult]:
     """批量恢复角色。
 
     从回收站中批量恢复软删除角色。
@@ -240,7 +247,7 @@ async def restore_role(
     active_superuser: deps.User = Depends(deps.get_current_active_superuser),
     _: deps.User = Depends(deps.require_permissions([PermissionCode.ROLE_RESTORE.value])),
     role_service: deps.RoleServiceDep,
-) -> Any:
+) -> ResponseBase[RoleResponse]:
     """
     恢复已删除角色。
 
@@ -262,7 +269,7 @@ async def restore_role(
         NotFoundException: 角色不存在时。
     """
     role = await role_service.restore_role(id=id)
-    return ResponseBase(data=role, message="角色恢复成功")
+    return ResponseBase(data=RoleResponse.model_validate(role), message="角色恢复成功")
 
 
 @router.get("/{id}/menus", response_model=ResponseBase[list[UUID]], summary="获取角色菜单")
@@ -272,7 +279,7 @@ async def get_role_menus(
     current_user: deps.CurrentUser,
     _: deps.User = Depends(deps.require_permissions([PermissionCode.ROLE_MENUS_LIST.value])),
     role_service: deps.RoleServiceDep,
-) -> Any:
+) -> ResponseBase[list[UUID]]:
     """获取角色已分配的菜单ID列表（用于编辑回显）。"""
 
     menu_ids = await role_service.get_role_menu_ids(role_id=id)
@@ -287,7 +294,7 @@ async def set_role_menus(
     current_user: deps.CurrentUser,
     _: deps.User = Depends(deps.require_permissions([PermissionCode.ROLE_MENUS_UPDATE.value])),
     role_service: deps.RoleServiceDep,
-) -> Any:
+) -> ResponseBase[list[UUID]]:
     """设置角色菜单（全量覆盖，幂等）。"""
 
     menu_ids = await role_service.set_role_menus(role_id=id, menu_ids=req.menu_ids)

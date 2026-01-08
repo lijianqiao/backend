@@ -13,7 +13,7 @@ from sqlalchemy import Boolean, ForeignKey, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.enums import MenuType
-from app.models.base import AuditableModel
+from app.models.base import AuditableModel, Base, TimestampMixin, UUIDMixin
 
 if TYPE_CHECKING:
     from app.models.user import User
@@ -66,9 +66,11 @@ class Menu(AuditableModel):
     roles: Mapped[list["Role"]] = relationship("Role", secondary="sys_role_menu", back_populates="menus")
 
 
-class UserRole(AuditableModel):
+class UserRole(Base, UUIDMixin, TimestampMixin):
     """
     用户-角色关联表。
+
+    说明：关联表不需要软删除和乐观锁，简化为基础 Mixin。
     """
 
     __tablename__ = "sys_user_role"
@@ -81,9 +83,11 @@ class UserRole(AuditableModel):
     )
 
 
-class RoleMenu(AuditableModel):
+class RoleMenu(Base, UUIDMixin, TimestampMixin):
     """
     角色-菜单关联表。
+
+    说明：关联表不需要软删除和乐观锁，简化为基础 Mixin。
     """
 
     __tablename__ = "sys_role_menu"

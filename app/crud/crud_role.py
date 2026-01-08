@@ -7,6 +7,7 @@
 """
 
 from typing import Any
+from uuid import UUID
 
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -70,17 +71,17 @@ class CRUDRole(CRUDBase[Role, RoleCreate, RoleUpdate]):
         result = await db.execute(stmt)
         return list(result.scalars().all()), total
 
-    async def get_user_ids_by_role(self, db: AsyncSession, *, role_id: Any) -> list[Any]:
+    async def get_user_ids_by_role(self, db: AsyncSession, *, role_id: UUID) -> list[UUID]:
         result = await db.execute(select(UserRole.user_id).where(UserRole.role_id == role_id))
         return list(result.scalars().all())
 
-    async def get_user_ids_by_roles(self, db: AsyncSession, *, role_ids: list[Any]) -> list[Any]:
+    async def get_user_ids_by_roles(self, db: AsyncSession, *, role_ids: list[UUID]) -> list[UUID]:
         if not role_ids:
             return []
         result = await db.execute(select(UserRole.user_id).where(UserRole.role_id.in_(role_ids)))
         return list(set(result.scalars().all()))
 
-    async def get(self, db: AsyncSession, id: Any) -> Role | None:
+    async def get(self, db: AsyncSession, id: UUID) -> Role | None:
         """
         通过 ID 获取角色 (包含菜单关联，避免 N+1 问题)。
         """
@@ -107,7 +108,7 @@ class CRUDRole(CRUDBase[Role, RoleCreate, RoleUpdate]):
         )
         return result.scalars().first()
 
-    async def get_multi_by_ids(self, db: AsyncSession, *, ids: list[Any]) -> list[Role]:
+    async def get_multi_by_ids(self, db: AsyncSession, *, ids: list[UUID]) -> list[Role]:
         if not ids:
             return []
         result = await db.execute(

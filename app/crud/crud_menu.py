@@ -6,6 +6,8 @@
 @Docs: 菜单 CRUD 操作 (Menu CRUD).
 """
 
+from uuid import UUID
+
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -30,7 +32,7 @@ class CRUDMenu(CRUDBase[Menu, MenuCreate, MenuUpdate]):
             current = current.selectinload(Menu.children)
         return loader
 
-    async def get_affected_user_ids(self, db: AsyncSession, *, menu_id) -> list:
+    async def get_affected_user_ids(self, db: AsyncSession, *, menu_id: UUID) -> list[UUID]:
         stmt = (
             select(UserRole.user_id)
             .join(RoleMenu, RoleMenu.role_id == UserRole.role_id)
@@ -39,7 +41,7 @@ class CRUDMenu(CRUDBase[Menu, MenuCreate, MenuUpdate]):
         result = await db.execute(stmt)
         return list(set(result.scalars().all()))
 
-    async def get_affected_user_ids_by_menu_ids(self, db: AsyncSession, *, menu_ids: list) -> list:
+    async def get_affected_user_ids_by_menu_ids(self, db: AsyncSession, *, menu_ids: list[UUID]) -> list[UUID]:
         if not menu_ids:
             return []
         stmt = (
@@ -77,7 +79,7 @@ class CRUDMenu(CRUDBase[Menu, MenuCreate, MenuUpdate]):
         result = await db.execute(select(Menu).where(Menu.is_deleted.is_(False)).order_by(Menu.sort))
         return list(result.scalars().all())
 
-    async def get_multi_by_ids(self, db: AsyncSession, *, ids: list) -> list[Menu]:
+    async def get_multi_by_ids(self, db: AsyncSession, *, ids: list[UUID]) -> list[Menu]:
         if not ids:
             return []
         result = await db.execute(select(Menu).where(Menu.id.in_(ids), Menu.is_deleted.is_(False)).order_by(Menu.sort))
@@ -92,7 +94,7 @@ class CRUDMenu(CRUDBase[Menu, MenuCreate, MenuUpdate]):
         db: AsyncSession,
         *,
         path: str,
-        exclude_id=None,
+        exclude_id: UUID | None = None,
         only_not_deleted: bool = True,
     ) -> bool:
         """检查 path 是否已存在（用于避免菜单路由 path 重复）。"""

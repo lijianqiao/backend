@@ -48,7 +48,7 @@ class CRUDBase[ModelType: Base, CreateSchemaType: BaseModel, UpdateSchemaType: B
         kw = keyword.strip()
         return kw if kw else None
 
-    async def get(self, db: AsyncSession, id: Any) -> ModelType | None:
+    async def get(self, db: AsyncSession, id: UUID) -> ModelType | None:
         """
         通过 ID 获取单个记录。
         """
@@ -139,7 +139,7 @@ class CRUDBase[ModelType: Base, CreateSchemaType: BaseModel, UpdateSchemaType: B
         await db.refresh(db_obj)
         return db_obj
 
-    async def remove(self, db: AsyncSession, *, id: Any) -> ModelType | None:
+    async def remove(self, db: AsyncSession, *, id: UUID) -> ModelType | None:
         """
         删除记录 (优先软删除，否则硬删除)。
         """
@@ -204,7 +204,7 @@ class CRUDBase[ModelType: Base, CreateSchemaType: BaseModel, UpdateSchemaType: B
         await db.flush()
         return success_count, failed_ids
 
-    async def restore(self, db: AsyncSession, *, id: Any) -> ModelType | None:
+    async def restore(self, db: AsyncSession, *, id: UUID) -> ModelType | None:
         """
         恢复已软删除的记录。
         """

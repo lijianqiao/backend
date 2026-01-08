@@ -6,7 +6,6 @@
 @Docs: 菜单 API 接口 (Menus API).
 """
 
-from typing import Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends
@@ -31,7 +30,7 @@ async def get_menu_options(
     current_user: deps.CurrentUser,
     menu_service: deps.MenuServiceDep,
     _: deps.User = Depends(deps.require_permissions([PermissionCode.MENU_OPTIONS_LIST.value])),
-) -> Any:
+) -> ResponseBase[list[MenuResponse]]:
     """获取可分配菜单选项（树结构）。
 
     用于角色创建/编辑时选择可分配菜单（包含隐藏权限点）。
@@ -57,7 +56,7 @@ async def get_menu_options(
 async def get_my_menus(
     current_user: deps.CurrentUser,
     menu_service: deps.MenuServiceDep,
-) -> Any:
+) -> ResponseBase[list[MenuResponse]]:
     """获取当前登录用户可见的导航菜单树。
 
     不包含隐藏权限点（is_hidden=true 的菜单节点不会返回），但隐藏权限点会影响父级菜单的可见性判定。
@@ -88,7 +87,7 @@ async def read_menus(
     is_active: bool | None = None,
     is_hidden: bool | None = None,
     type: MenuType | None = None,
-) -> Any:
+) -> ResponseBase[PaginatedResponse[MenuResponse]]:
     """
     获取菜单列表 (分页)。
 
@@ -125,7 +124,7 @@ async def create_menu(
     current_user: deps.CurrentUser,
     _: deps.User = Depends(deps.require_permissions([PermissionCode.MENU_CREATE.value])),
     menu_service: deps.MenuServiceDep,
-) -> Any:
+) -> ResponseBase[MenuResponse]:
     """
     创建新菜单。
 
@@ -150,7 +149,7 @@ async def batch_delete_menus(
     current_user: deps.CurrentUser,
     _: deps.User = Depends(deps.require_permissions([PermissionCode.MENU_DELETE.value])),
     menu_service: deps.MenuServiceDep,
-) -> Any:
+) -> ResponseBase[BatchOperationResult]:
     """
     批量删除菜单。
 
@@ -182,7 +181,7 @@ async def update_menu(
     current_user: deps.CurrentUser,
     _: deps.User = Depends(deps.require_permissions([PermissionCode.MENU_UPDATE.value])),
     menu_service: deps.MenuServiceDep,
-) -> Any:
+) -> ResponseBase[MenuResponse]:
     """
     更新菜单。
 
@@ -213,7 +212,7 @@ async def get_recycle_bin(
     is_active: bool | None = None,
     is_hidden: bool | None = None,
     type: MenuType | None = None,
-) -> Any:
+) -> ResponseBase[PaginatedResponse[MenuResponse]]:
     """
     获取已删除的菜单列表 (回收站)。
     仅限超级管理员。
@@ -254,7 +253,7 @@ async def delete_menu(
     current_user: deps.CurrentUser,
     _: deps.User = Depends(deps.require_permissions([PermissionCode.MENU_DELETE.value])),
     menu_service: deps.MenuServiceDep,
-) -> Any:
+) -> ResponseBase[MenuResponse]:
     """
     删除菜单。
 
@@ -279,7 +278,7 @@ async def batch_restore_menus(
     active_superuser: deps.User = Depends(deps.get_current_active_superuser),
     _: deps.User = Depends(deps.require_permissions([PermissionCode.MENU_RESTORE.value])),
     menu_service: deps.MenuServiceDep,
-) -> Any:
+) -> ResponseBase[BatchOperationResult]:
     """批量恢复菜单。
 
     从回收站中批量恢复软删除菜单。
@@ -312,7 +311,7 @@ async def restore_menu(
     active_superuser: deps.User = Depends(deps.get_current_active_superuser),
     _: deps.User = Depends(deps.require_permissions([PermissionCode.MENU_RESTORE.value])),
     menu_service: deps.MenuServiceDep,
-) -> Any:
+) -> ResponseBase[MenuResponse]:
     """
     恢复已删除菜单。
 

@@ -6,8 +6,6 @@
 @Docs: 仪表盘 API 接口.
 """
 
-from typing import Any
-
 from fastapi import APIRouter
 
 from app.api import deps
@@ -21,7 +19,7 @@ router = APIRouter()
 async def get_dashboard_summary(
     current_user: deps.CurrentUser,
     service: deps.DashboardServiceDep,
-) -> Any:
+) -> ResponseBase[DashboardStats]:
     """
     获取仪表盘统计数据。
 

@@ -7,6 +7,7 @@
 """
 
 from typing import Any
+from uuid import UUID
 
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -134,7 +135,7 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
         result = await db.execute(select(User).where(User.phone == phone))
         return result.scalars().first()
 
-    async def get_with_roles(self, db: AsyncSession, *, id) -> User | None:
+    async def get_with_roles(self, db: AsyncSession, *, id: UUID) -> User | None:
         """获取用户并预加载 roles，避免后续访问触发惰性加载。"""
 
         result = await db.execute(
