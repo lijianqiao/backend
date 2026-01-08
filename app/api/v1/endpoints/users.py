@@ -70,9 +70,16 @@ async def read_users(
         is_superuser=is_superuser,
         is_active=is_active,
     )
+
+    items = [
+        UserResponse.model_validate(u).model_copy(update={"dept_name": u.dept.name if u.dept else None}) for u in users
+    ]
     return ResponseBase(
         data=PaginatedResponse(
-            total=total, page=page, page_size=page_size, items=[UserResponse.model_validate(u) for u in users]
+            total=total,
+            page=page,
+            page_size=page_size,
+            items=items,
         )
     )
 
@@ -267,9 +274,16 @@ async def get_recycle_bin(
         is_superuser=is_superuser,
         is_active=is_active,
     )
+
+    items = [
+        UserResponse.model_validate(u).model_copy(update={"dept_name": u.dept.name if u.dept else None}) for u in users
+    ]
     return ResponseBase(
         data=PaginatedResponse(
-            total=total, page=page, page_size=page_size, items=[UserResponse.model_validate(u) for u in users]
+            total=total,
+            page=page,
+            page_size=page_size,
+            items=items,
         )
     )
 

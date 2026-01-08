@@ -20,6 +20,53 @@ from app.schemas.dept import DeptCreate, DeptUpdate
 class CRUDDept(CRUDBase[Department, DeptCreate, DeptUpdate]):
     """部门 CRUD 操作类。"""
 
+    async def count_deleted(self, db: AsyncSession) -> int:
+        """统计已删除部门数。"""
+
+        result = await db.execute(select(func.count(Department.id)).where(Department.is_deleted.is_(True)))
+        return result.scalar_one()
+
+    async def get_multi_deleted_paginated(
+        self,
+        db: AsyncSession,
+        *,
+        page: int = 1,
+        page_size: int = 20,
+        keyword: str | None = None,
+        is_active: bool | None = None,
+    ) -> tuple[list[Department], int]:
+        """获取已删除部门列表 (回收站 - 分页)。"""
+
+        if page < 1:
+            page = 1
+        if page_size < 1:
+            page_size = 20
+        if page_size > 100:
+            page_size = 100
+
+        conditions = [Department.is_deleted.is_(True)]
+
+        if keyword:
+            kw = self._normalize_keyword(keyword)
+            conditions.append(or_(Department.name.ilike(kw), Department.code.ilike(kw), Department.leader.ilike(kw)))
+
+        if is_active is not None:
+            conditions.append(Department.is_active.is_(is_active))
+
+        count_stmt = select(func.count(Department.id)).where(and_(*conditions))
+        total = (await db.execute(count_stmt)).scalar_one()
+
+        stmt = (
+            select(Department)
+            .options(selectinload(Department.children))
+            .where(and_(*conditions))
+            .order_by(Department.sort.asc(), Department.created_at.desc())
+            .offset((page - 1) * page_size)
+            .limit(page_size)
+        )
+        result = await db.execute(stmt)
+        return list(result.scalars().all()), int(total)
+
     async def get_multi_paginated(
         self,
         db: AsyncSession,
@@ -37,7 +84,7 @@ class CRUDDept(CRUDBase[Department, DeptCreate, DeptUpdate]):
             db: 数据库会话
             page: 页码
             page_size: 每页数量
-            keyword: 关键词（搜索名称/编码）
+            keyword: 关键词（搜索名称/编码/负责人）
             is_active: 是否启用过滤
             include_deleted: 是否包含已删除
 
@@ -51,7 +98,7 @@ class CRUDDept(CRUDBase[Department, DeptCreate, DeptUpdate]):
 
         if keyword:
             kw = self._normalize_keyword(keyword)
-            conditions.append(or_(Department.name.ilike(kw), Department.code.ilike(kw)))
+            conditions.append(or_(Department.name.ilike(kw), Department.code.ilike(kw), Department.leader.ilike(kw)))
 
         if is_active is not None:
             conditions.append(Department.is_active == is_active)
@@ -76,6 +123,7 @@ class CRUDDept(CRUDBase[Department, DeptCreate, DeptUpdate]):
         self,
         db: AsyncSession,
         *,
+        keyword: str | None = None,
         is_active: bool | None = None,
         include_deleted: bool = False,
     ) -> list[Department]:
@@ -97,6 +145,10 @@ class CRUDDept(CRUDBase[Department, DeptCreate, DeptUpdate]):
 
         if is_active is not None:
             conditions.append(Department.is_active.is_(is_active))
+
+        if keyword:
+            kw = self._normalize_keyword(keyword)
+            conditions.append(or_(Department.name.ilike(kw), Department.code.ilike(kw), Department.leader.ilike(kw)))
 
         stmt = select(Department).where(and_(*conditions)).order_by(Department.sort.asc(), Department.created_at.desc())
 

@@ -70,7 +70,7 @@ class DeptService:
 
         return self._to_dept_response(dept, children=children_responses)
 
-    async def get_dept_tree(self, *, is_active: bool | None = None) -> list[DeptResponse]:
+    async def get_dept_tree(self, *, keyword: str | None = None, is_active: bool | None = None) -> list[DeptResponse]:
         """
         获取部门树结构。
 
@@ -80,7 +80,7 @@ class DeptService:
         Returns:
             部门树列表
         """
-        depts = await self.dept_crud.get_tree(self.db, is_active=is_active)
+        depts = await self.dept_crud.get_tree(self.db, keyword=keyword, is_active=is_active)
 
         by_id: dict[UUID, Department] = {d.id: d for d in depts}
         children_map: dict[UUID | None, list[Department]] = {}
@@ -134,13 +134,12 @@ class DeptService:
         is_active: bool | None = None,
     ) -> tuple[list[DeptResponse], int]:
         """获取已删除部门列表（回收站）。"""
-        depts, total = await self.dept_crud.get_multi_paginated(
+        depts, total = await self.dept_crud.get_multi_deleted_paginated(
             self.db,
             page=page,
             page_size=page_size,
             keyword=keyword,
             is_active=is_active,
-            include_deleted=True,
         )
         return [self._to_dept_response(d, children=[]) for d in depts], total
 

@@ -38,13 +38,12 @@ class TestAuthLogout:
         assert data2["code"] == 200
 
         # 3) old refresh should not work
+        # httpx 不建议 per-request 传 cookies；这里用 client-level cookie 临时覆盖旧 refresh
+        client.cookies.set(refresh_cookie_name(), str(old_refresh), path="/")
+        client.cookies.set(csrf_cookie_name(), str(csrf), path="/")
         resp3 = await client.post(
             f"{settings.API_V1_STR}/auth/refresh",
             headers={csrf_header_name(): str(csrf)},
-            cookies={
-                refresh_cookie_name(): str(old_refresh),
-                csrf_cookie_name(): str(csrf),
-            },
         )
         assert resp3.status_code == 401
 

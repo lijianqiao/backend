@@ -84,7 +84,7 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
         count_stmt = self._apply_keyword_filter(count_stmt, keyword=keyword)
         total = (await db.execute(count_stmt)).scalar_one()
 
-        stmt = select(User).where(User.is_deleted.is_(False))
+        stmt = select(User).options(selectinload(User.dept)).where(User.is_deleted.is_(False))
         if is_superuser is not None:
             stmt = stmt.where(User.is_superuser.is_(is_superuser))
         if is_active is not None:
@@ -147,7 +147,7 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
         )
         total = (await db.execute(count_stmt)).scalar_one()
 
-        stmt = select(User).where(User.is_deleted.is_(False))
+        stmt = select(User).options(selectinload(User.dept)).where(User.is_deleted.is_(False))
         if is_superuser is not None:
             stmt = stmt.where(User.is_superuser.is_(is_superuser))
         if is_active is not None:
@@ -260,7 +260,7 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
         count_stmt = self._apply_keyword_filter(count_stmt, keyword=keyword)
         total = (await db.execute(count_stmt)).scalar_one()
 
-        stmt = select(User).where(User.is_deleted.is_(True))
+        stmt = select(User).options(selectinload(User.dept)).where(User.is_deleted.is_(True))
         if is_superuser is not None:
             stmt = stmt.where(User.is_superuser.is_(is_superuser))
         if is_active is not None:

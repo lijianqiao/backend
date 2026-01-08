@@ -136,6 +136,7 @@ class UserMeUpdate(BaseModel):
 class UserResponse(UserBase, TimestampSchema):
     id: UUID
     is_deleted: bool = Field(False, description="是否删除")
+    dept_name: str | None = Field(default=None, description="所属部门名称")
 
     model_config = ConfigDict(from_attributes=True)
 

@@ -29,6 +29,7 @@ async def get_dept_tree(
     current_user: deps.CurrentUser,
     dept_service: deps.DeptServiceDep,
     _: deps.User = Depends(deps.require_permissions([PermissionCode.DEPT_LIST.value])),
+    keyword: str | None = None,
     is_active: bool | None = None,
 ) -> ResponseBase[list[DeptResponse]]:
     """
@@ -37,12 +38,13 @@ async def get_dept_tree(
     Args:
         current_user (User): 当前登录用户。
         dept_service (DeptService): 部门服务依赖。
+        keyword (str | None, optional): 关键词过滤(部门名称/编码/负责人). Defaults to None.
         is_active (bool | None, optional): 是否启用过滤. Defaults to None.
 
     Returns:
         ResponseBase[list[DeptResponse]]: 部门树。
     """
-    tree = await dept_service.get_dept_tree(is_active=is_active)
+    tree = await dept_service.get_dept_tree(keyword=keyword, is_active=is_active)
     return ResponseBase(data=tree)
 
 
@@ -131,29 +133,6 @@ async def update_dept(
     return ResponseBase(data=dept, message="部门更新成功")
 
 
-@router.delete("/{id}", response_model=ResponseBase[DeptResponse], summary="删除部门")
-async def delete_dept(
-    *,
-    id: UUID,
-    current_user: deps.CurrentUser,
-    _: deps.User = Depends(deps.require_permissions([PermissionCode.DEPT_DELETE.value])),
-    dept_service: deps.DeptServiceDep,
-) -> ResponseBase[DeptResponse]:
-    """
-    删除部门（软删除）。
-
-    Args:
-        id (UUID): 部门 ID。
-        current_user (User): 当前登录用户。
-        dept_service (DeptService): 部门服务依赖。
-
-    Returns:
-        ResponseBase[DeptResponse]: 删除后的部门对象。
-    """
-    dept = await dept_service.delete_dept(dept_id=id)
-    return ResponseBase(data=dept, message="部门删除成功")
-
-
 @router.delete("/batch", response_model=ResponseBase[BatchOperationResult], summary="批量删除部门")
 async def batch_delete_depts(
     *,
@@ -181,6 +160,29 @@ async def batch_delete_depts(
             message=f"成功删除 {success_count} 个部门" if not failed_ids else "部分删除成功",
         )
     )
+
+
+@router.delete("/{id}", response_model=ResponseBase[DeptResponse], summary="删除部门")
+async def delete_dept(
+    *,
+    id: UUID,
+    current_user: deps.CurrentUser,
+    _: deps.User = Depends(deps.require_permissions([PermissionCode.DEPT_DELETE.value])),
+    dept_service: deps.DeptServiceDep,
+) -> ResponseBase[DeptResponse]:
+    """
+    删除部门（软删除）。
+
+    Args:
+        id (UUID): 部门 ID。
+        current_user (User): 当前登录用户。
+        dept_service (DeptService): 部门服务依赖。
+
+    Returns:
+        ResponseBase[DeptResponse]: 删除后的部门对象。
+    """
+    dept = await dept_service.delete_dept(dept_id=id)
+    return ResponseBase(data=dept, message="部门删除成功")
 
 
 @router.get(
@@ -226,30 +228,6 @@ async def get_recycle_bin(
     )
 
 
-@router.post("/{id}/restore", response_model=ResponseBase[DeptResponse], summary="恢复已删除部门")
-async def restore_dept(
-    *,
-    id: UUID,
-    active_superuser: deps.User = Depends(deps.get_current_active_superuser),
-    _: deps.User = Depends(deps.require_permissions([PermissionCode.DEPT_RESTORE.value])),
-    dept_service: deps.DeptServiceDep,
-) -> ResponseBase[DeptResponse]:
-    """
-    恢复已删除部门。
-    需要超级管理员权限。
-
-    Args:
-        id (UUID): 部门 ID。
-        active_superuser (User): 超级管理员权限验证。
-        dept_service (DeptService): 部门服务依赖。
-
-    Returns:
-        ResponseBase[DeptResponse]: 恢复后的部门对象。
-    """
-    dept = await dept_service.restore_dept(dept_id=id)
-    return ResponseBase(data=dept, message="部门恢复成功")
-
-
 @router.post("/batch/restore", response_model=ResponseBase[BatchOperationResult], summary="批量恢复部门")
 async def batch_restore_depts(
     *,
@@ -278,3 +256,27 @@ async def batch_restore_depts(
             message=f"成功恢复 {success_count} 个部门" if not failed_ids else "部分恢复成功",
         )
     )
+
+
+@router.post("/{id}/restore", response_model=ResponseBase[DeptResponse], summary="恢复已删除部门")
+async def restore_dept(
+    *,
+    id: UUID,
+    active_superuser: deps.User = Depends(deps.get_current_active_superuser),
+    _: deps.User = Depends(deps.require_permissions([PermissionCode.DEPT_RESTORE.value])),
+    dept_service: deps.DeptServiceDep,
+) -> ResponseBase[DeptResponse]:
+    """
+    恢复已删除部门。
+    需要超级管理员权限。
+
+    Args:
+        id (UUID): 部门 ID。
+        active_superuser (User): 超级管理员权限验证。
+        dept_service (DeptService): 部门服务依赖。
+
+    Returns:
+        ResponseBase[DeptResponse]: 恢复后的部门对象。
+    """
+    dept = await dept_service.restore_dept(dept_id=id)
+    return ResponseBase(data=dept, message="部门恢复成功")

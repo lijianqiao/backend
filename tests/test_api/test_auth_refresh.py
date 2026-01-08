@@ -63,15 +63,21 @@ class TestAuthRefresh:
         assert data["access_token"] != old_access_token
 
         # 3. Old refresh token should be invalid now
+        current_csrf = client.cookies.get(csrf_cookie_name())
+        assert current_csrf
+
+        # httpx 不建议 per-request 传 cookies；这里用 client-level cookie 临时覆盖旧 refresh
+        client.cookies.set(refresh_cookie_name(), str(old_refresh), path="/")
+        client.cookies.set(csrf_cookie_name(), str(current_csrf), path="/")
+
         response2 = await client.post(
             f"{settings.API_V1_STR}/auth/refresh",
-            headers={csrf_header_name(): str(client.cookies.get(csrf_cookie_name()))},
-            cookies={
-                refresh_cookie_name(): str(old_refresh),
-                csrf_cookie_name(): str(client.cookies.get(csrf_cookie_name())),
-            },
+            headers={csrf_header_name(): str(current_csrf)},
         )
         assert response2.status_code == 401
+
+        # 恢复回最新 refresh，避免影响后续测试
+        client.cookies.set(refresh_cookie_name(), str(new_refresh), path="/")
 
     async def test_refresh_token_invalid(self, client: AsyncClient):
         # 缺少 refresh cookie -> 401
