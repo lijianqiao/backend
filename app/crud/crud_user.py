@@ -13,6 +13,7 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.core.data_scope import apply_dept_filter
 from app.core.security import get_password_hash
 from app.crud.base import CRUDBase
 from app.models.user import User
@@ -89,6 +90,78 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
         if is_active is not None:
             stmt = stmt.where(User.is_active.is_(is_active))
         stmt = self._apply_keyword_filter(stmt, keyword=keyword)
+        stmt = stmt.order_by(User.created_at.desc()).offset((page - 1) * page_size).limit(page_size)
+        result = await db.execute(stmt)
+        return list(result.scalars().all()), total
+
+    async def get_multi_paginated_with_scope(
+        self,
+        db: AsyncSession,
+        *,
+        page: int = 1,
+        page_size: int = 20,
+        keyword: str | None = None,
+        is_superuser: bool | None = None,
+        is_active: bool | None = None,
+        dept_ids: list | None = None,
+        current_user_id: UUID | None = None,
+    ) -> tuple[list[User], int]:
+        """
+        带数据权限过滤的分页查询。
+
+        Args:
+            db: 数据库会话
+            page: 页码
+            page_size: 每页数量
+            keyword: 关键词
+            is_superuser: 是否超级管理员过滤
+            is_active: 是否启用过滤
+            dept_ids: 可访问的部门 ID 列表（None 表示不过滤）
+            current_user_id: 当前用户 ID（用于 SELF 模式）
+
+        Returns:
+            用户列表和总数
+        """
+        if page < 1:
+            page = 1
+        if page_size < 1:
+            page_size = 20
+        if page_size > 100:
+            page_size = 100
+
+        # 构建基础查询
+        count_stmt = select(func.count(User.id)).where(User.is_deleted.is_(False))
+        if is_superuser is not None:
+            count_stmt = count_stmt.where(User.is_superuser.is_(is_superuser))
+        if is_active is not None:
+            count_stmt = count_stmt.where(User.is_active.is_(is_active))
+        count_stmt = self._apply_keyword_filter(count_stmt, keyword=keyword)
+
+        # 应用数据权限过滤
+        count_stmt = apply_dept_filter(
+            count_stmt,
+            dept_ids=dept_ids,
+            user_id=current_user_id,
+            dept_column=User.dept_id,
+            created_by_column=User.id,  # 用户表特殊：“仅本人”指能看到自己
+        )
+        total = (await db.execute(count_stmt)).scalar_one()
+
+        stmt = select(User).where(User.is_deleted.is_(False))
+        if is_superuser is not None:
+            stmt = stmt.where(User.is_superuser.is_(is_superuser))
+        if is_active is not None:
+            stmt = stmt.where(User.is_active.is_(is_active))
+        stmt = self._apply_keyword_filter(stmt, keyword=keyword)
+
+        # 应用数据权限过滤
+        stmt = apply_dept_filter(
+            stmt,
+            dept_ids=dept_ids,
+            user_id=current_user_id,
+            dept_column=User.dept_id,
+            created_by_column=User.id,
+        )
         stmt = stmt.order_by(User.created_at.desc()).offset((page - 1) * page_size).limit(page_size)
         result = await db.execute(stmt)
         return list(result.scalars().all()), total

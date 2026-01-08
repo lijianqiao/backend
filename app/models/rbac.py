@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING, Optional
 from sqlalchemy import Boolean, ForeignKey, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.core.enums import MenuType
+from app.core.enums import DataScope, MenuType
 from app.models.base import AuditableModel, Base, TimestampMixin, UUIDMixin
 
 if TYPE_CHECKING:
@@ -30,6 +30,9 @@ class Role(AuditableModel):
     code: Mapped[str] = mapped_column(String(50), unique=True, index=True, nullable=False, comment="角色编码")
     description: Mapped[str | None] = mapped_column(String(255), nullable=True, comment="描述")
     sort: Mapped[int] = mapped_column(Integer, default=0, comment="排序")
+    data_scope: Mapped[DataScope] = mapped_column(
+        String(30), default=DataScope.SELF, server_default=DataScope.SELF.value, nullable=False, comment="数据权限范围"
+    )
 
     # Relationships
     users: Mapped[list["User"]] = relationship("User", secondary="sys_user_role", back_populates="roles")

@@ -71,6 +71,7 @@ class UserBase(BaseModel):
     gender: str | None = Field(None, description="性别")
     is_active: bool = Field(True, description="是否激活")
     is_superuser: bool = Field(False, description="是否为超级管理员")
+    dept_id: UUID | None = Field(None, description="所属部门ID")
 
     @field_validator("phone")
     @classmethod
@@ -99,6 +100,7 @@ class UserUpdate(BaseModel):
     gender: str | None = None
     is_active: bool | None = None
     is_superuser: bool | None = None
+    dept_id: UUID | None = None
 
     @field_validator("phone")
     @classmethod

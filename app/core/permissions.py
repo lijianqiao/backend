@@ -50,6 +50,14 @@ class PermissionCode(str, Enum):
     SESSION_LIST = "session:list"
     SESSION_KICK = "session:kick"
 
+    # 部门权限
+    DEPT_LIST = "dept:list"
+    DEPT_CREATE = "dept:create"
+    DEPT_UPDATE = "dept:update"
+    DEPT_DELETE = "dept:delete"
+    DEPT_RECYCLE = "dept:recycle"
+    DEPT_RESTORE = "dept:restore"
+
 
 @dataclass(frozen=True, slots=True)
 class PermissionDef:
@@ -87,6 +95,12 @@ PERMISSION_DEFS: tuple[PermissionDef, ...] = (
     PermissionDef(PermissionCode.LOG_OPERATION_LIST, "操作日志-列表"),
     PermissionDef(PermissionCode.SESSION_LIST, "在线会话-列表"),
     PermissionDef(PermissionCode.SESSION_KICK, "在线会话-强制下线"),
+    PermissionDef(PermissionCode.DEPT_LIST, "部门-列表"),
+    PermissionDef(PermissionCode.DEPT_CREATE, "部门-创建"),
+    PermissionDef(PermissionCode.DEPT_UPDATE, "部门-更新"),
+    PermissionDef(PermissionCode.DEPT_DELETE, "部门-删除"),
+    PermissionDef(PermissionCode.DEPT_RECYCLE, "部门-回收站"),
+    PermissionDef(PermissionCode.DEPT_RESTORE, "部门-恢复"),
 )
 
 

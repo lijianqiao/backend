@@ -199,6 +199,458 @@ Format: `application/json`
 
 ---
 
+## Depts
+
+### 获取部门树
+
+**URL**: `/api/v1/depts/tree`
+
+**Method**: `GET`
+
+**Description**:
+
+获取部门树结构。
+
+Args:
+current_user (User): 当前登录用户。
+dept_service (DeptService): 部门服务依赖。
+is_active (bool | None, optional): 是否启用过滤. Defaults to None.
+
+Returns:
+ResponseBase[list[DeptResponse]]: 部门树。
+
+#### Requests Parameters (Query/Path)
+
+| 参数名      | 位置    | 类型     | 必填 | 描述      | Default |
+| :---------- | :------ | :------- | :--- | :-------- | :------ |
+| `is_active` | `query` | `string` | 否   | Is Active |         |
+
+#### Responses
+
+**Status Code**: `200` - Successful Response
+
+Format: `application/json`
+
+| 参数名    | 类型      | 必填 | 描述    |
+| :-------- | :-------- | :--- | :------ |
+| `code`    | `integer` | 否   | Code    |
+| `message` | `string`  | 否   | Message |
+| `data`    | `array`   | 否   | Data    |
+
+**Status Code**: `422` - Validation Error
+
+Format: `application/json`
+
+| 参数名   | 类型                     | 必填 | 描述   |
+| :------- | :----------------------- | :--- | :----- |
+| `detail` | `Array[ValidationError]` | 否   | Detail |
+
+---
+
+### 获取部门列表
+
+**URL**: `/api/v1/depts/`
+
+**Method**: `GET`
+
+**Description**:
+
+获取部门列表（分页）。
+
+Args:
+current_user (User): 当前登录用户。
+dept_service (DeptService): 部门服务依赖。
+page (int, optional): 页码. Defaults to 1.
+page_size (int, optional): 每页数量. Defaults to 20.
+keyword (str | None, optional): 关键词过滤. Defaults to None.
+is_active (bool | None, optional): 是否启用过滤. Defaults to None.
+
+Returns:
+ResponseBase[PaginatedResponse[DeptResponse]]: 分页后的部门列表。
+
+#### Requests Parameters (Query/Path)
+
+| 参数名      | 位置    | 类型      | 必填 | 描述      | Default |
+| :---------- | :------ | :-------- | :--- | :-------- | :------ |
+| `page`      | `query` | `integer` | 否   | Page      | 1       |
+| `page_size` | `query` | `integer` | 否   | Page Size | 20      |
+| `keyword`   | `query` | `string`  | 否   | Keyword   |         |
+| `is_active` | `query` | `string`  | 否   | Is Active |         |
+
+#### Responses
+
+**Status Code**: `200` - Successful Response
+
+Format: `application/json`
+
+| 参数名    | 类型                              | 必填 | 描述    |
+| :-------- | :-------------------------------- | :--- | :------ |
+| `code`    | `integer`                         | 否   | Code    |
+| `message` | `string`                          | 否   | Message |
+| `data`    | `PaginatedResponse_DeptResponse_` | 否   |         |
+
+**Status Code**: `422` - Validation Error
+
+Format: `application/json`
+
+| 参数名   | 类型                     | 必填 | 描述   |
+| :------- | :----------------------- | :--- | :----- |
+| `detail` | `Array[ValidationError]` | 否   | Detail |
+
+---
+
+### 创建部门
+
+**URL**: `/api/v1/depts/`
+
+**Method**: `POST`
+
+**Description**:
+
+创建新部门。
+
+Args:
+dept_in (DeptCreate): 部门创建数据。
+current_user (User): 当前登录用户。
+dept_service (DeptService): 部门服务依赖。
+
+Returns:
+ResponseBase[DeptResponse]: 创建成功的部门对象。
+
+#### Request Body (application/json)
+
+| 参数名      | 类型      | 必填 | 描述     |
+| :---------- | :-------- | :--- | :------- |
+| `name`      | `string`  | 是   | 部门名称 |
+| `code`      | `string`  | 是   | 部门编码 |
+| `parent_id` | `string`  | 否   | 父部门ID |
+| `sort`      | `integer` | 否   | 排序     |
+| `leader`    | `string`  | 否   | 负责人   |
+| `phone`     | `string`  | 否   | 联系电话 |
+| `email`     | `string`  | 否   | 联系邮箱 |
+
+#### Responses
+
+**Status Code**: `200` - Successful Response
+
+Format: `application/json`
+
+| 参数名    | 类型           | 必填 | 描述    |
+| :-------- | :------------- | :--- | :------ |
+| `code`    | `integer`      | 否   | Code    |
+| `message` | `string`       | 否   | Message |
+| `data`    | `DeptResponse` | 否   |         |
+
+**Status Code**: `422` - Validation Error
+
+Format: `application/json`
+
+| 参数名   | 类型                     | 必填 | 描述   |
+| :------- | :----------------------- | :--- | :----- |
+| `detail` | `Array[ValidationError]` | 否   | Detail |
+
+---
+
+### 更新部门
+
+**URL**: `/api/v1/depts/{id}`
+
+**Method**: `PUT`
+
+**Description**:
+
+更新部门。
+
+Args:
+id (UUID): 部门 ID。
+dept_in (DeptUpdate): 部门更新数据。
+current_user (User): 当前登录用户。
+dept_service (DeptService): 部门服务依赖。
+
+Returns:
+ResponseBase[DeptResponse]: 更新后的部门对象。
+
+#### Requests Parameters (Query/Path)
+
+| 参数名 | 位置   | 类型     | 必填 | 描述 | Default |
+| :----- | :----- | :------- | :--- | :--- | :------ |
+| `id`   | `path` | `string` | 是   | Id   |         |
+
+#### Request Body (application/json)
+
+| 参数名      | 类型      | 必填 | 描述     |
+| :---------- | :-------- | :--- | :------- |
+| `name`      | `string`  | 否   | 部门名称 |
+| `code`      | `string`  | 否   | 部门编码 |
+| `parent_id` | `string`  | 否   | 父部门ID |
+| `sort`      | `integer` | 否   | 排序     |
+| `leader`    | `string`  | 否   | 负责人   |
+| `phone`     | `string`  | 否   | 联系电话 |
+| `email`     | `string`  | 否   | 联系邮箱 |
+| `is_active` | `boolean` | 否   | 是否启用 |
+
+#### Responses
+
+**Status Code**: `200` - Successful Response
+
+Format: `application/json`
+
+| 参数名    | 类型           | 必填 | 描述    |
+| :-------- | :------------- | :--- | :------ |
+| `code`    | `integer`      | 否   | Code    |
+| `message` | `string`       | 否   | Message |
+| `data`    | `DeptResponse` | 否   |         |
+
+**Status Code**: `422` - Validation Error
+
+Format: `application/json`
+
+| 参数名   | 类型                     | 必填 | 描述   |
+| :------- | :----------------------- | :--- | :----- |
+| `detail` | `Array[ValidationError]` | 否   | Detail |
+
+---
+
+### 删除部门
+
+**URL**: `/api/v1/depts/{id}`
+
+**Method**: `DELETE`
+
+**Description**:
+
+删除部门（软删除）。
+
+Args:
+id (UUID): 部门 ID。
+current_user (User): 当前登录用户。
+dept_service (DeptService): 部门服务依赖。
+
+Returns:
+ResponseBase[DeptResponse]: 删除后的部门对象。
+
+#### Requests Parameters (Query/Path)
+
+| 参数名 | 位置   | 类型     | 必填 | 描述 | Default |
+| :----- | :----- | :------- | :--- | :--- | :------ |
+| `id`   | `path` | `string` | 是   | Id   |         |
+
+#### Responses
+
+**Status Code**: `200` - Successful Response
+
+Format: `application/json`
+
+| 参数名    | 类型           | 必填 | 描述    |
+| :-------- | :------------- | :--- | :------ |
+| `code`    | `integer`      | 否   | Code    |
+| `message` | `string`       | 否   | Message |
+| `data`    | `DeptResponse` | 否   |         |
+
+**Status Code**: `422` - Validation Error
+
+Format: `application/json`
+
+| 参数名   | 类型                     | 必填 | 描述   |
+| :------- | :----------------------- | :--- | :----- |
+| `detail` | `Array[ValidationError]` | 否   | Detail |
+
+---
+
+### 批量删除部门
+
+**URL**: `/api/v1/depts/batch`
+
+**Method**: `DELETE`
+
+**Description**:
+
+批量删除部门。
+
+Args:
+request (BatchDeleteRequest): 批量删除请求体。
+current_user (User): 当前登录用户。
+dept_service (DeptService): 部门服务依赖。
+
+Returns:
+ResponseBase[BatchOperationResult]: 批量操作结果。
+
+#### Request Body (application/json)
+
+| 参数名        | 类型            | 必填 | 描述                    |
+| :------------ | :-------------- | :--- | :---------------------- |
+| `ids`         | `Array[string]` | 是   | 要删除的 ID 列表        |
+| `hard_delete` | `boolean`       | 否   | 是否硬删除 (默认软删除) |
+
+#### Responses
+
+**Status Code**: `200` - Successful Response
+
+Format: `application/json`
+
+| 参数名    | 类型                   | 必填 | 描述    |
+| :-------- | :--------------------- | :--- | :------ |
+| `code`    | `integer`              | 否   | Code    |
+| `message` | `string`               | 否   | Message |
+| `data`    | `BatchOperationResult` | 否   |         |
+
+**Status Code**: `422` - Validation Error
+
+Format: `application/json`
+
+| 参数名   | 类型                     | 必填 | 描述   |
+| :------- | :----------------------- | :--- | :----- |
+| `detail` | `Array[ValidationError]` | 否   | Detail |
+
+---
+
+### 获取部门回收站列表
+
+**URL**: `/api/v1/depts/recycle-bin`
+
+**Method**: `GET`
+
+**Description**:
+
+获取已删除的部门列表（回收站）。
+仅限超级管理员。
+
+Args:
+page (int, optional): 页码. Defaults to 1.
+page_size (int, optional): 每页数量. Defaults to 20.
+active_superuser (User): 超级管理员权限验证。
+dept_service (DeptService): 部门服务依赖。
+keyword (str | None, optional): 关键词过滤. Defaults to None.
+is_active (bool | None, optional): 是否启用过滤. Defaults to None.
+
+Returns:
+ResponseBase[PaginatedResponse[DeptResponse]]: 分页后的回收站部门列表。
+
+#### Requests Parameters (Query/Path)
+
+| 参数名      | 位置    | 类型      | 必填 | 描述      | Default |
+| :---------- | :------ | :-------- | :--- | :-------- | :------ |
+| `page`      | `query` | `integer` | 否   | Page      | 1       |
+| `page_size` | `query` | `integer` | 否   | Page Size | 20      |
+| `keyword`   | `query` | `string`  | 否   | Keyword   |         |
+| `is_active` | `query` | `string`  | 否   | Is Active |         |
+
+#### Responses
+
+**Status Code**: `200` - Successful Response
+
+Format: `application/json`
+
+| 参数名    | 类型                              | 必填 | 描述    |
+| :-------- | :-------------------------------- | :--- | :------ |
+| `code`    | `integer`                         | 否   | Code    |
+| `message` | `string`                          | 否   | Message |
+| `data`    | `PaginatedResponse_DeptResponse_` | 否   |         |
+
+**Status Code**: `422` - Validation Error
+
+Format: `application/json`
+
+| 参数名   | 类型                     | 必填 | 描述   |
+| :------- | :----------------------- | :--- | :----- |
+| `detail` | `Array[ValidationError]` | 否   | Detail |
+
+---
+
+### 恢复已删除部门
+
+**URL**: `/api/v1/depts/{id}/restore`
+
+**Method**: `POST`
+
+**Description**:
+
+恢复已删除部门。
+需要超级管理员权限。
+
+Args:
+id (UUID): 部门 ID。
+active_superuser (User): 超级管理员权限验证。
+dept_service (DeptService): 部门服务依赖。
+
+Returns:
+ResponseBase[DeptResponse]: 恢复后的部门对象。
+
+#### Requests Parameters (Query/Path)
+
+| 参数名 | 位置   | 类型     | 必填 | 描述 | Default |
+| :----- | :----- | :------- | :--- | :--- | :------ |
+| `id`   | `path` | `string` | 是   | Id   |         |
+
+#### Responses
+
+**Status Code**: `200` - Successful Response
+
+Format: `application/json`
+
+| 参数名    | 类型           | 必填 | 描述    |
+| :-------- | :------------- | :--- | :------ |
+| `code`    | `integer`      | 否   | Code    |
+| `message` | `string`       | 否   | Message |
+| `data`    | `DeptResponse` | 否   |         |
+
+**Status Code**: `422` - Validation Error
+
+Format: `application/json`
+
+| 参数名   | 类型                     | 必填 | 描述   |
+| :------- | :----------------------- | :--- | :----- |
+| `detail` | `Array[ValidationError]` | 否   | Detail |
+
+---
+
+### 批量恢复部门
+
+**URL**: `/api/v1/depts/batch/restore`
+
+**Method**: `POST`
+
+**Description**:
+
+批量恢复部门。
+需要超级管理员权限。
+
+Args:
+request (BatchRestoreRequest): 批量恢复请求体。
+active_superuser (User): 超级管理员权限验证。
+dept_service (DeptService): 部门服务依赖。
+
+Returns:
+ResponseBase[BatchOperationResult]: 批量恢复结果。
+
+#### Request Body (application/json)
+
+| 参数名 | 类型            | 必填 | 描述             |
+| :----- | :-------------- | :--- | :--------------- |
+| `ids`  | `Array[string]` | 是   | 要恢复的 ID 列表 |
+
+#### Responses
+
+**Status Code**: `200` - Successful Response
+
+Format: `application/json`
+
+| 参数名    | 类型                   | 必填 | 描述    |
+| :-------- | :--------------------- | :--- | :------ |
+| `code`    | `integer`              | 否   | Code    |
+| `message` | `string`               | 否   | Message |
+| `data`    | `BatchOperationResult` | 否   |         |
+
+**Status Code**: `422` - Validation Error
+
+Format: `application/json`
+
+| 参数名   | 类型                     | 必填 | 描述   |
+| :------- | :----------------------- | :--- | :----- |
+| `detail` | `Array[ValidationError]` | 否   | Detail |
+
+---
+
 ## Logs
 
 ### 获取登录日志
@@ -1389,7 +1841,7 @@ Format: `application/json`
 
 **Description**:
 
-获取在线会话列表，支持分页。
+获取在线会话列表，支持分页和搜索。
 需要 SESSION_LIST 权限。
 
 Args:
@@ -1397,6 +1849,7 @@ session_service (SessionService): 在线会话服务依赖。
 current_user (User): 当前登录用户。
 page (int): 页码，默认值为 1。
 page_size (int): 每页数量，默认值为 20。
+keyword (str | None): 关键词过滤，支持用户名和 IP 搜索。
 
 Returns:
 ResponseBase[PaginatedResponse[OnlineSessionResponse]]: 包含在线会话列表的响应对象。
@@ -1410,6 +1863,7 @@ CustomException: 当用户没有权限时抛出 403 错误。
 | :---------- | :------ | :-------- | :--- | :-------- | :------ |
 | `page`      | `query` | `integer` | 否   | Page      | 1       |
 | `page_size` | `query` | `integer` | 否   | Page Size | 20      |
+| `keyword`   | `query` | `string`  | 否   | Keyword   |         |
 
 #### Responses
 
@@ -1422,56 +1876,6 @@ Format: `application/json`
 | `code`    | `integer`                                  | 否   | Code    |
 | `message` | `string`                                   | 否   | Message |
 | `data`    | `PaginatedResponse_OnlineSessionResponse_` | 否   |         |
-
-**Status Code**: `422` - Validation Error
-
-Format: `application/json`
-
-| 参数名   | 类型                     | 必填 | 描述   |
-| :------- | :----------------------- | :--- | :----- |
-| `detail` | `Array[ValidationError]` | 否   | Detail |
-
----
-
-### 强制下线(踢人)
-
-**URL**: `/api/v1/sessions/kick/{user_id}`
-
-**Method**: `POST`
-
-**Description**:
-
-强制下线指定用户。
-需要 SESSION_KICK 权限。
-
-Args:
-user_id (UUID): 要强制下线的用户ID。
-session_service (SessionService): 在线会话服务依赖。
-current_user (User): 当前登录用户。
-
-Returns:
-ResponseBase[None]: 空响应对象，表示操作成功。
-
-Raises:
-CustomException: 当用户没有权限或用户不存在时抛出相应错误。
-
-#### Requests Parameters (Query/Path)
-
-| 参数名    | 位置   | 类型     | 必填 | 描述    | Default |
-| :-------- | :----- | :------- | :--- | :------ | :------ |
-| `user_id` | `path` | `string` | 是   | User Id |         |
-
-#### Responses
-
-**Status Code**: `200` - Successful Response
-
-Format: `application/json`
-
-| 参数名    | 类型      | 必填 | 描述    |
-| :-------- | :-------- | :--- | :------ |
-| `code`    | `integer` | 否   | Code    |
-| `message` | `string`  | 否   | Message |
-| `data`    | `null`    | 否   | Data    |
 
 **Status Code**: `422` - Validation Error
 
@@ -1522,6 +1926,56 @@ Format: `application/json`
 | `code`    | `integer`              | 否   | Code    |
 | `message` | `string`               | 否   | Message |
 | `data`    | `BatchOperationResult` | 否   |         |
+
+**Status Code**: `422` - Validation Error
+
+Format: `application/json`
+
+| 参数名   | 类型                     | 必填 | 描述   |
+| :------- | :----------------------- | :--- | :----- |
+| `detail` | `Array[ValidationError]` | 否   | Detail |
+
+---
+
+### 强制下线(踢人)
+
+**URL**: `/api/v1/sessions/kick/{user_id}`
+
+**Method**: `POST`
+
+**Description**:
+
+强制下线指定用户。
+需要 SESSION_KICK 权限。
+
+Args:
+user_id (UUID): 要强制下线的用户ID。
+session_service (SessionService): 在线会话服务依赖。
+current_user (User): 当前登录用户。
+
+Returns:
+ResponseBase[None]: 空响应对象，表示操作成功。
+
+Raises:
+CustomException: 当用户没有权限或用户不存在时抛出相应错误。
+
+#### Requests Parameters (Query/Path)
+
+| 参数名    | 位置   | 类型     | 必填 | 描述    | Default |
+| :-------- | :----- | :------- | :--- | :------ | :------ |
+| `user_id` | `path` | `string` | 是   | User Id |         |
+
+#### Responses
+
+**Status Code**: `200` - Successful Response
+
+Format: `application/json`
+
+| 参数名    | 类型      | 必填 | 描述    |
+| :-------- | :-------- | :--- | :------ |
+| `code`    | `integer` | 否   | Code    |
+| `message` | `string`  | 否   | Message |
+| `data`    | `null`    | 否   | Data    |
 
 **Status Code**: `422` - Validation Error
 

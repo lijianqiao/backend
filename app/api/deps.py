@@ -28,6 +28,7 @@ from app.core.db import AsyncSessionLocal
 from app.core.exceptions import ForbiddenException, NotFoundException, UnauthorizedException
 from app.core.logger import logger
 from app.core.token_store import get_user_revoked_after
+from app.crud.crud_dept import CRUDDept
 from app.crud.crud_log import CRUDLoginLog, CRUDOperationLog
 from app.crud.crud_log import login_log as login_log_crud_global
 from app.crud.crud_log import operation_log as operation_log_crud_global
@@ -37,11 +38,13 @@ from app.crud.crud_role import CRUDRole
 from app.crud.crud_role import role as role_crud_global
 from app.crud.crud_user import CRUDUser
 from app.crud.crud_user import user as user_crud_global
+from app.models.dept import Department
 from app.models.rbac import Role
 from app.models.user import User
 from app.schemas.token import TokenPayload
 from app.services.auth_service import AuthService
 from app.services.dashboard_service import DashboardService
+from app.services.dept_service import DeptService
 from app.services.log_service import LogService
 from app.services.menu_service import MenuService
 from app.services.permission_service import PermissionService
@@ -356,3 +359,20 @@ PermissionServiceDep = Annotated[PermissionService, Depends(get_permission_servi
 AuthServiceDep = Annotated[AuthService, Depends(get_auth_service)]
 DashboardServiceDep = Annotated[DashboardService, Depends(get_dashboard_service)]
 SessionServiceDep = Annotated[SessionService, Depends(get_session_service)]
+
+
+# ----- 部门依赖 -----
+
+
+def get_dept_crud(db: SessionDep) -> CRUDDept:
+    return CRUDDept(Department)
+
+
+def get_dept_service(
+    db: SessionDep,
+    dept_crud: Annotated[CRUDDept, Depends(get_dept_crud)],
+) -> DeptService:
+    return DeptService(db, dept_crud)
+
+
+DeptServiceDep = Annotated[DeptService, Depends(get_dept_service)]

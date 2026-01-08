@@ -6,14 +6,16 @@
 @Docs: User model definition.
 """
 
+import uuid
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, String
+from sqlalchemy import Boolean, ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import AuditableModel
 
 if TYPE_CHECKING:
+    from app.models.dept import Department
     from app.models.rbac import Role
 
 
@@ -29,6 +31,12 @@ class User(AuditableModel):
     avatar: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
     is_superuser: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+
+    # 部门关联
+    dept_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("sys_dept.id"), nullable=True, index=True, comment="所属部门ID"
+    )
+    dept: Mapped["Department | None"] = relationship("Department", back_populates="users")
 
     # Relationships
     roles: Mapped[list["Role"]] = relationship(

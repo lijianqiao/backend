@@ -15,3 +15,13 @@ class MenuType(str, Enum):
     CATALOG = "CATALOG"
     MENU = "MENU"
     PERMISSION = "PERMISSION"
+
+
+class DataScope(str, Enum):
+    """数据权限范围。"""
+
+    ALL = "ALL"  # 全部数据
+    CUSTOM = "CUSTOM"  # 自定义（基于角色分配）
+    DEPT = "DEPT"  # 本部门
+    DEPT_AND_CHILDREN = "DEPT_AND_CHILDREN"  # 本部门及下级
+    SELF = "SELF"  # 仅本人

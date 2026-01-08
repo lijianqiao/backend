@@ -20,13 +20,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import settings
 from app.core.db import AsyncSessionLocal, engine
 from app.core.enums import MenuType
+from app.crud.crud_dept import dept_crud
 from app.crud.crud_menu import menu as menu_crud
 from app.crud.crud_role import role as role_crud
 from app.crud.crud_user import user as user_crud
 
 # 确保所有模型被导入，以便 create_all 能识别
 from app.models.base import Base
+from app.models.dept import Department
 from app.models.rbac import Menu, Role
+from app.schemas.dept import DeptCreate
 from app.schemas.menu import MenuCreate
 from app.schemas.role import RoleCreate
 from app.schemas.user import UserCreate
@@ -59,7 +62,7 @@ async def init_db() -> None:
         user = await user_crud.get_by_username(db, username=settings.FIRST_SUPERUSER)
         if not user:
             logger.info(f"正在创建超级管理员: {settings.FIRST_SUPERUSER}")
-            user_in = UserCreate(
+            user_in = UserCreate(  # pyright: ignore[reportCallIssue]
                 username=settings.FIRST_SUPERUSER,
                 password=settings.FIRST_SUPERUSER_PASSWORD,
                 email=settings.FIRST_SUPERUSER_EMAIL,
@@ -75,6 +78,7 @@ async def init_db() -> None:
         else:
             logger.info("超级管理员已存在，跳过创建。")
 
+        await init_depts(db)
         await init_rbac(db)
 
 
@@ -101,6 +105,81 @@ async def _get_menu_by_name(db: AsyncSession, *, name: str) -> Menu | None:
 async def _get_role_by_code(db: AsyncSession, *, code: str) -> Role | None:
     result = await db.execute(select(Role).where(Role.code == code))
     return result.scalars().first()
+
+
+async def _get_dept_by_code(db: AsyncSession, *, code: str) -> Department | None:
+    result = await db.execute(select(Department).where(Department.code == code))
+    return result.scalars().first()
+
+
+async def init_depts(db: AsyncSession) -> None:
+    """初始化部门数据（幂等）。"""
+
+    if not os.path.exists(RBAC_SEED_PATH):
+        logger.warning(f"未找到 RBAC 种子文件，跳过部门初始化: {RBAC_SEED_PATH}")
+        return
+
+    with open(RBAC_SEED_PATH, "rb") as f:
+        seed = tomllib.load(f)
+
+    depts_seed: list[dict] = seed.get("depts", [])
+    if not depts_seed:
+        logger.info("未在 rbac_seed.toml 中找到部门数据，跳过部门初始化。")
+        return
+
+    logger.info("正在初始化部门数据...")
+
+    # 建立 code -> Department 映射（用于处理父部门）
+    code_to_dept: dict[str, Department] = {}
+
+    for d in depts_seed:
+        code = str(d.get("code", "")).strip()
+        name = str(d.get("name", "")).strip()
+        if not code or not name:
+            raise ValueError(f"部门缺少 code/name: {d}")
+
+        parent_code = _to_none_if_empty(d.get("parent_code"))
+        parent_id: UUID | None = None
+        if parent_code:
+            parent_dept = code_to_dept.get(parent_code)
+            if parent_dept is None:
+                raise ValueError(f"部门 parent_code 未找到（请确保父部门在子部门之前定义）: {code} -> {parent_code}")
+            parent_id = parent_dept.id
+
+        sort = int(d.get("sort", 0))
+        leader = _to_none_if_empty(d.get("leader"))
+        phone = _to_none_if_empty(d.get("phone"))
+        email = _to_none_if_empty(d.get("email"))
+
+        existing = await _get_dept_by_code(db, code=code)
+        if existing:
+            existing.name = name
+            existing.parent_id = parent_id
+            existing.sort = sort
+            existing.leader = leader
+            existing.phone = phone
+            existing.email = email
+            existing.is_deleted = False
+            existing.is_active = True
+            dept_obj = existing
+        else:
+            dept_obj = await dept_crud.create(
+                db,
+                obj_in=DeptCreate(
+                    name=name,
+                    code=code,
+                    parent_id=parent_id,
+                    sort=sort,
+                    leader=leader,
+                    phone=phone,
+                    email=email,
+                ),
+            )
+
+        code_to_dept[code] = dept_obj
+
+    await db.commit()
+    logger.info("部门数据初始化完成。")
 
 
 async def init_rbac(db: AsyncSession) -> None:

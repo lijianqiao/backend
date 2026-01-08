@@ -224,3 +224,30 @@ class CRUDBase[ModelType: Base, CreateSchemaType: BaseModel, UpdateSchemaType: B
             await db.refresh(obj)
 
         return obj
+
+    async def batch_restore(self, db: AsyncSession, *, ids: list[UUID]) -> tuple[int, list[UUID]]:
+        """
+        批量恢复软删除的记录。
+
+        Args:
+            db: 数据库会话
+            ids: 要恢复的记录 ID 列表
+
+        Returns:
+            成功恢复数量和失败 ID 列表
+        """
+        success_count = 0
+        failed_ids: list[UUID] = []
+
+        for id_ in ids:
+            try:
+                obj = await self.restore(db, id=id_)
+                if obj:
+                    success_count += 1
+                else:
+                    failed_ids.append(id_)
+            except Exception:
+                failed_ids.append(id_)
+
+        await db.flush()
+        return success_count, failed_ids
