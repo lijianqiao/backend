@@ -283,42 +283,6 @@ class TestUsersCreate:
         assert response.status_code == 401
 
 
-class TestUsersCreate:
-    """创建用户接口测试"""
-
-    async def test_create_user_success(self, client: AsyncClient, auth_headers: dict):
-        """测试创建用户成功"""
-        response = await client.post(
-            f"{settings.API_V1_STR}/users/",
-            headers=auth_headers,
-            json={
-                "username": "apiuser",
-                "phone": "13500135000",
-                "password": "Test@12345",
-                "email": "api@example.com",
-            },
-        )
-
-        assert response.status_code == 200
-        data = response.json()
-        assert data["code"] == 200
-        assert data["data"]["username"] == "apiuser"
-
-    async def test_create_user_weak_password(self, client: AsyncClient, auth_headers: dict):
-        """测试弱密码被拒绝"""
-        response = await client.post(
-            f"{settings.API_V1_STR}/users/",
-            headers=auth_headers,
-            json={
-                "username": "weakuser",
-                "phone": "13500135001",
-                "password": "weak",
-            },
-        )
-
-        assert response.status_code == 422
-
-
 class TestUsersMe:
     """当前用户接口测试"""
 

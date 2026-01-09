@@ -308,7 +308,7 @@ class TestMenusOptions:
                 sort=1,
                 is_hidden=False,
                 permission=None,
-            ),
+            ),  # pyright: ignore[reportCallIssue]
         )
         child = await menu_crud.create(
             db_session,
@@ -322,7 +322,7 @@ class TestMenusOptions:
                 sort=2,
                 is_hidden=False,
                 permission=None,
-            ),
+            ),  # pyright: ignore[reportCallIssue]
         )
         await menu_crud.create(
             db_session,
@@ -336,7 +336,7 @@ class TestMenusOptions:
                 sort=3,
                 is_hidden=False,
                 permission=None,
-            ),
+            ),  # pyright: ignore[reportCallIssue]
         )
 
         # 1) 创建权限点菜单（menu:options:list）
@@ -352,7 +352,7 @@ class TestMenusOptions:
                 sort=0,
                 is_hidden=True,
                 permission="menu:options:list",
-            ),
+            ),  # pyright: ignore[reportCallIssue]
         )
 
         # 2) 创建角色并绑定该权限菜单

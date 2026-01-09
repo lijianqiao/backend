@@ -38,7 +38,7 @@ class TestUserServiceCreate:
             gender="o",
             is_active=True,
             is_superuser=False,
-        )
+        )  # pyright: ignore[reportCallIssue]
         user = await user_service.create_user(obj_in=user_in)
 
         assert user.username == "serviceuser"
@@ -55,7 +55,7 @@ class TestUserServiceCreate:
             gender="o",
             is_active=True,
             is_superuser=False,
-        )
+        )  # pyright: ignore[reportCallIssue]
 
         with pytest.raises(BadRequestException) as exc_info:
             await user_service.create_user(obj_in=user_in)
@@ -73,7 +73,7 @@ class TestUserServiceCreate:
             gender="o",
             is_active=True,
             is_superuser=False,
-        )
+        )  # pyright: ignore[reportCallIssue]
 
         with pytest.raises(BadRequestException) as exc_info:
             await user_service.create_user(obj_in=user_in)
@@ -155,7 +155,7 @@ class TestUserServiceBatchDelete:
                 gender="o",
                 is_active=True,
                 is_superuser=False,
-            )
+            )  # pyright: ignore[reportCallIssue]
             user = await user_service.create_user(obj_in=user_in)
             users.append(user)
 

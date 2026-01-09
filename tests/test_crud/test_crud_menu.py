@@ -27,7 +27,7 @@ class TestCRUDMenuCreate:
             sort=0,
             is_hidden=False,
             permission=None,
-        )
+        )  # pyright: ignore[reportCallIssue]
         menu = await menu_crud.create(db_session, obj_in=menu_in)
 
         assert menu.title == "Test Menu"
@@ -49,7 +49,7 @@ class TestCRUDMenuCreate:
                 sort=0,
                 is_hidden=False,
                 permission=None,
-            ),
+            ),  # pyright: ignore[reportCallIssue]
         )
 
         # 子菜单
@@ -63,7 +63,7 @@ class TestCRUDMenuCreate:
             sort=0,
             is_hidden=False,
             permission=None,
-        )
+        )  # pyright: ignore[reportCallIssue]
         child = await menu_crud.create(db_session, obj_in=child_in)
 
         assert child.parent_id == parent.id
@@ -86,7 +86,7 @@ class TestCRUDMenuGet:
                 sort=0,
                 is_hidden=False,
                 permission=None,
-            ),
+            ),  # pyright: ignore[reportCallIssue]
         )
         stored_menu = await menu_crud.get(db_session, id=menu.id)
         assert stored_menu is not None
@@ -107,7 +107,7 @@ class TestCRUDMenuGet:
                     sort=0,
                     is_hidden=False,
                     permission=None,
-                ),
+                ),  # pyright: ignore[reportCallIssue]
             )
         menus = await menu_crud.get_multi(db_session)
         assert len(menus) >= 3
@@ -130,7 +130,7 @@ class TestCRUDMenuUpdate:
                 sort=0,
                 is_hidden=False,
                 permission=None,
-            ),
+            ),  # pyright: ignore[reportCallIssue]
         )
         update_in = MenuUpdate(title="New Title")
         updated = await menu_crud.update(db_session, db_obj=menu, obj_in=update_in)
@@ -156,7 +156,7 @@ class TestCRUDMenuDelete:
                 sort=0,
                 is_hidden=False,
                 permission=None,
-            ),
+            ),  # pyright: ignore[reportCallIssue]
         )
         await menu_crud.remove(db_session, id=menu.id)
         assert await menu_crud.get(db_session, id=menu.id) is None
