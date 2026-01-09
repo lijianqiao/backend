@@ -14,12 +14,25 @@
 
 ### 权限
 *   **RBAC**: 用户 - 角色 - 菜单/权限。
-*   **JWT 认证**: OAuth2 Password Bearer，支持刷新。
+*   **JWT 认证**: Access Token + Refresh Token（支持刷新与轮换）。
+*   **数据范围**: 角色支持 `ALL/DEPT/DEPT_AND_CHILDREN/SELF/CUSTOM`。
+*   **默认角色**: 创建非超级管理员用户时可自动绑定默认角色（最小权限起步）。
 *   **软删除**: 常用业务实体支持软删除与回收站。
+
+### 组织与会话
+*   **部门管理**: 支持树形结构、关键词搜索、回收站。
+*   **在线会话**: 会话列表与强制下线（踢人）。
 
 ### 日志
 *   **结构化日志**: `structlog` JSON 日志，带请求上下文。
 *   **审计日志**: 自动记录写操作（POST/PUT/DELETE），包含操作人、IP、耗时、状态。
+*   **访问日志**: 统一记录每个请求的 method/path/status/耗时。
+*   **参数校验日志**: 422 参数校验失败会写入 `info.log`（warning 级别），便于排查前端传参问题。
+
+### 安全
+*   **刷新令牌 Cookie**: Refresh Token 使用 HttpOnly Cookie 存储，Access Token 走 Header。
+*   **CSRF 防护**: 双提交 Cookie（`csrf_token` + `X-CSRF-Token`）。
+*   **请求追踪**: 自动生成并回传 `X-Request-ID`，贯穿日志。
 
 ## 🛠️ 技术栈
 
@@ -33,7 +46,7 @@
 ## 🚀 快速开始
 
 ### 1. 环境准备
-确保已安装 Python 3.12+ 和 PostgreSQL 数据库。
+确保已安装 Python 3.13+ 和 PostgreSQL 数据库。
 
 ```bash
 uv venv --python 3.13
@@ -87,6 +100,7 @@ backend/
 │   ├── models/         # SQLAlchemy 数据模型
 │   ├── schemas/        # Pydantic 数据校验模型
 │   ├── services/       # 业务逻辑层 (Service)
+│   ├── utils/          # 工具函数（如手机号/密码强度校验等）
 │   └── main.py         # 应用入口
 ├── alembic/            # 数据库迁移脚本
 ├── logs/               # 运行时日志 (自动生成)

@@ -121,6 +121,122 @@ class RedisSessionStore(SessionStore):
         except Exception as e:
             logger.warning(f"在线会话删除失败(REDIS): {e}")
 
+    async def remove_user_sessions_by_user_id(self, user_id: str) -> None:
+        """按 user_id 删除该用户的所有在线会话记录（兼容历史数据）。
+
+        说明：
+        - 当前实现以 user_id 作为 zset member。
+        - 历史版本可能把“session_id”写入 zset member，导致同一用户出现多条会话。
+        - 这里通过扫描 zset 并读取 session 内容来定位并清理所有属于该用户的成员。
+        """
+
+        if redis_client is None:
+            return
+
+        zkey = _online_zset_key()
+        target_uid = str(user_id)
+
+        # 先删除当前规范 key（幂等）
+        try:
+            await redis_client.zrem(zkey, target_uid)
+            await redis_client.delete(_session_key(target_uid))
+        except Exception:
+            pass
+
+        cursor = 0
+        try:
+            while True:
+                cursor, pairs = await redis_client.zscan(zkey, cursor=cursor, count=200)
+                for member, _score in pairs:
+                    mid = str(member)
+
+                    # member 本身就是 user_id 的情况（兜底）
+                    if mid == target_uid:
+                        try:
+                            await redis_client.zrem(zkey, mid)
+                            await redis_client.delete(_session_key(mid))
+                        except Exception:
+                            pass
+                        continue
+
+                    session = await self.get_session(mid)
+                    if session is None:
+                        # 无效成员：顺手清理
+                        try:
+                            await redis_client.zrem(zkey, mid)
+                        except Exception:
+                            pass
+                        continue
+
+                    if str(session.user_id) == target_uid:
+                        try:
+                            await redis_client.zrem(zkey, mid)
+                            await redis_client.delete(_session_key(mid))
+                            await redis_client.delete(_session_key(target_uid))
+                        except Exception:
+                            pass
+
+                if cursor == 0:
+                    break
+        except Exception as e:
+            logger.warning(f"在线会话按用户清理失败(REDIS): {e}")
+
+    async def remove_user_sessions_many_by_user_ids(self, user_ids: Iterable[str]) -> None:
+        """批量按 user_id 删除会话（兼容历史数据）。"""
+
+        if redis_client is None:
+            return
+
+        targets = {str(x) for x in user_ids if str(x).strip()}
+        if not targets:
+            return
+
+        zkey = _online_zset_key()
+
+        # 先删除规范 key（幂等）
+        try:
+            for uid in targets:
+                await redis_client.zrem(zkey, uid)
+                await redis_client.delete(_session_key(uid))
+        except Exception:
+            pass
+
+        cursor = 0
+        try:
+            while True:
+                cursor, pairs = await redis_client.zscan(zkey, cursor=cursor, count=200)
+                for member, _score in pairs:
+                    mid = str(member)
+
+                    if mid in targets:
+                        try:
+                            await redis_client.zrem(zkey, mid)
+                            await redis_client.delete(_session_key(mid))
+                        except Exception:
+                            pass
+                        continue
+
+                    session = await self.get_session(mid)
+                    if session is None:
+                        try:
+                            await redis_client.zrem(zkey, mid)
+                        except Exception:
+                            pass
+                        continue
+
+                    if str(session.user_id) in targets:
+                        try:
+                            await redis_client.zrem(zkey, mid)
+                            await redis_client.delete(_session_key(mid))
+                            await redis_client.delete(_session_key(str(session.user_id)))
+                        except Exception:
+                            pass
+
+                if cursor == 0:
+                    break
+        except Exception as e:
+            logger.warning(f"在线会话批量按用户清理失败(REDIS): {e}")
+
     async def list_online(
         self, *, page: int, page_size: int, keyword: str | None = None
     ) -> tuple[list[OnlineSession], int]:
@@ -136,33 +252,64 @@ class RedisSessionStore(SessionStore):
 
         zkey = _online_zset_key()
 
+        # 全量扫描并去重：保证同一 user_id 只返回一条，并顺手清理脏数据
+        sessions_by_user: dict[str, OnlineSession] = {}
+        cursor = 0
         try:
-            total = int(await redis_client.zcard(zkey))
-            start = (page - 1) * page_size
-            end = start + page_size - 1
-            user_ids = await redis_client.zrevrange(zkey, start, end)
+            while True:
+                cursor, pairs = await redis_client.zscan(zkey, cursor=cursor, count=500)
+                for member, _score in pairs:
+                    mid = str(member)
+                    session = await self.get_session(mid)
+
+                    if session is None:
+                        # member 对应的 session key 已过期/不存在：清理 zset 成员
+                        try:
+                            await redis_client.zrem(zkey, mid)
+                        except Exception:
+                            pass
+                        continue
+
+                    # 兼容历史数据：member 可能不是 user_id（例如 session_id）
+                    if mid != str(session.user_id):
+                        try:
+                            # 迁移为规范 member=user_id
+                            await redis_client.zadd(zkey, {str(session.user_id): float(session.last_seen_at)})
+                            await redis_client.setex(
+                                _session_key(str(session.user_id)),
+                                max(1, int(_default_online_ttl_seconds())),
+                                json.dumps(asdict(session), ensure_ascii=False),
+                            )
+                            await redis_client.zrem(zkey, mid)
+                            await redis_client.delete(_session_key(mid))
+                        except Exception:
+                            pass
+
+                    uid = str(session.user_id)
+                    existing = sessions_by_user.get(uid)
+                    if existing is None or float(session.last_seen_at) > float(existing.last_seen_at):
+                        sessions_by_user[uid] = session
+
+                if cursor == 0:
+                    break
         except Exception as e:
-            logger.warning(f"在线会话列表读取失败(REDIS): {e}")
+            logger.warning(f"在线会话列表扫描失败(REDIS): {e}")
             return [], 0
 
-        sessions: list[OnlineSession] = []
-        for uid in user_ids:
-            session = await self.get_session(str(uid))
-            if session is not None:
-                sessions.append(session)
+        sessions: list[OnlineSession] = list(sessions_by_user.values())
 
         # 关键词过滤：支持用户名和 IP 搜索
         if keyword:
             kw = keyword.strip().lower()
             if kw:
                 sessions = [s for s in sessions if kw in (s.username or "").lower() or kw in (s.ip or "").lower()]
-                total = len(sessions)
-                # 重新分页
-                start = (page - 1) * page_size
-                end = start + page_size
-                return sessions[start:end], total
 
-        return sessions, total
+        sessions.sort(key=lambda x: float(x.last_seen_at), reverse=True)
+        total = len(sessions)
+
+        start = (page - 1) * page_size
+        end = start + page_size
+        return sessions[start:end], total
 
 
 class MemorySessionStore(SessionStore):
@@ -258,11 +405,19 @@ async def touch_online_session(
 
 
 async def remove_online_session(*, user_id: str) -> None:
-    await get_session_store().remove_session(user_id)
+    store = get_session_store()
+    if isinstance(store, RedisSessionStore):
+        await store.remove_user_sessions_by_user_id(user_id)
+        return
+    await store.remove_session(user_id)
 
 
 async def remove_online_sessions(*, user_ids: Iterable[str]) -> None:
-    await get_session_store().remove_sessions(user_ids)
+    store = get_session_store()
+    if isinstance(store, RedisSessionStore):
+        await store.remove_user_sessions_many_by_user_ids(user_ids)
+        return
+    await store.remove_sessions(user_ids)
 
 
 async def list_online_sessions(
