@@ -11,6 +11,7 @@ from uuid import UUID
 from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
+from sqlalchemy.sql.elements import ColumnElement
 
 from app.crud.base import CRUDBase
 from app.models.dept import Department
@@ -44,7 +45,7 @@ class CRUDDept(CRUDBase[Department, DeptCreate, DeptUpdate]):
         if page_size > 100:
             page_size = 100
 
-        conditions = [Department.is_deleted.is_(True)]
+        conditions: list[ColumnElement[bool]] = [Department.is_deleted.is_(True)]
 
         if keyword:
             kw = self._normalize_keyword(keyword)

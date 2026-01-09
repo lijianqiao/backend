@@ -15,6 +15,7 @@ from fastapi.responses import JSONResponse
 from pydantic import ValidationError
 
 from app.core.exceptions import CustomException
+from app.core.logger import logger
 
 
 def _format_validation_errors(errors: Sequence[Any]) -> list[dict]:
@@ -47,6 +48,20 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
     请求参数验证异常处理器。
     """
     errors = _format_validation_errors(exc.errors())
+
+    try:
+        client_ip = request.client.host if request.client else None
+    except Exception:
+        client_ip = None
+
+    logger.warning(
+        "参数验证错误",
+        error_code=422,
+        http_method=request.method,
+        path=str(request.url.path),
+        client_ip=client_ip,
+        details=errors,
+    )
     return JSONResponse(
         status_code=422,
         content={"error_code": 422, "message": "参数验证错误", "details": errors},
@@ -58,6 +73,20 @@ async def pydantic_validation_exception_handler(request: Request, exc: Validatio
     Pydantic 模型验证异常处理器 (捕获 Schema 层校验错误)。
     """
     errors = _format_validation_errors(exc.errors())
+
+    try:
+        client_ip = request.client.host if request.client else None
+    except Exception:
+        client_ip = None
+
+    logger.warning(
+        "数据验证错误",
+        error_code=422,
+        http_method=request.method,
+        path=str(request.url.path),
+        client_ip=client_ip,
+        details=errors,
+    )
     return JSONResponse(
         status_code=422,
         content={"error_code": 422, "message": "数据验证错误", "details": errors},
