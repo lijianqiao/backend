@@ -27,6 +27,9 @@ class TestDeptSchemas:
         assert obj.name == "总部"
         assert obj.code == "HQ"
 
+        with pytest.raises(ValidationError):
+            DeptCreate(name="总部", code="HQ", phone="12345")
+
     def test_dept_update_optional(self):
         obj = DeptUpdate()
         assert obj.model_dump(exclude_unset=True) == {}

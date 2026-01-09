@@ -9,7 +9,9 @@
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
+
+from app.utils.validators import validate_phone_number
 
 
 class DeptBase(BaseModel):
@@ -22,6 +24,12 @@ class DeptBase(BaseModel):
     leader: str | None = Field(default=None, max_length=50, description="负责人")
     phone: str | None = Field(default=None, max_length=20, description="联系电话")
     email: EmailStr | None = Field(default=None, description="联系邮箱")
+
+    @field_validator("phone")
+    @classmethod
+    def validate_phone(cls, v: str | None) -> str | None:
+        """验证手机号格式。"""
+        return validate_phone_number(v)
 
 
 class DeptCreate(DeptBase):
@@ -41,6 +49,12 @@ class DeptUpdate(BaseModel):
     phone: str | None = Field(default=None, max_length=20, description="联系电话")
     email: EmailStr | None = Field(default=None, description="联系邮箱")
     is_active: bool | None = Field(default=None, description="是否启用")
+
+    @field_validator("phone")
+    @classmethod
+    def validate_phone(cls, v: str | None) -> str | None:
+        """验证手机号格式。"""
+        return validate_phone_number(v)
 
 
 class DeptResponse(BaseModel):
