@@ -16,7 +16,7 @@ import time
 from collections.abc import Iterable
 from dataclasses import asdict, dataclass
 
-from app.core.cache import redis_client
+from app.core import cache
 from app.core.config import settings
 from app.core.logger import logger
 
@@ -65,7 +65,7 @@ class SessionStore:
 
 class RedisSessionStore(SessionStore):
     async def upsert_session(self, session: OnlineSession, ttl_seconds: int) -> None:
-        if redis_client is None:
+        if cache.redis_client is None:
             return
 
         now = time.time()
@@ -73,27 +73,29 @@ class RedisSessionStore(SessionStore):
         skey = _session_key(session.user_id)
 
         try:
-            await redis_client.zadd(zkey, {session.user_id: float(session.last_seen_at)})
-            await redis_client.setex(skey, max(1, int(ttl_seconds)), json.dumps(asdict(session), ensure_ascii=False))
+            await cache.redis_client.zadd(zkey, {session.user_id: float(session.last_seen_at)})
+            await cache.redis_client.setex(
+                skey, max(1, int(ttl_seconds)), json.dumps(asdict(session), ensure_ascii=False)
+            )
             # 在线 zset 本身设置一个 TTL，避免长期无人用时残留
-            await redis_client.expire(zkey, max(60, int(_default_online_ttl_seconds())))
+            await cache.redis_client.expire(zkey, max(60, int(_default_online_ttl_seconds())))
         except Exception as e:
             logger.warning(f"在线会话写入失败(REDIS): {e}")
 
         # 轻量清理：移除过期成员（last_seen 太久）
         try:
             cutoff = now - max(60, int(ttl_seconds))
-            await redis_client.zremrangebyscore(zkey, 0, cutoff)
+            await cache.redis_client.zremrangebyscore(zkey, 0, cutoff)
         except Exception:
             pass
 
     async def get_session(self, user_id: str) -> OnlineSession | None:
-        if redis_client is None:
+        if cache.redis_client is None:
             return None
 
         skey = _session_key(user_id)
         try:
-            raw = await redis_client.get(skey)
+            raw = await cache.redis_client.get(skey)
             if not raw:
                 return None
             data = json.loads(raw)
@@ -110,14 +112,14 @@ class RedisSessionStore(SessionStore):
             return None
 
     async def remove_session(self, user_id: str) -> None:
-        if redis_client is None:
+        if cache.redis_client is None:
             return
 
         zkey = _online_zset_key()
         skey = _session_key(user_id)
         try:
-            await redis_client.zrem(zkey, user_id)
-            await redis_client.delete(skey)
+            await cache.redis_client.zrem(zkey, user_id)
+            await cache.redis_client.delete(skey)
         except Exception as e:
             logger.warning(f"在线会话删除失败(REDIS): {e}")
 
@@ -130,7 +132,7 @@ class RedisSessionStore(SessionStore):
         - 这里通过扫描 zset 并读取 session 内容来定位并清理所有属于该用户的成员。
         """
 
-        if redis_client is None:
+        if cache.redis_client is None:
             return
 
         zkey = _online_zset_key()
@@ -138,23 +140,23 @@ class RedisSessionStore(SessionStore):
 
         # 先删除当前规范 key（幂等）
         try:
-            await redis_client.zrem(zkey, target_uid)
-            await redis_client.delete(_session_key(target_uid))
+            await cache.redis_client.zrem(zkey, target_uid)
+            await cache.redis_client.delete(_session_key(target_uid))
         except Exception:
             pass
 
         cursor = 0
         try:
             while True:
-                cursor, pairs = await redis_client.zscan(zkey, cursor=cursor, count=200)
+                cursor, pairs = await cache.redis_client.zscan(zkey, cursor=cursor, count=200)
                 for member, _score in pairs:
                     mid = str(member)
 
                     # member 本身就是 user_id 的情况（兜底）
                     if mid == target_uid:
                         try:
-                            await redis_client.zrem(zkey, mid)
-                            await redis_client.delete(_session_key(mid))
+                            await cache.redis_client.zrem(zkey, mid)
+                            await cache.redis_client.delete(_session_key(mid))
                         except Exception:
                             pass
                         continue
@@ -163,16 +165,16 @@ class RedisSessionStore(SessionStore):
                     if session is None:
                         # 无效成员：顺手清理
                         try:
-                            await redis_client.zrem(zkey, mid)
+                            await cache.redis_client.zrem(zkey, mid)
                         except Exception:
                             pass
                         continue
 
                     if str(session.user_id) == target_uid:
                         try:
-                            await redis_client.zrem(zkey, mid)
-                            await redis_client.delete(_session_key(mid))
-                            await redis_client.delete(_session_key(target_uid))
+                            await cache.redis_client.zrem(zkey, mid)
+                            await cache.redis_client.delete(_session_key(mid))
+                            await cache.redis_client.delete(_session_key(target_uid))
                         except Exception:
                             pass
 
@@ -184,7 +186,7 @@ class RedisSessionStore(SessionStore):
     async def remove_user_sessions_many_by_user_ids(self, user_ids: Iterable[str]) -> None:
         """批量按 user_id 删除会话（兼容历史数据）。"""
 
-        if redis_client is None:
+        if cache.redis_client is None:
             return
 
         targets = {str(x) for x in user_ids if str(x).strip()}
@@ -196,22 +198,22 @@ class RedisSessionStore(SessionStore):
         # 先删除规范 key（幂等）
         try:
             for uid in targets:
-                await redis_client.zrem(zkey, uid)
-                await redis_client.delete(_session_key(uid))
+                await cache.redis_client.zrem(zkey, uid)
+                await cache.redis_client.delete(_session_key(uid))
         except Exception:
             pass
 
         cursor = 0
         try:
             while True:
-                cursor, pairs = await redis_client.zscan(zkey, cursor=cursor, count=200)
+                cursor, pairs = await cache.redis_client.zscan(zkey, cursor=cursor, count=200)
                 for member, _score in pairs:
                     mid = str(member)
 
                     if mid in targets:
                         try:
-                            await redis_client.zrem(zkey, mid)
-                            await redis_client.delete(_session_key(mid))
+                            await cache.redis_client.zrem(zkey, mid)
+                            await cache.redis_client.delete(_session_key(mid))
                         except Exception:
                             pass
                         continue
@@ -219,16 +221,16 @@ class RedisSessionStore(SessionStore):
                     session = await self.get_session(mid)
                     if session is None:
                         try:
-                            await redis_client.zrem(zkey, mid)
+                            await cache.redis_client.zrem(zkey, mid)
                         except Exception:
                             pass
                         continue
 
                     if str(session.user_id) in targets:
                         try:
-                            await redis_client.zrem(zkey, mid)
-                            await redis_client.delete(_session_key(mid))
-                            await redis_client.delete(_session_key(str(session.user_id)))
+                            await cache.redis_client.zrem(zkey, mid)
+                            await cache.redis_client.delete(_session_key(mid))
+                            await cache.redis_client.delete(_session_key(str(session.user_id)))
                         except Exception:
                             pass
 
@@ -240,7 +242,7 @@ class RedisSessionStore(SessionStore):
     async def list_online(
         self, *, page: int, page_size: int, keyword: str | None = None
     ) -> tuple[list[OnlineSession], int]:
-        if redis_client is None:
+        if cache.redis_client is None:
             return [], 0
 
         if page < 1:
@@ -257,7 +259,7 @@ class RedisSessionStore(SessionStore):
         cursor = 0
         try:
             while True:
-                cursor, pairs = await redis_client.zscan(zkey, cursor=cursor, count=500)
+                cursor, pairs = await cache.redis_client.zscan(zkey, cursor=cursor, count=500)
                 for member, _score in pairs:
                     mid = str(member)
                     session = await self.get_session(mid)
@@ -265,7 +267,7 @@ class RedisSessionStore(SessionStore):
                     if session is None:
                         # member 对应的 session key 已过期/不存在：清理 zset 成员
                         try:
-                            await redis_client.zrem(zkey, mid)
+                            await cache.redis_client.zrem(zkey, mid)
                         except Exception:
                             pass
                         continue
@@ -274,14 +276,14 @@ class RedisSessionStore(SessionStore):
                     if mid != str(session.user_id):
                         try:
                             # 迁移为规范 member=user_id
-                            await redis_client.zadd(zkey, {str(session.user_id): float(session.last_seen_at)})
-                            await redis_client.setex(
+                            await cache.redis_client.zadd(zkey, {str(session.user_id): float(session.last_seen_at)})
+                            await cache.redis_client.setex(
                                 _session_key(str(session.user_id)),
                                 max(1, int(_default_online_ttl_seconds())),
                                 json.dumps(asdict(session), ensure_ascii=False),
                             )
-                            await redis_client.zrem(zkey, mid)
-                            await redis_client.delete(_session_key(mid))
+                            await cache.redis_client.zrem(zkey, mid)
+                            await cache.redis_client.delete(_session_key(mid))
                         except Exception:
                             pass
 
@@ -377,7 +379,9 @@ _redis_store = RedisSessionStore()
 
 
 def get_session_store() -> SessionStore:
-    return _redis_store if redis_client is not None else _memory_store
+    if cache.redis_client is None and settings.ENVIRONMENT in ("production", "staging"):
+        raise RuntimeError("Redis 不可用，生产/预发环境禁止降级会话存储")
+    return _redis_store if cache.redis_client is not None else _memory_store
 
 
 async def touch_online_session(

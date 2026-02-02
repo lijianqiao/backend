@@ -14,7 +14,7 @@ import asyncio
 import time
 from collections.abc import Iterable
 
-from app.core.cache import redis_client
+from app.core import cache
 from app.core.config import settings
 from app.core.logger import logger
 
@@ -47,35 +47,41 @@ def _refresh_key(user_id: str) -> str:
 
 class RedisRefreshTokenStore(RefreshTokenStore):
     async def set_current_jti(self, user_id: str, jti: str, ttl_seconds: int) -> None:
-        if redis_client is None:
+        if cache.redis_client is None:
             return
         key = _refresh_key(user_id)
         try:
-            await redis_client.setex(key, ttl_seconds, jti)
+            await cache.redis_client.setex(key, ttl_seconds, jti)
         except Exception as e:
+            if settings.ENVIRONMENT in ("production", "staging"):
+                raise RuntimeError(f"refresh token 存储失败(REDIS): {e}") from e
             logger.warning(f"refresh token 存储失败(REDIS): {e}")
 
     async def get_current_jti(self, user_id: str) -> str | None:
-        if redis_client is None:
+        if cache.redis_client is None:
             return None
         key = _refresh_key(user_id)
         try:
-            value = await redis_client.get(key)
+            value = await cache.redis_client.get(key)
             if value:
                 if isinstance(value, (bytes, bytearray)):
                     return value.decode("utf-8")
                 return str(value)
         except Exception as e:
+            if settings.ENVIRONMENT in ("production", "staging"):
+                raise RuntimeError(f"refresh token 读取失败(REDIS): {e}") from e
             logger.warning(f"refresh token 读取失败(REDIS): {e}")
         return None
 
     async def revoke_user(self, user_id: str) -> None:
-        if redis_client is None:
+        if cache.redis_client is None:
             return
         key = _refresh_key(user_id)
         try:
-            await redis_client.setex(key, _default_ttl_seconds(), _REVOKED_JTI)
+            await cache.redis_client.setex(key, _default_ttl_seconds(), _REVOKED_JTI)
         except Exception as e:
+            if settings.ENVIRONMENT in ("production", "staging"):
+                raise RuntimeError(f"refresh token 撤销失败(REDIS): {e}") from e
             logger.warning(f"refresh token 撤销失败(REDIS): {e}")
 
 
@@ -103,20 +109,22 @@ class AccessGate:
 
 class RedisAccessGate(AccessGate):
     async def set_revoked_after(self, user_id: str, ts_seconds: float) -> None:
-        if redis_client is None:
+        if cache.redis_client is None:
             return
         key = _revoked_after_key(user_id)
         try:
-            await redis_client.setex(key, _REVOKED_AFTER_TTL_SECONDS, str(int(ts_seconds)))
+            await cache.redis_client.setex(key, _REVOKED_AFTER_TTL_SECONDS, str(int(ts_seconds)))
         except Exception as e:
+            if settings.ENVIRONMENT in ("production", "staging"):
+                raise RuntimeError(f"revoked_after 写入失败(REDIS): {e}") from e
             logger.warning(f"revoked_after 写入失败(REDIS): {e}")
 
     async def get_revoked_after(self, user_id: str) -> float | None:
-        if redis_client is None:
+        if cache.redis_client is None:
             return None
         key = _revoked_after_key(user_id)
         try:
-            v = await redis_client.get(key)
+            v = await cache.redis_client.get(key)
             if not v:
                 return None
             try:
@@ -124,6 +132,8 @@ class RedisAccessGate(AccessGate):
             except Exception:
                 return None
         except Exception as e:
+            if settings.ENVIRONMENT in ("production", "staging"):
+                raise RuntimeError(f"revoked_after 读取失败(REDIS): {e}") from e
             logger.warning(f"revoked_after 读取失败(REDIS): {e}")
             return None
 
@@ -197,11 +207,15 @@ _redis_gate = RedisAccessGate()
 
 def get_refresh_token_store() -> RefreshTokenStore:
     # Redis 可用时优先；否则降级内存。
-    return _redis_store if redis_client is not None else _memory_store
+    if cache.redis_client is None and settings.ENVIRONMENT in ("production", "staging"):
+        raise RuntimeError("Redis 不可用，生产/预发环境禁止降级 refresh token 存储")
+    return _redis_store if cache.redis_client is not None else _memory_store
 
 
 def get_access_gate() -> AccessGate:
-    return _redis_gate if redis_client is not None else _memory_gate
+    if cache.redis_client is None and settings.ENVIRONMENT in ("production", "staging"):
+        raise RuntimeError("Redis 不可用，生产/预发环境禁止降级 access gate")
+    return _redis_gate if cache.redis_client is not None else _memory_gate
 
 
 async def set_user_refresh_jti(*, user_id: str, jti: str, ttl_seconds: int) -> None:

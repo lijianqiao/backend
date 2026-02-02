@@ -17,7 +17,7 @@ from sqlalchemy import text
 
 from app.api.deps import SessionDep
 from app.api.v1 import endpoints
-from app.core.cache import redis_client
+from app.core import cache
 from app.core.logger import logger
 
 api_router = APIRouter()
@@ -41,8 +41,8 @@ async def health_check(db: SessionDep):
 
     # 检查 Redis
     try:
-        if redis_client:
-            await redis_client.ping()  # type: ignore
+        if cache.redis_client:
+            await cache.redis_client.ping()  # type: ignore
             health_status["cache"] = "connected"
         else:
             health_status["cache"] = "disabled"

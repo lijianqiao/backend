@@ -21,8 +21,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.core.auth_cookies import csrf_cookie_name, csrf_header_name, refresh_cookie_name
-from app.core.cache import redis_client
+from app.core import cache
+from app.core.auth_cookies import csrf_cookie_name, csrf_header_name, refresh_cookie_name, validate_csrf_token
 from app.core.config import settings
 from app.core.db import AsyncSessionLocal
 from app.core.exceptions import ForbiddenException, NotFoundException, UnauthorizedException
@@ -149,9 +149,9 @@ async def get_current_user(request: Request, session: SessionDep, token: TokenDe
     permissions_cache_key = f"v1:user:permissions:{user.id}"
     permissions: set[str] = set()
 
-    if redis_client is not None:
+    if cache.redis_client is not None:
         try:
-            cached = await redis_client.get(permissions_cache_key)
+            cached = await cache.redis_client.get(permissions_cache_key)
             if cached:
                 permissions = set(json.loads(cached))
         except Exception as e:
@@ -159,13 +159,17 @@ async def get_current_user(request: Request, session: SessionDep, token: TokenDe
 
     if not permissions:
         for role in user.roles:
+            if not role.is_active or role.is_deleted:
+                continue
             for menu in role.menus:
+                if not menu.is_active or menu.is_deleted:
+                    continue
                 if menu.permission:
                     permissions.add(menu.permission)
 
-        if redis_client is not None:
+        if cache.redis_client is not None:
             try:
-                await redis_client.setex(
+                await cache.redis_client.setex(
                     permissions_cache_key, 300, json.dumps(sorted(permissions), ensure_ascii=False)
                 )
             except Exception as e:
@@ -237,6 +241,28 @@ async def require_refresh_cookie_and_csrf(request: Request) -> str:
     if not csrf_cookie or not csrf_header or str(csrf_cookie) != str(csrf_header):
         raise ForbiddenException(message="CSRF 校验失败")
 
+    # 解析 refresh token，用于校验 CSRF 绑定与有效期
+    try:
+        payload = jwt.decode(
+            refresh_token,
+            settings.SECRET_KEY,
+            algorithms=[settings.JWT_ALGORITHM],
+            issuer=settings.JWT_ISSUER,
+            options={"require": ["exp", "sub", "type", "iss"]},
+        )
+        if payload.get("type") != "refresh":
+            raise UnauthorizedException(message="无效的刷新令牌")
+        refresh_sub = payload.get("sub")
+    except (InvalidTokenError, ValidationError) as e:
+        raise UnauthorizedException(message="无效的刷新令牌") from e
+
+    if not validate_csrf_token(
+        str(csrf_cookie),
+        max_age_seconds=settings.AUTH_CSRF_MAX_AGE_SECONDS,
+        subject=str(refresh_sub) if refresh_sub else None,
+    ):
+        raise ForbiddenException(message="CSRF 校验失败")
+
     origin = request.headers.get("origin")
     if origin:
         if not _is_origin_allowed(origin):
@@ -245,8 +271,10 @@ async def require_refresh_cookie_and_csrf(request: Request) -> str:
         referer = request.headers.get("referer")
         if referer:
             ref_origin = _extract_origin_from_referer(referer)
-            if ref_origin and not _is_origin_allowed(ref_origin):
+            if not ref_origin or not _is_origin_allowed(ref_origin):
                 raise ForbiddenException(message="CSRF 校验失败 (Referer 不允许)")
+        elif settings.AUTH_REQUIRE_ORIGIN and settings.ENVIRONMENT != "local":
+            raise ForbiddenException(message="CSRF 校验失败 (缺少 Origin/Referer)")
 
     return str(refresh_token)
 

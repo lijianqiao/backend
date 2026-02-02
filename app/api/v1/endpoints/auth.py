@@ -8,11 +8,14 @@
 
 from typing import Annotated
 
+import jwt
 from fastapi import APIRouter, BackgroundTasks, Depends, Request, Response
 from fastapi.security import OAuth2PasswordRequestForm
+from jwt.exceptions import InvalidTokenError
 
 from app.api import deps
 from app.core.auth_cookies import clear_auth_cookies, generate_csrf_token, set_csrf_cookie, set_refresh_cookie
+from app.core.config import settings
 from app.core.rate_limiter import limiter
 from app.schemas.common import ResponseBase
 from app.schemas.token import Token, TokenAccess
@@ -54,7 +57,17 @@ async def login_access_token(
 
     # refresh 写入 HttpOnly Cookie；csrf 写入非 HttpOnly Cookie
     set_refresh_cookie(response, token.refresh_token)
-    csrf_token = generate_csrf_token()
+    try:
+        payload = jwt.decode(
+            token.refresh_token,
+            settings.SECRET_KEY,
+            algorithms=[settings.JWT_ALGORITHM],
+            issuer=settings.JWT_ISSUER,
+            options={"require": ["exp", "sub", "type", "iss"]},
+        )
+        csrf_token = generate_csrf_token(subject=str(payload.get("sub")) if payload.get("sub") else None)
+    except InvalidTokenError:
+        csrf_token = generate_csrf_token()
     set_csrf_cookie(response, csrf_token)
 
     return TokenAccess(access_token=token.access_token, token_type=token.token_type)
@@ -88,7 +101,17 @@ async def refresh_token(
     set_refresh_cookie(response, token.refresh_token)
 
     # 可选：同步轮换 csrf token，缩短被盗用窗口
-    csrf_token = generate_csrf_token()
+    try:
+        payload = jwt.decode(
+            refresh_token,
+            settings.SECRET_KEY,
+            algorithms=[settings.JWT_ALGORITHM],
+            issuer=settings.JWT_ISSUER,
+            options={"require": ["exp", "sub", "type", "iss"]},
+        )
+        csrf_token = generate_csrf_token(subject=str(payload.get("sub")) if payload.get("sub") else None)
+    except InvalidTokenError:
+        csrf_token = generate_csrf_token()
     set_csrf_cookie(response, csrf_token)
 
     return TokenAccess(access_token=token.access_token, token_type=token.token_type)

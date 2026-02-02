@@ -6,13 +6,15 @@
 @Docs: 用户 API 接口 (Users API).
 """
 
-from typing import Any
+from typing import Annotated, Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends
 
 from app.api import deps
+from app.core.data_scope import get_user_dept_ids, get_user_effective_data_scope
 from app.core.permissions import PermissionCode
+from app.crud.crud_dept import CRUDDept
 from app.schemas.common import (
     BatchDeleteRequest,
     BatchOperationResult,
@@ -38,6 +40,8 @@ router = APIRouter()
 async def read_users(
     user_service: deps.UserServiceDep,
     current_user: deps.CurrentUser,
+    db: deps.SessionDep,
+    dept_crud: Annotated[CRUDDept, Depends(deps.get_dept_crud)],
     _: deps.User = Depends(deps.require_permissions([PermissionCode.USER_LIST.value])),
     page: int = 1,
     page_size: int = 20,
@@ -63,12 +67,17 @@ async def read_users(
     Returns:
         ResponseBase[PaginatedResponse[UserResponse]]: 分页后的用户列表。
     """
-    users, total = await user_service.get_users_paginated(
+    data_scope = get_user_effective_data_scope(current_user)
+    dept_ids = await get_user_dept_ids(db, current_user, data_scope, dept_crud)
+
+    users, total = await user_service.get_users_paginated_with_scope(
         page=page,
         page_size=page_size,
         keyword=keyword,
         is_superuser=is_superuser,
         is_active=is_active,
+        dept_ids=dept_ids,
+        current_user_id=current_user.id,
     )
 
     items = [

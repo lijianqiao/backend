@@ -44,8 +44,7 @@ async def get_user_dept_ids(
             return None
 
         case DataScope.CUSTOM:
-            # 自定义权限：根据用户角色关联的部门（暂未实现角色-部门关联，返回本部门）
-            # TODO: 实现角色-部门关联后，从关联表获取
+            # 自定义权限：当前版本未实现角色-部门关联，降级为本部门范围
             if user.dept_id:
                 return [user.dept_id]
             return []

@@ -172,7 +172,11 @@ class MenuService:
         else:
             allowed_permissions = set()
             for role in current_user.roles:
+                if not role.is_active or role.is_deleted:
+                    continue
                 for menu in role.menus:
+                    if not menu.is_active or menu.is_deleted:
+                        continue
                     if menu.permission:
                         allowed_permissions.add(menu.permission)
 

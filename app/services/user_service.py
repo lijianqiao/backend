@@ -124,6 +124,31 @@ class UserService:
             is_active=is_active,
         )
 
+    async def get_users_paginated_with_scope(
+        self,
+        page: int = 1,
+        page_size: int = 20,
+        *,
+        keyword: str | None = None,
+        is_superuser: bool | None = None,
+        is_active: bool | None = None,
+        dept_ids: list[UUID] | None = None,
+        current_user_id: UUID | None = None,
+    ) -> tuple[list[User], int]:
+        """
+        带数据权限过滤的分页用户列表。
+        """
+        return await self.user_crud.get_multi_paginated_with_scope(
+            self.db,
+            page=page,
+            page_size=page_size,
+            keyword=keyword,
+            is_superuser=is_superuser,
+            is_active=is_active,
+            dept_ids=dept_ids,
+            current_user_id=current_user_id,
+        )
+
     async def get_deleted_users(
         self,
         page: int = 1,

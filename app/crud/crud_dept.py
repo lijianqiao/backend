@@ -8,7 +8,7 @@
 
 from uuid import UUID
 
-from sqlalchemy import and_, func, or_, select, text
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from sqlalchemy.sql.elements import ColumnElement
@@ -167,24 +167,18 @@ class CRUDDept(CRUDBase[Department, DeptCreate, DeptUpdate]):
         Returns:
             所有子部门 ID 列表
         """
-        # 使用 CTE 递归查询，一次性获取所有子部门
-        cte_sql = text("""
-            WITH RECURSIVE dept_tree AS (
-                -- 锚定成员：直接子部门
-                SELECT id FROM department
-                WHERE parent_id = :parent_id AND is_deleted = false
+        # 使用 SQLAlchemy 递归 CTE，避免不同数据库的类型绑定问题
+        base = select(Department.id).where(Department.parent_id == dept_id, Department.is_deleted.is_(False))
+        cte = base.cte(name="dept_tree", recursive=True)
+        recursive = select(Department.id).where(Department.parent_id == cte.c.id, Department.is_deleted.is_(False))
+        cte = cte.union_all(recursive)
 
-                UNION ALL
-
-                -- 递归成员：子部门的子部门
-                SELECT d.id FROM department d
-                INNER JOIN dept_tree dt ON d.parent_id = dt.id
-                WHERE d.is_deleted = false
-            )
-            SELECT id FROM dept_tree
-        """)
-        result = await db.execute(cte_sql, {"parent_id": str(dept_id)})
-        return [UUID(row[0]) for row in result.fetchall()]
+        result = await db.execute(select(cte.c.id))
+        ids = []
+        for row in result.fetchall():
+            value = row[0]
+            ids.append(value if isinstance(value, UUID) else UUID(str(value)))
+        return ids
 
     async def exists_code(self, db: AsyncSession, *, code: str, exclude_id: UUID | None = None) -> bool:
         """

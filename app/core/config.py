@@ -43,6 +43,8 @@ class Settings(BaseSettings):
     AUTH_REFRESH_COOKIE_NAME: str = "refresh_token"
     AUTH_CSRF_COOKIE_NAME: str = "csrf_token"
     AUTH_CSRF_HEADER_NAME: str = "X-CSRF-Token"
+    AUTH_CSRF_MAX_AGE_SECONDS: int = 6 * 3600  # CSRF 有效期（秒）
+    AUTH_REQUIRE_ORIGIN: bool = True  # 刷新接口是否要求 Origin/Referer
     AUTH_COOKIE_DOMAIN: str | None = None
     AUTH_COOKIE_SECURE: bool = False  # 生产环境应使用 https 并设为 True
     AUTH_COOKIE_SAMESITE: Literal["lax", "strict", "none"] = "lax"

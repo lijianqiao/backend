@@ -10,7 +10,10 @@
 - CSRF Token 放非 HttpOnly Cookie，前端读取后在请求头 X-CSRF-Token 回传。
 """
 
+import hashlib
+import hmac
 import secrets
+import time
 from typing import Literal
 
 from fastapi import Response
@@ -18,8 +21,61 @@ from fastapi import Response
 from app.core.config import settings
 
 
-def generate_csrf_token() -> str:
-    return secrets.token_urlsafe(32)
+def _csrf_sign(nonce: str, ts: int, subject: str | None = None) -> str:
+    if subject:
+        msg = f"{nonce}.{ts}.{subject}"
+    else:
+        msg = f"{nonce}.{ts}"
+    return hmac.new(settings.SECRET_KEY.encode("utf-8"), msg.encode("utf-8"), hashlib.sha256).hexdigest()
+
+
+def generate_csrf_token(subject: str | None = None) -> str:
+    nonce = secrets.token_urlsafe(16)
+    ts = int(time.time())
+    sig = _csrf_sign(nonce, ts, subject)
+    if subject:
+        return f"{nonce}.{ts}.{subject}.{sig}"
+    return f"{nonce}.{ts}.{sig}"
+
+
+def validate_csrf_token(token: str, *, max_age_seconds: int | None = None, subject: str | None = None) -> bool:
+    if not token:
+        return False
+    parts = token.split(".")
+    if len(parts) == 4:
+        nonce, ts_str, token_subject, sig = parts
+        if subject and token_subject != subject:
+            return False
+        try:
+            ts = int(ts_str)
+        except Exception:
+            return False
+        expected = _csrf_sign(nonce, ts, token_subject)
+    elif len(parts) == 3:
+        nonce, ts_str, sig = parts
+        if subject:
+            # 需要绑定用户时，旧格式 token 不予放行
+            return False
+        try:
+            ts = int(ts_str)
+        except Exception:
+            return False
+        expected = _csrf_sign(nonce, ts, None)
+    else:
+        return False
+
+    if not hmac.compare_digest(expected, sig):
+        return False
+
+    if max_age_seconds is not None:
+        now = int(time.time())
+        # 允许 60s 时钟偏差
+        if ts > now + 60:
+            return False
+        if now - ts > int(max_age_seconds):
+            return False
+
+    return True
 
 
 def _refresh_cookie_path() -> str:

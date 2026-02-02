@@ -40,6 +40,8 @@ async def init_redis() -> None:
         await redis_client.ping()  # type: ignore
         logger.info("Redis 连接成功")
     except Exception as e:
+        if settings.ENVIRONMENT in ("production", "staging"):
+            raise ValueError(f"[BLOCK] Redis 连接失败: {e}") from e
         logger.warning(f"Redis 连接失败，缓存功能将被禁用: {e}")
         redis_client = None
 

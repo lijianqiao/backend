@@ -19,6 +19,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core import security
 from app.core.config import settings
 from app.core.exceptions import CustomException, UnauthorizedException
+from app.core.logger import logger
 from app.core.session_store import remove_online_session, touch_online_session
 from app.core.token_store import (
     get_user_refresh_jti,
@@ -110,9 +111,11 @@ class AuthService:
 
             ttl_seconds = int(settings.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 3600)
             await set_user_refresh_jti(user_id=str(user.id), jti=str(refresh_jti), ttl_seconds=ttl_seconds)
-        except Exception:
-            # 不阻塞登录：存储失败时降级为“无服务端会话治理”，但 refresh 时会尽可能校验
-            pass
+        except Exception as e:
+            message = "认证服务不可用，请稍后再试"
+            if settings.ENVIRONMENT in ("production", "staging"):
+                raise CustomException(code=503, message=message) from e
+            logger.warning(f"refresh jti 存储异常 (login): {e}")
 
         # 记录成功日志 (异步)
         background_tasks.add_task(
@@ -161,11 +164,19 @@ class AuthService:
             raise UnauthorizedException(message="无效的刷新令牌 (用户ID格式错误)") from e
 
         user = await self.user_crud.get(self.db, id=user_uuid)
-        if not user or not user.is_active:
+        if not user or not user.is_active or getattr(user, "is_deleted", False):
             raise UnauthorizedException(message="用户不存在或已禁用")
 
         # 校验 refresh 是否仍为“当前有效”的那一个
-        stored_jti = await get_user_refresh_jti(user_id=str(user.id))
+        try:
+            stored_jti = await get_user_refresh_jti(user_id=str(user.id))
+        except Exception as e:
+            message = "认证服务不可用，请稍后再试"
+            if settings.ENVIRONMENT in ("production", "staging"):
+                raise CustomException(code=503, message=message) from e
+            logger.warning(f"refresh jti 读取异常 (refresh): {e}")
+            stored_jti = None
+
         if stored_jti is not None and str(stored_jti) != str(refresh_jti):
             raise UnauthorizedException(message="无效的刷新令牌")
 
@@ -189,9 +200,11 @@ class AuthService:
 
             ttl_seconds = int(settings.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 3600)
             await set_user_refresh_jti(user_id=str(user.id), jti=str(new_jti), ttl_seconds=ttl_seconds)
-        except Exception:
-            # 存储失败时仍返回新 refresh；此时无法做到“单端有效”，但不会影响基本可用性
-            pass
+        except Exception as e:
+            message = "认证服务不可用，请稍后再试"
+            if settings.ENVIRONMENT in ("production", "staging"):
+                raise CustomException(code=503, message=message) from e
+            logger.warning(f"refresh jti 存储异常 (refresh): {e}")
 
         # 在线会话：刷新时 touch（记录最后活跃）
         try:
