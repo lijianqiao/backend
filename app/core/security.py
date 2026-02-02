@@ -15,6 +15,9 @@ from pwdlib import PasswordHash
 
 from app.core.config import settings
 
+type Subject = str | Any
+type TokenStr = str
+
 password_context = PasswordHash.recommended()
 
 
@@ -26,7 +29,7 @@ def get_password_hash(password: str) -> str:
     return password_context.hash(password)
 
 
-def create_access_token(subject: str | Any, expires_delta: timedelta | None = None) -> str:
+def create_access_token(subject: Subject, expires_delta: timedelta | None = None) -> TokenStr:
     if expires_delta:
         expire = datetime.now(UTC) + expires_delta
     else:
@@ -45,7 +48,7 @@ def create_access_token(subject: str | Any, expires_delta: timedelta | None = No
     return encoded_jwt
 
 
-def create_refresh_token(subject: str | Any, expires_delta: timedelta | None = None) -> str:
+def create_refresh_token(subject: Subject, expires_delta: timedelta | None = None) -> TokenStr:
     if expires_delta:
         expire = datetime.now(UTC) + expires_delta
     else:

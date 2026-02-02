@@ -25,7 +25,7 @@ from app.core import cache
 from app.core.auth_cookies import csrf_cookie_name, csrf_header_name, refresh_cookie_name, validate_csrf_token
 from app.core.config import settings
 from app.core.db import AsyncSessionLocal
-from app.core.exceptions import ForbiddenException, NotFoundException, UnauthorizedException
+from app.core.exceptions import CustomException, ForbiddenException, NotFoundException, UnauthorizedException
 from app.core.logger import logger
 from app.core.token_store import get_user_revoked_after
 from app.crud.crud_dept import CRUDDept
@@ -51,6 +51,8 @@ from app.services.permission_service import PermissionService
 from app.services.role_service import RoleService
 from app.services.session_service import SessionService
 from app.services.user_service import UserService
+
+type PermissionSet = set[str]
 
 # -----------------------
 
@@ -134,6 +136,8 @@ async def get_current_user(request: Request, session: SessionDep, token: TokenDe
     except UnauthorizedException:
         raise
     except Exception as e:
+        if settings.ENVIRONMENT in ("production", "staging"):
+            raise CustomException(code=503, message="认证服务不可用，请稍后再试") from e
         # 存储不可用时不阻断请求，但记录告警
         logger.warning(f"revoked_after 校验失败: {e}")
 
@@ -147,7 +151,7 @@ async def get_current_user(request: Request, session: SessionDep, token: TokenDe
         return user
 
     permissions_cache_key = f"v1:user:permissions:{user.id}"
-    permissions: set[str] = set()
+    permissions: PermissionSet = set()
 
     if cache.redis_client is not None:
         try:

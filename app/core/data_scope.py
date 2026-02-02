@@ -15,13 +15,15 @@ from app.core.enums import DataScope
 from app.crud.crud_dept import CRUDDept
 from app.models.user import User
 
+type DeptIdList = list[UUID] | None
+
 
 async def get_user_dept_ids(
     db: AsyncSession,
     user: User,
     data_scope: DataScope,
     dept_crud: CRUDDept,
-) -> list[UUID] | None:
+) -> DeptIdList:
     """
     根据数据权限范围获取用户可访问的部门 ID 列表。
 
@@ -72,7 +74,7 @@ async def get_user_dept_ids(
 
 def apply_dept_filter(
     stmt: Select,
-    dept_ids: list[UUID] | None,
+    dept_ids: DeptIdList,
     user_id: UUID | None = None,
     dept_column=None,
     created_by_column=None,

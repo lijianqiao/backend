@@ -20,6 +20,10 @@ from fastapi import Response
 
 from app.core.config import settings
 
+type CsrfToken = str
+type CookieName = str
+type Seconds = int
+
 
 def _csrf_sign(nonce: str, ts: int, subject: str | None = None) -> str:
     if subject:
@@ -29,7 +33,7 @@ def _csrf_sign(nonce: str, ts: int, subject: str | None = None) -> str:
     return hmac.new(settings.SECRET_KEY.encode("utf-8"), msg.encode("utf-8"), hashlib.sha256).hexdigest()
 
 
-def generate_csrf_token(subject: str | None = None) -> str:
+def generate_csrf_token(subject: str | None = None) -> CsrfToken:
     nonce = secrets.token_urlsafe(16)
     ts = int(time.time())
     sig = _csrf_sign(nonce, ts, subject)
@@ -38,7 +42,9 @@ def generate_csrf_token(subject: str | None = None) -> str:
     return f"{nonce}.{ts}.{sig}"
 
 
-def validate_csrf_token(token: str, *, max_age_seconds: int | None = None, subject: str | None = None) -> bool:
+def validate_csrf_token(
+    token: CsrfToken, *, max_age_seconds: Seconds | None = None, subject: str | None = None
+) -> bool:
     if not token:
         return False
     parts = token.split(".")
@@ -88,15 +94,15 @@ def _csrf_cookie_path() -> str:
     return "/"
 
 
-def refresh_cookie_name() -> str:
+def refresh_cookie_name() -> CookieName:
     return getattr(settings, "AUTH_REFRESH_COOKIE_NAME", "refresh_token")
 
 
-def csrf_cookie_name() -> str:
+def csrf_cookie_name() -> CookieName:
     return getattr(settings, "AUTH_CSRF_COOKIE_NAME", "csrf_token")
 
 
-def csrf_header_name() -> str:
+def csrf_header_name() -> CookieName:
     return getattr(settings, "AUTH_CSRF_HEADER_NAME", "X-CSRF-Token")
 
 
@@ -118,9 +124,11 @@ def cookie_secure() -> bool:
 
 def cookie_samesite() -> Literal["lax", "strict", "none"]:
     v = str(getattr(settings, "AUTH_COOKIE_SAMESITE", "lax")).lower().strip()
-    if v not in ("lax", "strict", "none"):
-        return "lax"
-    return v  # type: ignore[return-value]
+    match v:
+        case "lax" | "strict" | "none":
+            return v
+        case _:
+            return "lax"
 
 
 def set_refresh_cookie(response: Response, refresh_token: str) -> None:
@@ -136,7 +144,7 @@ def set_refresh_cookie(response: Response, refresh_token: str) -> None:
     )
 
 
-def set_csrf_cookie(response: Response, csrf_token: str) -> None:
+def set_csrf_cookie(response: Response, csrf_token: CsrfToken) -> None:
     response.set_cookie(
         key=csrf_cookie_name(),
         value=csrf_token,

@@ -9,9 +9,9 @@
 from datetime import UTC, datetime
 from uuid import UUID
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.exceptions import NotFoundException
 from app.core.session_store import list_online_sessions, remove_online_session, remove_online_sessions
 from app.core.token_store import (
     revoke_user_access_now,
@@ -20,6 +20,7 @@ from app.core.token_store import (
     revoke_users_refresh,
 )
 from app.crud.crud_user import CRUDUser
+from app.models.user import User
 from app.schemas.session import OnlineSessionResponse
 
 
@@ -33,11 +34,46 @@ class SessionService:
     ) -> tuple[list[OnlineSessionResponse], int]:
         sessions, total = await list_online_sessions(page=page, page_size=page_size, keyword=keyword)
 
+        # 清理已注销/禁用/不存在的用户会话
+        user_ids: list[UUID] = []
+        for s in sessions:
+            try:
+                user_ids.append(UUID(str(s.user_id)))
+            except Exception:
+                # 不合法的 user_id 直接清理
+                await remove_online_session(user_id=str(s.user_id))
+                continue
+
+        valid_status: dict[UUID, tuple[bool, bool]] = {}
+        if user_ids:
+            result = await self.db.execute(
+                select(User.id, User.is_active, User.is_deleted).where(User.id.in_(user_ids))
+            )
+            valid_status = {row[0]: (bool(row[1]), bool(row[2])) for row in result.all()}
+
         items: list[OnlineSessionResponse] = []
+        removed_count = 0
         for s in sessions:
             try:
                 uid = UUID(str(s.user_id))
             except Exception:
+                continue
+
+            status = valid_status.get(uid)
+            if status is None:
+                # 用户不存在，清理会话并撤销
+                await revoke_user_refresh(user_id=str(uid))
+                await revoke_user_access_now(user_id=str(uid))
+                await remove_online_session(user_id=str(uid))
+                removed_count += 1
+                continue
+
+            is_active, is_deleted = status
+            if not is_active or is_deleted:
+                await revoke_user_refresh(user_id=str(uid))
+                await revoke_user_access_now(user_id=str(uid))
+                await remove_online_session(user_id=str(uid))
+                removed_count += 1
                 continue
 
             items.append(
@@ -51,12 +87,18 @@ class SessionService:
                 )
             )
 
+        if removed_count:
+            total = max(0, total - removed_count)
         return items, total
 
     async def kick_user(self, *, user_id: UUID) -> None:
         user = await self.user_crud.get(self.db, id=user_id)
         if not user:
-            raise NotFoundException(message="用户不存在")
+            # 允许清理已注销/不存在用户的残留会话
+            await revoke_user_refresh(user_id=str(user_id))
+            await revoke_user_access_now(user_id=str(user_id))
+            await remove_online_session(user_id=str(user_id))
+            return
 
         await revoke_user_refresh(user_id=str(user_id))
         await revoke_user_access_now(user_id=str(user_id))
@@ -67,14 +109,17 @@ class SessionService:
         if not unique_ids:
             return 0, []
 
-        # 仅踢存在的用户（避免把错误 ID 当成功）
+        # 对不存在的用户也清理残留会话，避免列表脏数据
         success: list[UUID] = []
         failed: list[UUID] = []
 
         for uid in unique_ids:
             user = await self.user_crud.get(self.db, id=uid)
             if not user:
-                failed.append(uid)
+                await revoke_user_refresh(user_id=str(uid))
+                await revoke_user_access_now(user_id=str(uid))
+                await remove_online_session(user_id=str(uid))
+                success.append(uid)
             else:
                 success.append(uid)
 

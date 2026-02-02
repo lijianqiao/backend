@@ -8,13 +8,15 @@
 
 from typing import Any
 
+type ErrorDetails = Any
+
 
 class CustomException(Exception):
     """
     业务逻辑基础异常类。
     """
 
-    def __init__(self, code: int, message: str, details: Any = None):
+    def __init__(self, code: int, message: str, details: ErrorDetails = None):
         self.code = code
         self.message = message
         self.details = details

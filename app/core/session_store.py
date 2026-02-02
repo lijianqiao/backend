@@ -20,22 +20,28 @@ from app.core import cache
 from app.core.config import settings
 from app.core.logger import logger
 
+type UserId = str
+type Seconds = int
+type Timestamp = float
+type SessionList = list["OnlineSession"]
+type SessionListResult = tuple[SessionList, int]
+
 
 @dataclass(frozen=True, slots=True)
 class OnlineSession:
-    user_id: str
+    user_id: UserId
     username: str
     ip: str | None
     user_agent: str | None
-    login_at: float
-    last_seen_at: float
+    login_at: Timestamp
+    last_seen_at: Timestamp
 
 
 def _online_zset_key() -> str:
     return "v1:auth:online:zset"
 
 
-def _session_key(user_id: str) -> str:
+def _session_key(user_id: UserId) -> str:
     return f"v1:auth:session:{user_id}"
 
 
@@ -44,27 +50,25 @@ def _default_online_ttl_seconds() -> int:
 
 
 class SessionStore:
-    async def upsert_session(self, session: OnlineSession, ttl_seconds: int) -> None:
+    async def upsert_session(self, session: OnlineSession, ttl_seconds: Seconds) -> None:
         raise NotImplementedError
 
-    async def get_session(self, user_id: str) -> OnlineSession | None:
+    async def get_session(self, user_id: UserId) -> OnlineSession | None:
         raise NotImplementedError
 
-    async def remove_session(self, user_id: str) -> None:
+    async def remove_session(self, user_id: UserId) -> None:
         raise NotImplementedError
 
-    async def list_online(
-        self, *, page: int, page_size: int, keyword: str | None = None
-    ) -> tuple[list[OnlineSession], int]:
+    async def list_online(self, *, page: int, page_size: int, keyword: str | None = None) -> SessionListResult:
         raise NotImplementedError
 
-    async def remove_sessions(self, user_ids: Iterable[str]) -> None:
+    async def remove_sessions(self, user_ids: Iterable[UserId]) -> None:
         for uid in user_ids:
             await self.remove_session(uid)
 
 
 class RedisSessionStore(SessionStore):
-    async def upsert_session(self, session: OnlineSession, ttl_seconds: int) -> None:
+    async def upsert_session(self, session: OnlineSession, ttl_seconds: Seconds) -> None:
         if cache.redis_client is None:
             return
 
@@ -89,7 +93,7 @@ class RedisSessionStore(SessionStore):
         except Exception:
             pass
 
-    async def get_session(self, user_id: str) -> OnlineSession | None:
+    async def get_session(self, user_id: UserId) -> OnlineSession | None:
         if cache.redis_client is None:
             return None
 
@@ -111,7 +115,7 @@ class RedisSessionStore(SessionStore):
             logger.warning(f"在线会话读取失败(REDIS): {e}")
             return None
 
-    async def remove_session(self, user_id: str) -> None:
+    async def remove_session(self, user_id: UserId) -> None:
         if cache.redis_client is None:
             return
 
@@ -123,7 +127,7 @@ class RedisSessionStore(SessionStore):
         except Exception as e:
             logger.warning(f"在线会话删除失败(REDIS): {e}")
 
-    async def remove_user_sessions_by_user_id(self, user_id: str) -> None:
+    async def remove_user_sessions_by_user_id(self, user_id: UserId) -> None:
         """按 user_id 删除该用户的所有在线会话记录（兼容历史数据）。
 
         说明：
@@ -183,7 +187,7 @@ class RedisSessionStore(SessionStore):
         except Exception as e:
             logger.warning(f"在线会话按用户清理失败(REDIS): {e}")
 
-    async def remove_user_sessions_many_by_user_ids(self, user_ids: Iterable[str]) -> None:
+    async def remove_user_sessions_many_by_user_ids(self, user_ids: Iterable[UserId]) -> None:
         """批量按 user_id 删除会话（兼容历史数据）。"""
 
         if cache.redis_client is None:
@@ -239,9 +243,7 @@ class RedisSessionStore(SessionStore):
         except Exception as e:
             logger.warning(f"在线会话批量按用户清理失败(REDIS): {e}")
 
-    async def list_online(
-        self, *, page: int, page_size: int, keyword: str | None = None
-    ) -> tuple[list[OnlineSession], int]:
+    async def list_online(self, *, page: int, page_size: int, keyword: str | None = None) -> SessionListResult:
         if cache.redis_client is None:
             return [], 0
 
@@ -255,7 +257,7 @@ class RedisSessionStore(SessionStore):
         zkey = _online_zset_key()
 
         # 全量扫描并去重：保证同一 user_id 只返回一条，并顺手清理脏数据
-        sessions_by_user: dict[str, OnlineSession] = {}
+        sessions_by_user: dict[UserId, OnlineSession] = {}
         cursor = 0
         try:
             while True:
@@ -318,14 +320,14 @@ class MemorySessionStore(SessionStore):
     def __init__(self) -> None:
         self._lock = asyncio.Lock()
         # user_id -> (session, expire_at)
-        self._data: dict[str, tuple[OnlineSession, float]] = {}
+        self._data: dict[UserId, tuple[OnlineSession, Timestamp]] = {}
 
-    async def upsert_session(self, session: OnlineSession, ttl_seconds: int) -> None:
+    async def upsert_session(self, session: OnlineSession, ttl_seconds: Seconds) -> None:
         expire_at = time.time() + max(1, int(ttl_seconds))
         async with self._lock:
             self._data[session.user_id] = (session, expire_at)
 
-    async def get_session(self, user_id: str) -> OnlineSession | None:
+    async def get_session(self, user_id: UserId) -> OnlineSession | None:
         now = time.time()
         async with self._lock:
             value = self._data.get(user_id)
@@ -337,13 +339,11 @@ class MemorySessionStore(SessionStore):
                 return None
             return session
 
-    async def remove_session(self, user_id: str) -> None:
+    async def remove_session(self, user_id: UserId) -> None:
         async with self._lock:
             self._data.pop(user_id, None)
 
-    async def list_online(
-        self, *, page: int, page_size: int, keyword: str | None = None
-    ) -> tuple[list[OnlineSession], int]:
+    async def list_online(self, *, page: int, page_size: int, keyword: str | None = None) -> SessionListResult:
         if page < 1:
             page = 1
         if page_size < 1:
@@ -386,12 +386,12 @@ def get_session_store() -> SessionStore:
 
 async def touch_online_session(
     *,
-    user_id: str,
+    user_id: UserId,
     username: str,
     ip: str | None,
     user_agent: str | None,
-    ttl_seconds: int | None = None,
-    login_at: float | None = None,
+    ttl_seconds: Seconds | None = None,
+    login_at: Timestamp | None = None,
 ) -> None:
     now = time.time()
     ttl = _default_online_ttl_seconds() if ttl_seconds is None else int(ttl_seconds)
@@ -408,7 +408,7 @@ async def touch_online_session(
     await get_session_store().upsert_session(session, ttl_seconds=ttl)
 
 
-async def remove_online_session(*, user_id: str) -> None:
+async def remove_online_session(*, user_id: UserId) -> None:
     store = get_session_store()
     if isinstance(store, RedisSessionStore):
         await store.remove_user_sessions_by_user_id(user_id)
@@ -416,7 +416,7 @@ async def remove_online_session(*, user_id: str) -> None:
     await store.remove_session(user_id)
 
 
-async def remove_online_sessions(*, user_ids: Iterable[str]) -> None:
+async def remove_online_sessions(*, user_ids: Iterable[UserId]) -> None:
     store = get_session_store()
     if isinstance(store, RedisSessionStore):
         await store.remove_user_sessions_many_by_user_ids(user_ids)
@@ -424,7 +424,5 @@ async def remove_online_sessions(*, user_ids: Iterable[str]) -> None:
     await store.remove_sessions(user_ids)
 
 
-async def list_online_sessions(
-    *, page: int = 1, page_size: int = 20, keyword: str | None = None
-) -> tuple[list[OnlineSession], int]:
+async def list_online_sessions(*, page: int = 1, page_size: int = 20, keyword: str | None = None) -> SessionListResult:
     return await get_session_store().list_online(page=page, page_size=page_size, keyword=keyword)

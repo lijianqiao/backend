@@ -18,6 +18,9 @@ import redis.asyncio as redis
 from app.core.config import settings
 from app.core.logger import logger
 
+type CacheKey = str
+type CachePattern = str
+
 RT = TypeVar("RT")
 
 # Redis 连接池 (应用启动时初始化)
@@ -58,7 +61,7 @@ async def close_redis() -> None:
     logger.info("Redis 连接已关闭")
 
 
-def _generate_cache_key(prefix: str, func: Callable, args: tuple, kwargs: dict) -> str:
+def _generate_cache_key(prefix: str, func: Callable, args: tuple, kwargs: dict) -> CacheKey:
     """
     根据函数名和参数生成缓存 Key。
     """
@@ -114,7 +117,7 @@ def cache(prefix: str = "cache", expire: int = 300) -> Callable:
     return decorator
 
 
-async def invalidate_cache(pattern: str) -> int:
+async def invalidate_cache(pattern: CachePattern) -> int:
     """
     根据 Key 模式失效缓存。
 

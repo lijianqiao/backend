@@ -93,6 +93,16 @@ async def pydantic_validation_exception_handler(request: Request, exc: Validatio
     )
 
 
+async def runtime_exception_handler(request: Request, exc: RuntimeError):
+    """
+    运行时错误处理器（用于基础设施类异常）。
+    """
+    return JSONResponse(
+        status_code=503,
+        content={"error_code": 503, "message": str(exc) or "服务不可用", "details": None},
+    )
+
+
 def register_exception_handlers(app: FastAPI) -> None:
     """
     注册所有全局异常处理器。
@@ -100,3 +110,4 @@ def register_exception_handlers(app: FastAPI) -> None:
     app.add_exception_handler(CustomException, custom_exception_handler)  # type: ignore
     app.add_exception_handler(RequestValidationError, validation_exception_handler)  # type: ignore
     app.add_exception_handler(ValidationError, pydantic_validation_exception_handler)  # type: ignore
+    app.add_exception_handler(RuntimeError, runtime_exception_handler)  # type: ignore
